@@ -1,0 +1,38 @@
+# ---------------------------------------------------------------------------
+# DATOS DE CARTERA: NUNCA SE VERSIONAN
+# ---------------------------------------------------------------------------
+# Las asignaciones contienen datos personales de titulares reales, protegidos
+# por la Ley 1581 de 2012. Ningún archivo de datos entra al repositorio, ni
+# siquiera anonimizado: el código se versiona, los datos no.
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.parquet
+datos/entrada/
+salidas/
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# ---------------------------------------------------------------------------
+# CONFIGURACIÓN LOCAL Y CREDENCIALES
+# ---------------------------------------------------------------------------
+.env
+.streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# ENTORNO Y ARTEFACTOS
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Editores y sistema operativo
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

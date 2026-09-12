@@ -1,0 +1,31 @@
+# Dependencias del Sistema Inteligente de Gestión de Cartera
+# ---------------------------------------------------------------------------
+# Versiones fijadas: el mismo comando instala exactamente lo mismo en cualquier
+# máquina y en el despliegue, y los modelos producen los mismos resultados.
+
+# --- Lectura y manejo de datos ----------------------------------------------
+pandas==2.2.3
+numpy==2.1.3
+openpyxl==3.1.5          # lectura de los archivos de asignación en Excel
+
+# --- Modelos de aprendizaje automático -------------------------------------
+# Árboles de decisión, KNN, K-Means, escalado y métricas de evaluación.
+scikit-learn==1.5.2
+
+# --- Lógica difusa ----------------------------------------------------------
+scikit-fuzzy==0.5.0
+scipy==1.14.1
+
+# --- Visualización ----------------------------------------------------------
+plotly==5.24.1
+matplotlib==3.9.2
+
+# --- Interfaz web -----------------------------------------------------------
+streamlit==1.40.1
+
+# --- Persistencia -----------------------------------------------------------
+# SQLAlchemy abstrae el motor: SQLite en local, PostgreSQL (Supabase) en la
+# nube, sin cambiar el código que consulta los datos.
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
