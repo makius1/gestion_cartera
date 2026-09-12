@@ -1,0 +1,8 @@
+# Normaliza los finales de linea: Windows en local, Linux en Codespaces.
+# Sin esto, Git marcaria archivos completos como modificados al cambiar de entorno.
+* text=auto eol=lf
+
+# Binarios: Git los versiona sin intentar calcular diferencias linea por linea.
+*.xlsx binary
+*.png  binary
+*.pdf  binary
