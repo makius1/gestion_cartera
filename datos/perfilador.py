@@ -34,6 +34,10 @@ from datos.cargador import leer_bruto, _clasificar_gestion
 
 RUTA_PERFIL = config.RAIZ / "datos" / "perfil_cartera.json"
 
+# Perfil de demostración: el único que se versiona y el que usa el generador
+# por defecto. Ver publicar_perfil_demo().
+RUTA_PERFIL_DEMO = config.RAIZ / "datos" / "perfil_demo.json"
+
 # Puntos de corte de los cuantiles: 100 valores entre el 0.5 % y el 99.5 %.
 NIVELES = np.linspace(0.005, 0.995, 100)
 
@@ -208,6 +212,89 @@ def extraer_perfil(bruto):
     }
 
 
+def _redondear_arbol(nodo, decimales=None, multiplo=None):
+    """Redondea todos los números de una estructura anidada de listas y dicts."""
+    if isinstance(nodo, dict):
+        return {k: _redondear_arbol(v, decimales, multiplo) for k, v in nodo.items()}
+    if isinstance(nodo, list):
+        return [_redondear_arbol(v, decimales, multiplo) for v in nodo]
+    if multiplo:
+        return max(multiplo, int(round(nodo / multiplo) * multiplo))
+    if decimales == 0:
+        return int(round(nodo))
+    return round(nodo, decimales)
+
+
+def _proporciones_publicas(frecuencias, renombrar=None):
+    """Redondea proporciones a tres decimales sin perder las categorías raras.
+
+    Una categoría presente pero muy poco frecuente se redondearía a cero y
+    desaparecería de la cartera generada; se le deja un piso de 0.001.
+    """
+    salida = {}
+    for i, (clave, valor) in enumerate(frecuencias.items()):
+        nombre = renombrar[i] if renombrar and i < len(renombrar) else clave
+        salida[nombre] = max(0.001, round(valor, 3))
+    return salida
+
+
+def publicar_perfil_demo(perfil):
+    """Convierte el perfil de la cartera real en un perfil de demostración.
+
+    El perfil real ya no contiene datos personales, pero describe la cartera de
+    un cliente concreto: su tamaño exacto, la forma precisa de sus saldos y el
+    nombre de su producto. El perfil de demostración conserva la estructura y
+    las relaciones entre variables, que es lo que hace útil una cartera de
+    prueba, y retira lo que la identifica:
+
+      * El tamaño se fija en 5.000 cuentas, en lugar del número real.
+      * Las proporciones se redondean a tres decimales.
+      * Los montos se redondean a miles, los días a enteros y las razones a
+        tres decimales.
+      * El nombre del producto se reemplaza por una etiqueta genérica.
+
+    Es el único perfil que se versiona y el que usa el generador por defecto.
+    """
+    cuant = perfil["cuantiles"]
+    montos = {"SALDO", "SALDO|CODIGO"}
+    dias = {"DIAS MORA HOY", "DIAS MORA HOY|MES ASIG", "DESFASE_MORA", "DIAS_DESDE_GESTION"}
+
+    cuantiles = {}
+    for clave, valor in cuant.items():
+        if clave in montos:
+            cuantiles[clave] = _redondear_arbol(valor, multiplo=1000)
+        elif clave in dias:
+            cuantiles[clave] = _redondear_arbol(valor, decimales=0)
+        else:
+            cuantiles[clave] = _redondear_arbol(valor, decimales=3)
+
+    cat = perfil["categoricas"]
+    categoricas = {clave: _proporciones_publicas(valor) for clave, valor in cat.items()}
+    categoricas["TIPO DE PRODUCTO"] = _proporciones_publicas(
+        cat["TIPO DE PRODUCTO"], renombrar=["CONSUMO", "PORTAFOLIO"])
+
+    cond = perfil["condicionales"]
+    return {
+        "version": perfil["version"],
+        "descripcion": ("Perfil de demostración: agregados redondeados de una cartera "
+                        "de referencia, con etiquetas genéricas. No contiene datos "
+                        "personales ni identifica a ningún cliente."),
+        "n_registros": 5000,
+        "categoricas": categoricas,
+        "condicionales": {
+            "ESTADO|CODIGO": {k: _proporciones_publicas(v) for k, v in cond["ESTADO|CODIGO"].items()},
+            "RESULTADO|CODIGO": {k: _proporciones_publicas(v) for k, v in cond["RESULTADO|CODIGO"].items()},
+            "PROYECTA|CODIGO": _redondear_arbol(cond["PROYECTA|CODIGO"], decimales=3),
+        },
+        "cuantiles": cuantiles,
+        "proporciones": _redondear_arbol(perfil["proporciones"], decimales=3),
+        "gestores": {
+            "cantidad": perfil["gestores"]["cantidad"],
+            "pesos": _redondear_arbol(perfil["gestores"]["pesos"], decimales=3),
+        },
+    }
+
+
 def guardar_perfil(perfil, ruta=RUTA_PERFIL):
     """Escribe el perfil en disco como JSON legible."""
     with open(ruta, "w", encoding="utf-8") as archivo:
@@ -215,9 +302,9 @@ def guardar_perfil(perfil, ruta=RUTA_PERFIL):
     return ruta
 
 
-def cargar_perfil(ruta=RUTA_PERFIL):
-    """Lee un perfil previamente extraído."""
-    with open(ruta, encoding="utf-8") as archivo:
+def cargar_perfil(ruta=None):
+    """Lee un perfil. Por defecto, el de demostración que viene con el proyecto."""
+    with open(ruta or RUTA_PERFIL_DEMO, encoding="utf-8") as archivo:
         return json.load(archivo)
 
 
@@ -225,10 +312,12 @@ if __name__ == "__main__":
     print("Extrayendo perfil estadístico de la asignación real...")
     perfil = extraer_perfil(leer_bruto())
     ruta = guardar_perfil(perfil)
+    ruta_demo = guardar_perfil(publicar_perfil_demo(perfil), RUTA_PERFIL_DEMO)
 
     print("  Registros analizados : {:,}".format(perfil["n_registros"]))
     print("  Códigos de gestión   : {}".format(len(perfil["categoricas"]["CODIGO"])))
     print("  Ciudades conservadas : {}".format(len(perfil["categoricas"]["CIUDAD"])))
     print("  Gestores (sin nombre): {}".format(perfil["gestores"]["cantidad"]))
     print("  Variables numéricas  : {}".format(len(perfil["cuantiles"])))
-    print("  Guardado en          : {}".format(ruta.relative_to(config.RAIZ)))
+    print("  Perfil real (privado): {}".format(ruta.relative_to(config.RAIZ)))
+    print("  Perfil de demostración: {}".format(ruta_demo.relative_to(config.RAIZ)))
