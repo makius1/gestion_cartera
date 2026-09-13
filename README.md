@@ -59,16 +59,36 @@ regla. Los modelos de lenguaje, si se integran, quedan en el borde del sistema
 ## Protección de datos
 
 Las asignaciones contienen datos personales de titulares reales, protegidos por
-la **Ley 1581 de 2012**. El sistema aplica tres reglas:
+la **Ley 1581 de 2012**. El sistema aplica cuatro reglas:
 
 1. **Ningún dato entra al repositorio.** El `.gitignore` excluye todo archivo
    Excel, CSV y base de datos. Se versiona el código, no la información.
 2. **La identidad no circula por el sistema.** El módulo de carga reemplaza la
-   cédula por un seudónimo SHA-256 estable e irreversible, convierte teléfonos y
-   correos en un conteo de canales disponibles, y elimina nombres y direcciones
-   antes de cualquier análisis.
+   cédula y el número de crédito por seudónimos firmados con HMAC-SHA256 y una
+   clave secreta, convierte teléfonos y correos en un conteo de canales
+   disponibles, y elimina nombres y direcciones antes de cualquier análisis.
+   La firma con clave no es un detalle: un hash simple de una cédula se puede
+   revertir probando los diez mil millones de valores posibles en minutos; sin
+   la clave, no.
 3. **La configuración sensible vive en `.env`**, fuera del control de versiones:
-   rutas internas, nombres de clientes y credenciales.
+   rutas internas, nombres de clientes, credenciales y la clave de seudónimos.
+4. **Los datos reales no suben a la nube por descuido.** La base de datos se
+   niega a guardar una carga de origen REAL en un servidor remoto salvo
+   confirmación explícita.
+
+### Datos de prueba
+
+El sistema ofrece dos formas de trabajar sin exponer la cartera real:
+
+| Modo | Qué hace | ¿Puede salir de la empresa? |
+|---|---|---|
+| **Sintético** | Genera una cartera desde cero a partir de un perfil estadístico. Ningún registro corresponde a una persona real. | Sí: se puede compartir, subir a la nube o usar en una demostración. |
+| **Enmascarado** | Toma la cartera real y reemplaza solo la identidad: nombres, documentos, créditos, teléfonos, correos, direcciones y gestores. Los montos, las moras y los códigos siguen siendo reales. | **No.** Quien tenga el archivo original puede reidentificar cruzando montos y fechas: sigue siendo dato personal. |
+
+Los datos ficticios están diseñados para no poder usarse por error en una
+campaña real: los documentos van en un rango que no corresponde a cédulas
+expedidas, los correos usan el dominio `.test` reservado para pruebas, los
+celulares usan el prefijo 399 y todo registro lleva la marca `ES_DEMO`.
 
 ---
 
@@ -78,7 +98,10 @@ la **Ley 1581 de 2012**. El sistema aplica tres reglas:
 .
 ├── config.py            Parámetros del negocio, normativa de contacto y rutas
 ├── datos/
-│   └── cargador.py      Carga, limpieza, anonimización y variables derivadas
+│   ├── cargador.py      Carga, limpieza, seudonimización y variables derivadas
+│   ├── perfilador.py    Perfil estadístico agregado de una asignación real
+│   ├── generador.py     Carteras sintéticas y enmascarado de carteras reales
+│   └── base_datos.py    Esquema, cargas históricas y consultas
 ├── .env.example         Plantilla de configuración local
 ├── .gitignore           Excluye datos, credenciales y entorno virtual
 ├── requirements.txt     Dependencias con versiones fijadas
@@ -119,7 +142,7 @@ Copiar `.env.example` como `.env` y definir la ruta del archivo de asignación.
 
 ## Uso
 
-Perfilar una asignación:
+### Diagnóstico de una asignación
 
 ```bash
 python datos/cargador.py
@@ -131,18 +154,101 @@ compromisos por tipo de acuerdo, contactabilidad, antigüedad en gestión y marg
 de negociación. Al final verifica que ninguna columna con datos personales haya
 llegado a la salida.
 
+### Generar datos de prueba
+
+Extraer el perfil estadístico de la asignación real (una sola vez):
+
+```bash
+python datos/perfilador.py
+```
+
+Generar una cartera sintética del mismo tamaño y compararla con la real:
+
+```bash
+python -m datos.generador --validar
+```
+
+Generar una cartera sintética de otro tamaño:
+
+```bash
+python -m datos.generador --registros 1000
+```
+
+Enmascarar la cartera real para pruebas internas:
+
+```bash
+python -m datos.generador --enmascarar
+```
+
+### Base de datos
+
+Crear las tablas:
+
+```bash
+python -m datos.base_datos crear
+```
+
+Cargar una cartera sintética:
+
+```bash
+python -m datos.base_datos sintetica
+```
+
+Cargar la asignación real (solo en la base local):
+
+```bash
+python -m datos.base_datos real
+```
+
+Listar las cargas registradas:
+
+```bash
+python -m datos.base_datos cargas
+```
+
+Cada carga se conserva junto a las anteriores: la tabla `cartera` usa como
+llave el par (carga, crédito), de modo que una cuenta aparece una vez por cada
+mes en que fue asignada. Es lo que permite entrenar modelos con historia real.
+
 ---
 
 ## Estado del proyecto
 
 | Fase | Módulo | Estado |
 |---|---|---|
-| 1 | Carga, limpieza y anonimización | ✅ |
+| 1 | Carga, limpieza y seudonimización | ✅ |
+| 1b | Base de datos con historial de cargas | ✅ |
+| 1c | Generación de datos sintéticos y enmascarado | ✅ |
 | 2 | Motor de reglas de elegibilidad de contacto | Pendiente |
 | 3 | Segmentación y priorización | Pendiente |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
 | 5 | Optimización de campañas y asignación | Pendiente |
 | 6 | Tablero web | Pendiente |
+
+---
+
+## Validación del generador sintético
+
+Comparación de la cartera sintética contra la real, ambas procesadas por el
+mismo cargador:
+
+| Métrica | Diferencia |
+|---|---|
+| Saldo total | −0.7 % |
+| Saldo mediano | −1.3 % |
+| Mora mediana | 0.0 % |
+| Cuentas nunca gestionadas | −3.7 % |
+| Cuentas sin margen | −3.8 % |
+
+La cantidad de compromisos de pago varía entre generaciones porque son apenas
+el 1.5 % de las cuentas: en ocho generaciones con semillas distintas oscila
+entre 93 y 130 y promedia exactamente lo mismo que la cartera real.
+
+**Limitación conocida:** el margen de negociación promedio queda
+sistemáticamente un 10 % por debajo del real. El generador conserva las
+relaciones entre variables que más pesan en el recaudo —saldo según código,
+mora según mes de asignación, margen según franja—, pero no todas; el margen
+depende además de alguna variable que no se está condicionando.
 
 ---
 

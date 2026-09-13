@@ -36,3 +36,12 @@ __pycache__/
 .idea/
 Thumbs.db
 desktop.ini
+
+# ---------------------------------------------------------------------------
+# PERFIL ESTADISTICO DE LA CARTERA
+# ---------------------------------------------------------------------------
+# No contiene datos personales (solo frecuencias y cuantiles agregados), pero
+# describe la forma de la cartera del cliente: tamano, distribucion de saldos,
+# codigos de gestion y productos. Por las clausulas de confidencialidad se
+# mantiene fuera del repositorio. Se regenera con: python datos/perfilador.py
+datos/perfil_cartera.json
