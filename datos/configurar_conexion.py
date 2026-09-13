@@ -173,9 +173,6 @@ if __name__ == "__main__":
         print("  FALLÓ: {}".format(diagnosticar(error)))
         raise SystemExit(1)
 
-    print("  Motor           : {}".format(estado["motor"]))
-    print("  Versión         : {}".format(estado["version"]))
-    print("  Conexión cifrada: {}".format("sí (SSL)" if estado["ssl"] else "NO"))
-    print("  Latencia        : {} ms".format(estado["latencia_ms"]))
-    print("  Tablas          : {}".format(estado["tablas"] or "ninguna todavía"))
+    from datos.base_datos import formatear_estado
+    print("\n".join(formatear_estado(estado)))
     print("\nListo. Siguiente paso: python -m datos.base_datos sintetica")

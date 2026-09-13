@@ -143,30 +143,77 @@ def crear_esquema(motor=None):
     return sorted(inspect(motor).get_table_names())
 
 
+def _cifrado_del_cliente(conexion):
+    """Protocolo de cifrado entre este equipo y el servidor, o False si no hay.
+
+    Se consulta al CLIENTE y no al servidor a propósito. Detrás de un pooler
+    como el de Supabase hay dos tramos: equipo → pooler, que viaja por
+    internet, y pooler → PostgreSQL, que ocurre dentro de la red del proveedor.
+    Preguntarle a PostgreSQL por su conexión (pg_stat_ssl) describe el segundo
+    tramo, y puede decir que no hay cifrado aunque el tramo que sale a internet
+    sí lo tenga. Lo que importa proteger es el primero.
+    """
+    try:
+        info = conexion.connection.dbapi_connection.info
+        return (info.ssl_attribute("protocol") or "sí") if info.ssl_in_use else False
+    except AttributeError:
+        return None
+
+
+def _milisegundos(desde):
+    return round((datetime.now() - desde).total_seconds() * 1000)
+
+
 def probar_conexion():
     """Verifica la conexión y resume el estado de la base.
 
     Es lo primero que conviene ejecutar al configurar un servidor nuevo: si
     falla aquí, el problema es de red o de credenciales y no del sistema.
+
+    Mide por separado el tiempo de abrir la conexión y el de una consulta. La
+    apertura incluye la negociación del cifrado y la autenticación, y ocurre una
+    sola vez; la consulta es lo que tarda cada operación después.
     """
     motor = obtener_motor()
     inicio = datetime.now()
     with motor.connect() as conexion:
+        conexion.execute(text("SELECT 1"))
+        apertura = _milisegundos(inicio)
+
+        inicio_consulta = datetime.now()
+        conexion.execute(text("SELECT 1"))
+        consulta = _milisegundos(inicio_consulta)
+
         if motor.dialect.name == "postgresql":
             version = conexion.execute(text("SHOW server_version")).scalar()
-            ssl = conexion.execute(text(
-                "SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()")).scalar()
+            cifrado = _cifrado_del_cliente(conexion)
         else:
             version = conexion.execute(text("SELECT sqlite_version()")).scalar()
-            ssl = None
-        latencia = (datetime.now() - inicio).total_seconds() * 1000
+            cifrado = None
 
         tablas = sorted(inspect(motor).get_table_names())
         conteos = {t: conexion.execute(text('SELECT COUNT(*) FROM "{}"'.format(t))).scalar()
                    for t in tablas}
 
-    return {"motor": describir_motor(), "version": version, "ssl": ssl,
-            "latencia_ms": round(latencia), "tablas": conteos}
+    return {"motor": describir_motor(), "version": version, "ssl": cifrado,
+            "apertura_ms": apertura, "consulta_ms": consulta, "tablas": conteos}
+
+
+def formatear_estado(estado):
+    """Líneas legibles con el resultado de probar_conexion()."""
+    lineas = ["  Motor             : {}".format(estado["motor"]),
+              "  Versión           : {}".format(estado["version"])]
+    if estado["ssl"] is not None:
+        lineas.append("  Conexión cifrada  : {}".format(
+            "sí ({})".format(estado["ssl"]) if estado["ssl"] else "NO"))
+    lineas.append("  Abrir conexión    : {} ms".format(estado["apertura_ms"]))
+    lineas.append("  Cada consulta     : {} ms".format(estado["consulta_ms"]))
+    if estado["tablas"]:
+        for tabla, filas in estado["tablas"].items():
+            lineas.append("  Tabla {:<12}: {:,} filas".format(tabla, filas))
+    else:
+        lineas.append("  Tablas            : ninguna todavía")
+    return lineas
 
 
 # ---------------------------------------------------------------------------
@@ -256,16 +303,7 @@ if __name__ == "__main__":
     print("Base de datos: {}".format(describir_motor()))
 
     if args.accion == "probar":
-        estado = probar_conexion()
-        print("  Versión del servidor : {}".format(estado["version"]))
-        if estado["ssl"] is not None:
-            print("  Conexión cifrada     : {}".format("sí (SSL)" if estado["ssl"] else "NO"))
-        print("  Latencia             : {} ms".format(estado["latencia_ms"]))
-        if estado["tablas"]:
-            for tabla, filas in estado["tablas"].items():
-                print("  Tabla {:<15}: {:,} filas".format(tabla, filas))
-        else:
-            print("  Sin tablas todavía: ejecute 'crear' o 'sintetica'.")
+        print("\n".join(formatear_estado(probar_conexion())))
 
     elif args.accion == "crear":
         print("  Tablas: {}".format(", ".join(crear_esquema())))
