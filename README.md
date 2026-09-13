@@ -87,14 +87,24 @@ automáticos corren en los servidores de GitHub.
 ## Configurar la base externa en Supabase
 
 **1. Crear el proyecto.** En [supabase.com](https://supabase.com), crear un
-proyecto nuevo. Región recomendada: *South America (São Paulo)*, la más cercana
-a Colombia. Guardar la contraseña de la base que se define al crearlo.
+proyecto nuevo con esta configuración:
+
+| Opción | Valor | Motivo |
+|---|---|---|
+| Region | *Americas* | GitHub Actions y Codespaces corren en Estados Unidos: una región de América da la menor latencia a los procesos automáticos. |
+| Database password | Solo letras y números, 20 caracteres o más | Los caracteres `@ : / ? # % & + =` rompen la cadena de conexión si no se codifican. |
+| Enable Data API | Desmarcado | El sistema se conecta directo a PostgreSQL; la API REST no se usa y es superficie expuesta innecesaria. |
+| Automatically expose new tables | Desmarcado | Evita que cada tabla nueva quede publicada en la API. |
+| Enable automatic RLS | Marcado | Activa Row Level Security en toda tabla nueva: doble protección junto con la que aplica el sistema. |
+| Connect GitHub | Sin conectar | Los flujos de Actions del repositorio ya administran la base. |
+
+Guardar la contraseña: se necesita para la cadena de conexión.
 
 **2. Copiar la cadena de conexión del pooler.** En el proyecto, botón
 **Connect** → **Session pooler** → copiar la URI. Tiene esta forma:
 
 ```
-postgresql://postgres.REFERENCIA:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+postgresql://postgres.REFERENCIA:[YOUR-PASSWORD]@aws-0-REGION.pooler.supabase.com:5432/postgres
 ```
 
 Reemplazar `[YOUR-PASSWORD]` por la contraseña y agregar `?sslmode=require` al
