@@ -156,6 +156,9 @@ evaluaciones = Table(
     Column("estado", String(20), nullable=False),
     Column("canal_recomendado", String(20)),
     Column("canales_permitidos", String(60)),
+    # La regla que decidió el resultado, separada de la lista completa: permite
+    # contar de inmediato cuántas cuentas bloqueó cada norma.
+    Column("regla_determinante", String(10)),
     Column("reglas", String(200)),
     Column("explicacion", String(1000)),
 )
