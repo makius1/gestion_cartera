@@ -1,9 +1,10 @@
 # Prueba de integración contra un PostgreSQL real.
 #
 # En cada envío al repositorio, GitHub levanta un servidor PostgreSQL temporal,
-# genera una cartera ficticia, la carga y verifica que quedó completa. Así se
-# comprueba en cada cambio que el sistema funciona sobre el mismo motor que usa
-# Supabase, sin tocar la base de producción ni depender de ningún equipo local.
+# genera una cartera ficticia, la carga, ejecuta el motor de elegibilidad y
+# abre cada pantalla de la aplicación web con cada rol. Así se comprueba en
+# cada cambio que el sistema funciona sobre el mismo motor que usa Supabase,
+# sin tocar la base de producción ni depender de ningún equipo local.
 
 name: Pruebas
 
@@ -72,6 +73,28 @@ jobs:
           print("Carga verificada: %d cuentas, saldo total $%s" % (
               len(cartera), "{:,.0f}".format(float(cartera["saldo"].sum()))))
           PY
+
+      - name: Validar la base de conocimiento
+        run: python -m motor.elegibilidad --validar
+
+      # Se evalúa un martes hábil fijo para que el resultado no dependa del día
+      # en que corre la prueba: un domingo o un festivo bloquearían todo.
+      - name: Ejecutar el motor de elegibilidad
+        run: |
+          python -m motor.elegibilidad --fecha 2026-09-15
+          python - <<'PY'
+          from datos.base_datos import leer_evaluaciones, listar_ejecuciones
+          ejecucion = listar_ejecuciones(1).iloc[0]
+          detalle = leer_evaluaciones(int(ejecucion["id"]))
+          assert len(detalle) == 2000, "se esperaban 2000 evaluaciones, hay %d" % len(detalle)
+          assert detalle["regla_determinante"].notna().all(), "hay cuentas sin regla determinante"
+          contactables = detalle[detalle["estado"] == "CONTACTABLE"]
+          assert contactables["canal_recomendado"].notna().all(), "hay contactables sin canal"
+          print("Motor verificado: %d contactables de %d" % (len(contactables), len(detalle)))
+          PY
+
+      - name: Probar la aplicación web por rol
+        run: python -m pruebas.prueba_aplicacion
 
       - name: Estado final de la base
         run: python -m datos.base_datos probar
