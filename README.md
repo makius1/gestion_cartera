@@ -1,5 +1,7 @@
 # Sistema Inteligente de Gestión de Cartera
 
+[![Pruebas](https://github.com/makius1/gestion_cartera/actions/workflows/pruebas.yml/badge.svg)](https://github.com/makius1/gestion_cartera/actions/workflows/pruebas.yml)
+
 Sistema experto de apoyo a la decisión para casas de cobranza. Toma la
 asignación mensual de cartera y decide **qué cuentas trabajar, en qué orden,
 por qué canal, con qué gestor y con qué oferta**, para maximizar el recaudo
@@ -8,6 +10,12 @@ contacto.
 
 Proyecto de la asignatura **Sistemas Expertos e Inteligencia Artificial**
 (VIII Semestre, Ingeniería de Sistemas).
+
+> **Administración de la información.** El sistema administra la información de
+> la cartera asignada: la carga, la depura, protege la identidad de los
+> titulares con seudónimos, la guarda con historial por mes y la convierte en
+> decisiones auditables. El repositorio contiene solo el código: ninguna
+> asignación ni dato de titulares se versiona.
 
 ---
 
@@ -32,7 +40,7 @@ El sistema convierte esa información en decisiones operativas.
 ```
 ASIGNACIÓN (Excel / base de datos)
         │
-[1] CARGA, LIMPIEZA Y ANONIMIZACIÓN          ← implementado
+[1] CARGA, LIMPIEZA Y SEUDONIMIZACIÓN        ← implementado
         │
 [2] NÚCLEO DETERMINISTA
     ├─ Motor de reglas de elegibilidad       (Ley 2300 de 2023)
@@ -51,44 +59,120 @@ ASIGNACIÓN (Excel / base de datos)
 
 El núcleo es **determinista y auditable**: toda decisión sobre a quién se
 contacta, cuánto se ofrece y a quién se asigna se puede explicar regla por
-regla. Los modelos de lenguaje, si se integran, quedan en el borde del sistema
-(redacción de mensajes, resumen de notas) y nunca en la decisión.
+regla.
 
 ---
 
-## Protección de datos
+## Infraestructura
 
-Las asignaciones contienen datos personales de titulares reales, protegidos por
-la **Ley 1581 de 2012**. El sistema aplica cuatro reglas:
+```
+   GitHub (código)                    Supabase (PostgreSQL)
+   ├─ Actions: pruebas   ──────────►  base temporal de prueba
+   ├─ Actions: sembrar   ──────────►  base externa del proyecto  ◄── Codespaces
+   └─ Actions: mantener  ──────────►  consulta cada tres días    ◄── equipo local
+```
 
-1. **Ningún dato entra al repositorio.** El `.gitignore` excluye todo archivo
-   Excel, CSV y base de datos. Se versiona el código, no la información.
-2. **La identidad no circula por el sistema.** El módulo de carga reemplaza la
-   cédula y el número de crédito por seudónimos firmados con HMAC-SHA256 y una
-   clave secreta, convierte teléfonos y correos en un conteo de canales
-   disponibles, y elimina nombres y direcciones antes de cualquier análisis.
-   La firma con clave no es un detalle: un hash simple de una cédula se puede
-   revertir probando los diez mil millones de valores posibles en minutos; sin
-   la clave, no.
-3. **La configuración sensible vive en `.env`**, fuera del control de versiones:
-   rutas internas, nombres de clientes, credenciales y la clave de seudónimos.
-4. **Los datos reales no suben a la nube por descuido.** La base de datos se
-   niega a guardar una carga de origen REAL en un servidor remoto salvo
-   confirmación explícita.
+Nada depende de un equipo encendido: la base vive en Supabase y los procesos
+automáticos corren en los servidores de GitHub.
 
-### Datos de prueba
+| Pieza | Qué hace |
+|---|---|
+| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, genera una cartera ficticia, la carga y verifica que quedó completa. |
+| **Sembrar base en Supabase** | Botón manual en la pestaña Actions: genera una cartera ficticia en GitHub y la carga directo en Supabase. |
+| **Mantener activa la base** | Consulta la base cada tres días para reducir el riesgo de que el plan gratuito de Supabase la pause por inactividad. |
+| **Codespaces** | Entorno de desarrollo en el navegador, con Python y las dependencias instaladas automáticamente. |
 
-El sistema ofrece dos formas de trabajar sin exponer la cartera real:
+---
 
-| Modo | Qué hace | ¿Puede salir de la empresa? |
-|---|---|---|
-| **Sintético** | Genera una cartera desde cero a partir de un perfil estadístico. Ningún registro corresponde a una persona real. | Sí: se puede compartir, subir a la nube o usar en una demostración. |
-| **Enmascarado** | Toma la cartera real y reemplaza solo la identidad: nombres, documentos, créditos, teléfonos, correos, direcciones y gestores. Los montos, las moras y los códigos siguen siendo reales. | **No.** Quien tenga el archivo original puede reidentificar cruzando montos y fechas: sigue siendo dato personal. |
+## Configurar la base externa en Supabase
 
-Los datos ficticios están diseñados para no poder usarse por error en una
-campaña real: los documentos van en un rango que no corresponde a cédulas
-expedidas, los correos usan el dominio `.test` reservado para pruebas, los
-celulares usan el prefijo 399 y todo registro lleva la marca `ES_DEMO`.
+**1. Crear el proyecto.** En [supabase.com](https://supabase.com), crear un
+proyecto nuevo. Región recomendada: *South America (São Paulo)*, la más cercana
+a Colombia. Guardar la contraseña de la base que se define al crearlo.
+
+**2. Copiar la cadena de conexión del pooler.** En el proyecto, botón
+**Connect** → **Session pooler** → copiar la URI. Tiene esta forma:
+
+```
+postgresql://postgres.REFERENCIA:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+```
+
+Reemplazar `[YOUR-PASSWORD]` por la contraseña y agregar `?sslmode=require` al
+final.
+
+> Use el **pooler** y no la conexión directa (`db.REFERENCIA.supabase.co`): en el
+> plan gratuito la conexión directa solo funciona por IPv6, y GitHub Actions y
+> Codespaces no tienen IPv6.
+
+**3. Conectar desde el equipo local.** Pegar la cadena en el archivo `.env`
+como `DATABASE_URL` y verificar:
+
+```bash
+python -m datos.base_datos probar
+```
+
+**4. Conectar desde GitHub.** En el repositorio: *Settings → Secrets and
+variables → Actions → New repository secret*. Crear dos secretos:
+
+| Secreto | Valor |
+|---|---|
+| `DATABASE_URL` | La cadena del pooler del paso 2 |
+| `SEUDONIMO_CLAVE` | Una clave aleatoria (ver `.env.example`) |
+
+Para Codespaces, crear los mismos secretos en *Settings → Secrets and variables
+→ Codespaces*.
+
+**5. Cargar la cartera ficticia.** Pestaña **Actions** → *Sembrar base en
+Supabase* → **Run workflow**.
+
+### Seguridad de la base
+
+Al crear las tablas en PostgreSQL, el sistema activa **Row Level Security**.
+Supabase publica cada tabla en una API REST accesible con la llave pública del
+proyecto; con RLS activo y sin políticas definidas, esa API no devuelve ninguna
+fila. El sistema se conecta como dueño de las tablas y no se ve afectado.
+
+---
+
+## Datos ficticios
+
+El generador crea una cartera desde cero a partir de `datos/perfil_demo.json`,
+un perfil estadístico de demostración: frecuencias y cuantiles redondeados, con
+etiquetas genéricas.
+
+El muestreo conserva las relaciones que más pesan en el recaudo —el saldo según
+el código de gestión, la mora según el mes de asignación, el margen según la
+franja de saldo— y las reglas de negocio: solo los códigos de acuerdo generan
+proyección de pago, la franja se deriva del máximo de cobranza y el rango de
+mora de los días de mora.
+
+Los datos están diseñados para no poder usarse por error en una campaña real:
+
+- Los documentos van en un rango de diez dígitos que empieza por 99, que no
+  corresponde a cédulas expedidas.
+- Los correos usan el dominio `.test`, reservado para pruebas: ningún mensaje
+  puede entregarse.
+- Los celulares usan el prefijo 399.
+- Todo registro lleva la marca `ES_DEMO`.
+
+---
+
+## Base de datos
+
+Dos tablas:
+
+| Tabla | Contenido |
+|---|---|
+| `cargas` | Una fila por carga: fecha, origen, cantidad de cuentas, saldo y meta de recaudo |
+| `cartera` | Una fila por crédito y carga, con la cartera ya procesada |
+
+La llave de `cartera` es el par (carga, crédito): **cada carga se conserva junto
+a las anteriores** en lugar de reemplazarlas. Una cuenta aparece una vez por
+cada mes en que fue asignada, que es lo que permite entrenar modelos con
+historia.
+
+El motor se elige por configuración: SQLite local si no se define
+`DATABASE_URL`, o PostgreSQL si se define. El código es el mismo en ambos casos.
 
 ---
 
@@ -96,21 +180,26 @@ celulares usan el prefijo 399 y todo registro lleva la marca `ES_DEMO`.
 
 ```
 .
-├── config.py            Parámetros del negocio, normativa de contacto y rutas
+├── .github/workflows/
+│   ├── pruebas.yml             Integración continua contra PostgreSQL
+│   ├── sembrar_supabase.yml    Carga manual de la cartera ficticia en Supabase
+│   └── mantener_activa.yml     Consulta periódica para evitar la pausa
+├── .devcontainer/              Entorno de GitHub Codespaces
+├── config.py                   Parámetros del negocio y normativa de contacto
 ├── datos/
-│   ├── cargador.py      Carga, limpieza, seudonimización y variables derivadas
-│   ├── perfilador.py    Perfil estadístico agregado de una asignación real
-│   ├── generador.py     Carteras sintéticas y enmascarado de carteras reales
-│   └── base_datos.py    Esquema, cargas históricas y consultas
-├── .env.example         Plantilla de configuración local
-├── .gitignore           Excluye datos, credenciales y entorno virtual
-├── requirements.txt     Dependencias con versiones fijadas
+│   ├── cargador.py             Carga, limpieza, seudonimización y derivación
+│   ├── perfilador.py           Perfil estadístico y perfil de demostración
+│   ├── perfil_demo.json        Perfil de demostración (datos agregados)
+│   ├── generador.py            Generación de carteras ficticias
+│   └── base_datos.py           Esquema, cargas históricas y consultas
+├── .env.example                Plantilla de configuración
+├── requirements.txt            Dependencias con versiones fijadas
 └── README.md
 ```
 
 ---
 
-## Instalación
+## Instalación local
 
 Requiere Python 3.10 o superior.
 
@@ -130,74 +219,30 @@ En Linux o Codespaces:
 source .venv/bin/activate
 ```
 
-Después:
-
 ```bash
 pip install -r requirements.txt
 ```
-
-Copiar `.env.example` como `.env` y definir la ruta del archivo de asignación.
 
 ---
 
 ## Uso
 
-### Diagnóstico de una asignación
+Verificar la conexión con la base configurada:
 
 ```bash
-python datos/cargador.py
+python -m datos.base_datos probar
 ```
 
-Produce el diagnóstico de la cartera: saldo total, meta de recaudo y brecha,
-cuentas gestionadas frente a no gestionadas, embudo de resultados de contacto,
-compromisos por tipo de acuerdo, contactabilidad, antigüedad en gestión y margen
-de negociación. Al final verifica que ninguna columna con datos personales haya
-llegado a la salida.
-
-### Generar datos de prueba
-
-Extraer el perfil estadístico de la asignación real (una sola vez):
-
-```bash
-python datos/perfilador.py
-```
-
-Generar una cartera sintética del mismo tamaño y compararla con la real:
-
-```bash
-python -m datos.generador --validar
-```
-
-Generar una cartera sintética de otro tamaño:
-
-```bash
-python -m datos.generador --registros 1000
-```
-
-Enmascarar la cartera real para pruebas internas:
-
-```bash
-python -m datos.generador --enmascarar
-```
-
-### Base de datos
-
-Crear las tablas:
-
-```bash
-python -m datos.base_datos crear
-```
-
-Cargar una cartera sintética:
+Generar una cartera ficticia y cargarla:
 
 ```bash
 python -m datos.base_datos sintetica
 ```
 
-Cargar la asignación real (solo en la base local):
+Con otro tamaño o semilla:
 
 ```bash
-python -m datos.base_datos real
+python -m datos.base_datos sintetica --registros 10000 --semilla 7
 ```
 
 Listar las cargas registradas:
@@ -206,9 +251,26 @@ Listar las cargas registradas:
 python -m datos.base_datos cargas
 ```
 
-Cada carga se conserva junto a las anteriores: la tabla `cartera` usa como
-llave el par (carga, crédito), de modo que una cuenta aparece una vez por cada
-mes en que fue asignada. Es lo que permite entrenar modelos con historia real.
+Exportar una cartera ficticia a Excel, con las mismas columnas de una
+asignación real:
+
+```bash
+python -m datos.generador
+```
+
+---
+
+## Protección de datos
+
+1. **Solo datos ficticios.** El proyecto no maneja ninguna cartera real.
+2. **Ningún archivo de datos entra al repositorio.** El `.gitignore` excluye
+   Excel, CSV y bases de datos.
+3. **Seudonimización con clave.** Los identificadores se firman con HMAC-SHA256
+   y una clave secreta. Un hash simple de un número de diez dígitos se puede
+   revertir probando todos los valores posibles; sin la clave, no.
+4. **Credenciales fuera del código.** Viven en `.env` en local y en los secretos
+   de GitHub en la nube, nunca en el repositorio.
+5. **Row Level Security** activo en todas las tablas de PostgreSQL.
 
 ---
 
@@ -218,37 +280,13 @@ mes en que fue asignada. Es lo que permite entrenar modelos con historia real.
 |---|---|---|
 | 1 | Carga, limpieza y seudonimización | ✅ |
 | 1b | Base de datos con historial de cargas | ✅ |
-| 1c | Generación de datos sintéticos y enmascarado | ✅ |
+| 1c | Generación de carteras ficticias | ✅ |
+| 1d | Base externa en Supabase y ejecución en GitHub | ✅ |
 | 2 | Motor de reglas de elegibilidad de contacto | Pendiente |
 | 3 | Segmentación y priorización | Pendiente |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
 | 5 | Optimización de campañas y asignación | Pendiente |
 | 6 | Tablero web | Pendiente |
-
----
-
-## Validación del generador sintético
-
-Comparación de la cartera sintética contra la real, ambas procesadas por el
-mismo cargador:
-
-| Métrica | Diferencia |
-|---|---|
-| Saldo total | −0.7 % |
-| Saldo mediano | −1.3 % |
-| Mora mediana | 0.0 % |
-| Cuentas nunca gestionadas | −3.7 % |
-| Cuentas sin margen | −3.8 % |
-
-La cantidad de compromisos de pago varía entre generaciones porque son apenas
-el 1.5 % de las cuentas: en ocho generaciones con semillas distintas oscila
-entre 93 y 130 y promedia exactamente lo mismo que la cartera real.
-
-**Limitación conocida:** el margen de negociación promedio queda
-sistemáticamente un 10 % por debajo del real. El generador conserva las
-relaciones entre variables que más pesan en el recaudo —saldo según código,
-mora según mes de asignación, margen según franja—, pero no todas; el margen
-depende además de alguna variable que no se está condicionando.
 
 ---
 
