@@ -418,9 +418,12 @@ def registrar_evento(usuario, accion, detalle=None):
     sistema no ofrece ninguna forma de editarla ni de borrarla.
     """
     motor = obtener_motor()
+    # Se recortan los textos al tamaño de las columnas: en un intento de ingreso
+    # el usuario lo escribe cualquiera, y PostgreSQL rechaza un texto más largo
+    # que la columna, con lo que el intento quedaría sin registrar.
     with motor.begin() as conexion:
         conexion.execute(insert(auditoria).values(
-            fecha=config.ahora(), usuario=usuario, accion=accion,
+            fecha=config.ahora(), usuario=(usuario or "")[:40], accion=accion[:40],
             detalle=(detalle or "")[:500]))
 
 

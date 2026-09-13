@@ -174,6 +174,30 @@ FECHA_CENTINELA = "1999-01-01"
 
 
 # ---------------------------------------------------------------------------
+# SEGURIDAD DE ACCESO
+# ---------------------------------------------------------------------------
+# Controles de la aplicación web. Los valores siguen prácticas comunes de
+# sistemas empresariales; se pueden endurecer sin tocar el código.
+
+INTENTOS_MAXIMOS = 5            # intentos fallidos seguidos antes del bloqueo
+MINUTOS_BLOQUEO = 15            # duración del bloqueo temporal
+MINUTOS_INACTIVIDAD = 30        # la sesión se cierra sola tras este tiempo sin uso
+LONGITUD_MINIMA_CLAVE = 10
+
+# Roles del sistema y lo que cada uno puede hacer. El gestor consulta; el
+# supervisor además opera (carga carteras y ejecuta el motor) y revisa la
+# bitácora; el administrador además administra los usuarios.
+PERMISOS = {
+    "GESTOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento"},
+    "SUPERVISOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
+                   "ejecutar_motor", "gestionar_cargas", "ver_auditoria"},
+    "ADMINISTRADOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
+                      "ejecutar_motor", "gestionar_cargas", "ver_auditoria",
+                      "gestionar_usuarios"},
+}
+
+
+# ---------------------------------------------------------------------------
 # REPRODUCIBILIDAD
 # ---------------------------------------------------------------------------
 
