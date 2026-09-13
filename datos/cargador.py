@@ -117,6 +117,28 @@ def _contar_canales(df):
     return canales
 
 
+def _canales_por_tipo(df):
+    """Indica qué tipos de canal de contacto tiene disponibles cada cuenta."""
+
+    def telefono_valido(columna):
+        if columna not in df.columns:
+            return pd.Series(False, index=df.index)
+        numero = pd.to_numeric(df[columna], errors="coerce")
+        return numero.notna() & (numero > 999_999)
+
+    def correo_valido(columna):
+        if columna not in df.columns:
+            return pd.Series(False, index=df.index)
+        texto = df[columna].astype(str).str.strip()
+        return texto.str.contains("@", na=False) & (texto.str.lower() != "nan")
+
+    return {
+        "tiene_celular": telefono_valido("Celular 1"),
+        "tiene_fijo": telefono_valido("Telefono"),
+        "tiene_email": correo_valido("email") | correo_valido("email_1"),
+    }
+
+
 def _clasificar_gestion(serie):
     """Traduce el texto libre de gestión a una categoría cerrada.
 
@@ -208,6 +230,17 @@ def cargar(ruta=None, hoja=None, bruto=None):
 
     # --- Variables derivadas ----------------------------------------------
     df["canales_disponibles"] = _contar_canales(bruto)
+
+    # Además del conteo, qué canales concretos tiene la cuenta. El motor de
+    # elegibilidad los necesita por separado: sin celular no se puede enviar
+    # un SMS aunque la cuenta tenga tres correos. Se guardan como verdadero o
+    # falso, nunca el número ni la dirección.
+    for canal, disponible in _canales_por_tipo(bruto).items():
+        df[canal] = disponible
+
+    # Fecha del último registro de gestión. La regla de frecuencia de contacto
+    # de la Ley 2300 se calcula a partir de ella.
+    df["fecha_ultima_gestion"] = pd.to_datetime(bruto["FECHA DE GESTION"], errors="coerce")
     df["resultado_gestion"] = _clasificar_gestion(bruto["GESTION"])
     df["meses_en_gestion"] = _meses_en_gestion(bruto)
 

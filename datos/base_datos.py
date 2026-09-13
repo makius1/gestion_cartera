@@ -84,6 +84,13 @@ cartera = Table(
     Column("tiene_compromiso", Boolean),
     Column("tipo_acuerdo", String(20)),
     Column("fecha_compromiso", Date),
+
+    # Canales concretos y fecha del último contacto: los hechos que necesita el
+    # motor de elegibilidad para aplicar la Ley 2300.
+    Column("tiene_celular", Boolean),
+    Column("tiene_fijo", Boolean),
+    Column("tiene_email", Boolean),
+    Column("fecha_ultima_gestion", Date),
 )
 
 # Índices para las consultas que más va a hacer el sistema: seguir a un titular
@@ -93,18 +100,91 @@ Index("ix_cartera_codigo", cartera.c.codigo)
 Index("ix_cartera_gestor", cartera.c.gestor_ultimo)
 
 
+# --- Usuarios y auditoría ---------------------------------------------------
+
+usuarios = Table(
+    "usuarios", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("usuario", String(40), nullable=False, unique=True),
+    Column("nombre", String(80), nullable=False),
+    # ADMINISTRADOR, SUPERVISOR o GESTOR: define qué pantallas y acciones ve.
+    Column("rol", String(20), nullable=False),
+    # Nunca la contraseña: solo su derivación con scrypt y una sal aleatoria.
+    Column("hash_clave", String(255), nullable=False),
+    Column("activo", Boolean, nullable=False, default=True),
+    Column("creado", DateTime, nullable=False),
+    Column("ultimo_ingreso", DateTime),
+    # Control de fuerza bruta: intentos fallidos seguidos y bloqueo temporal.
+    Column("intentos_fallidos", Integer, nullable=False, default=0),
+    Column("bloqueado_hasta", DateTime),
+)
+
+auditoria = Table(
+    "auditoria", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fecha", DateTime, nullable=False),
+    Column("usuario", String(40), nullable=False),
+    Column("accion", String(40), nullable=False),
+    Column("detalle", String(500)),
+)
+Index("ix_auditoria_fecha", auditoria.c.fecha)
+
+
+# --- Motor de elegibilidad ----------------------------------------------------
+# Cada ejecución del motor queda registrada con su resultado cuenta por cuenta.
+# Es lo que permite demostrar después, ante una auditoría o una queja, que el
+# contacto con un titular estaba permitido el día en que se hizo y por qué.
+
+ejecuciones_motor = Table(
+    "ejecuciones_motor", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fecha", DateTime, nullable=False),
+    Column("usuario", String(40), nullable=False),
+    Column("carga_id", Integer, ForeignKey("cargas.id"), nullable=False),
+    Column("fecha_objetivo", Date, nullable=False),
+    Column("total", Integer, nullable=False),
+    Column("contactables", Integer, nullable=False),
+    Column("bloqueadas", Integer, nullable=False),
+    Column("en_espera", Integer, nullable=False),
+    Column("recordatorio", Integer, nullable=False),
+)
+
+evaluaciones = Table(
+    "evaluaciones", metadatos,
+    Column("ejecucion_id", Integer, ForeignKey("ejecuciones_motor.id"), primary_key=True),
+    Column("credito_id", String(13), primary_key=True),
+    Column("estado", String(20), nullable=False),
+    Column("canal_recomendado", String(20)),
+    Column("canales_permitidos", String(60)),
+    Column("reglas", String(200)),
+    Column("explicacion", String(1000)),
+)
+
+
 # ---------------------------------------------------------------------------
 # 2. CONEXIÓN Y CREACIÓN
 # ---------------------------------------------------------------------------
 
+_MOTORES = {}
+
+
 def obtener_motor():
-    """Crea la conexión definida en la configuración.
+    """Devuelve la conexión definida en la configuración, reutilizándola.
+
+    El motor se crea una sola vez por cadena de conexión y se reutiliza. No es
+    un detalle: abrir una conexión cifrada hasta el servidor tarda más de un
+    segundo, y en la aplicación web cada pantalla hace varias consultas. Con el
+    motor reutilizado, las conexiones quedan abiertas en un grupo y cada
+    consulta tarda lo que tarda el viaje de ida y vuelta.
 
     pool_pre_ping verifica que la conexión siga viva antes de usarla: los
-    servicios en la nube cierran las conexiones inactivas, y sin esta
-    verificación la primera consulta después de una pausa fallaría.
+    servicios en la nube cierran las conexiones inactivas.
     """
-    return create_engine(config.URL_BASE_DATOS, future=True, pool_pre_ping=True)
+    url = config.URL_BASE_DATOS
+    if url not in _MOTORES:
+        _MOTORES[url] = create_engine(url, future=True, pool_pre_ping=True,
+                                      pool_recycle=1800)
+    return _MOTORES[url]
 
 
 def es_local():
@@ -135,12 +215,43 @@ def crear_esquema(motor=None):
     """
     motor = motor or obtener_motor()
     metadatos.create_all(motor)
+    _migrar_columnas(motor)
     if motor.dialect.name == "postgresql":
         with motor.begin() as conexion:
             for tabla in metadatos.sorted_tables:
                 conexion.execute(text(
                     'ALTER TABLE "{}" ENABLE ROW LEVEL SECURITY'.format(tabla.name)))
     return sorted(inspect(motor).get_table_names())
+
+
+def _migrar_columnas(motor):
+    """Agrega a las tablas existentes las columnas que el esquema tiene de más.
+
+    create_all crea las tablas que faltan, pero no modifica las que ya existen.
+    Cuando el esquema crece —por ejemplo, al agregar los canales por tipo que
+    necesita el motor de elegibilidad—, una base ya en uso quedaría sin esas
+    columnas y las consultas fallarían. Esta función compara el esquema con la
+    base real y agrega lo que falte, sin tocar ni borrar los datos existentes.
+
+    Solo agrega columnas que admiten nulos: las filas antiguas quedan con esos
+    campos vacíos y el sistema los trata como desconocidos.
+    """
+    inspector = inspect(motor)
+    existentes = set(inspector.get_table_names())
+    agregadas = []
+    with motor.begin() as conexion:
+        for tabla in metadatos.sorted_tables:
+            if tabla.name not in existentes:
+                continue
+            actuales = {c["name"] for c in inspector.get_columns(tabla.name)}
+            for columna in tabla.columns:
+                if columna.name in actuales or not columna.nullable:
+                    continue
+                tipo = columna.type.compile(dialect=motor.dialect)
+                conexion.execute(text('ALTER TABLE "{}" ADD COLUMN "{}" {}'.format(
+                    tabla.name, columna.name, tipo)))
+                agregadas.append("{}.{}".format(tabla.name, columna.name))
+    return agregadas
 
 
 def _cifrado_del_cliente(conexion):
@@ -239,9 +350,11 @@ def registrar_carga(df, origen, archivo=None, semilla=None, permitir_real_en_nub
 
     columnas = [c.name for c in cartera.columns if c.name != "carga_id"]
     tabla = df[columnas].copy()
-    for booleana in ["gestionada", "gestionable", "tiene_compromiso"]:
+    for booleana in ["gestionada", "gestionable", "tiene_compromiso",
+                     "tiene_celular", "tiene_fijo", "tiene_email"]:
         tabla[booleana] = tabla[booleana].astype(bool)
-    tabla["fecha_compromiso"] = pd.to_datetime(tabla["fecha_compromiso"]).dt.date
+    for fecha in ["fecha_compromiso", "fecha_ultima_gestion"]:
+        tabla[fecha] = pd.to_datetime(tabla[fecha]).dt.date
     tabla = tabla.astype(object).where(tabla.notna(), None)
 
     with motor.begin() as conexion:
