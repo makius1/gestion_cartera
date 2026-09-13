@@ -359,7 +359,7 @@ def registrar_carga(df, origen, archivo=None, semilla=None, permitir_real_en_nub
 
     with motor.begin() as conexion:
         resultado = conexion.execute(insert(cargas).values(
-            fecha_carga=datetime.now(),
+            fecha_carga=config.ahora(),
             origen=origen,
             archivo=Path(archivo).name if archivo else None,
             registros=len(tabla),
@@ -378,6 +378,52 @@ def registrar_carga(df, origen, archivo=None, semilla=None, permitir_real_en_nub
     return carga_id
 
 
+def guardar_ejecucion(resumen, resultados, usuario):
+    """Guarda una ejecución del motor de elegibilidad y su resultado por cuenta.
+
+    El encabezado y el detalle se escriben en una sola transacción: si algo
+    falla a mitad de camino no queda una ejecución sin sus evaluaciones.
+    Retorna el id de la ejecución.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    columnas = [c.name for c in evaluaciones.columns if c.name != "ejecucion_id"]
+    detalle = resultados[columnas].astype(object).where(resultados[columnas].notna(), None)
+
+    with motor.begin() as conexion:
+        ejecucion_id = conexion.execute(insert(ejecuciones_motor).values(
+            fecha=config.ahora(),
+            usuario=usuario,
+            carga_id=int(resumen["carga_id"]),
+            fecha_objetivo=resumen["fecha_objetivo"],
+            total=resumen["total"],
+            contactables=resumen["CONTACTABLE"],
+            bloqueadas=resumen["BLOQUEADA"],
+            en_espera=resumen["EN_ESPERA"],
+            recordatorio=resumen["RECORDATORIO"],
+        )).inserted_primary_key[0]
+        filas = detalle.to_dict(orient="records")
+        for fila in filas:
+            fila["ejecucion_id"] = ejecucion_id
+        for inicio in range(0, len(filas), 1000):
+            conexion.execute(insert(evaluaciones), filas[inicio:inicio + 1000])
+    return ejecucion_id
+
+
+def registrar_evento(usuario, accion, detalle=None):
+    """Deja constancia de una acción en la bitácora de auditoría.
+
+    Se registra quién hizo qué y cuándo: ingresos, intentos fallidos, cargas,
+    ejecuciones del motor y cambios de usuarios. La bitácora solo crece: el
+    sistema no ofrece ninguna forma de editarla ni de borrarla.
+    """
+    motor = obtener_motor()
+    with motor.begin() as conexion:
+        conexion.execute(insert(auditoria).values(
+            fecha=config.ahora(), usuario=usuario, accion=accion,
+            detalle=(detalle or "")[:500]))
+
+
 # ---------------------------------------------------------------------------
 # 4. CONSULTA
 # ---------------------------------------------------------------------------
@@ -394,6 +440,24 @@ def leer_cartera(carga_id=None):
         if carga_id is None:
             carga_id = conexion.execute(select(func.max(cargas.c.id))).scalar()
         consulta = select(cartera).where(cartera.c.carga_id == carga_id)
+        return pd.read_sql(consulta, conexion)
+
+
+def listar_ejecuciones(limite=50):
+    with obtener_motor().connect() as conexion:
+        consulta = select(ejecuciones_motor).order_by(ejecuciones_motor.c.id.desc()).limit(limite)
+        return pd.read_sql(consulta, conexion)
+
+
+def leer_evaluaciones(ejecucion_id):
+    with obtener_motor().connect() as conexion:
+        consulta = select(evaluaciones).where(evaluaciones.c.ejecucion_id == ejecucion_id)
+        return pd.read_sql(consulta, conexion)
+
+
+def leer_auditoria(limite=500):
+    with obtener_motor().connect() as conexion:
+        consulta = select(auditoria).order_by(auditoria.c.id.desc()).limit(limite)
         return pd.read_sql(consulta, conexion)
 
 
