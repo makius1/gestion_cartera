@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey,
                         Index, Integer, MetaData, Numeric, String, Table,
-                        create_engine, func, insert, inspect, select)
+                        create_engine, func, insert, inspect, select, text)
 
 import config
 
@@ -98,7 +98,13 @@ Index("ix_cartera_gestor", cartera.c.gestor_ultimo)
 # ---------------------------------------------------------------------------
 
 def obtener_motor():
-    return create_engine(config.URL_BASE_DATOS, future=True)
+    """Crea la conexión definida en la configuración.
+
+    pool_pre_ping verifica que la conexión siga viva antes de usarla: los
+    servicios en la nube cierran las conexiones inactivas, y sin esta
+    verificación la primera consulta después de una pausa fallaría.
+    """
+    return create_engine(config.URL_BASE_DATOS, future=True, pool_pre_ping=True)
 
 
 def es_local():
@@ -106,18 +112,61 @@ def es_local():
 
 
 def describir_motor():
+    """Describe el motor sin mostrar nunca la cadena de conexión, que contiene
+    la contraseña."""
+    url = config.URL_BASE_DATOS
     if es_local():
-        return "SQLite local ({})".format(Path(config.URL_BASE_DATOS.split("///")[-1]).name)
-    if "supabase" in config.URL_BASE_DATOS:
-        return "PostgreSQL en Supabase"
+        return "SQLite local ({})".format(Path(url.split("///")[-1]).name)
+    if "pooler.supabase.com" in url:
+        return "PostgreSQL en Supabase (pooler)"
+    if "supabase" in url:
+        return "PostgreSQL en Supabase (conexión directa)"
     return "PostgreSQL remoto"
 
 
 def crear_esquema(motor=None):
-    """Crea las tablas si no existen. Es seguro ejecutarlo varias veces."""
+    """Crea las tablas si no existen. Es seguro ejecutarlo varias veces.
+
+    En PostgreSQL además activa Row Level Security. Supabase publica cada tabla
+    del esquema public en una API REST a la que se accede con la llave pública
+    del proyecto; con RLS activo y sin políticas definidas, esa API no devuelve
+    ninguna fila. El sistema no se ve afectado porque se conecta como dueño de
+    las tablas, y los dueños no quedan sujetos a RLS.
+    """
     motor = motor or obtener_motor()
     metadatos.create_all(motor)
+    if motor.dialect.name == "postgresql":
+        with motor.begin() as conexion:
+            for tabla in metadatos.sorted_tables:
+                conexion.execute(text(
+                    'ALTER TABLE "{}" ENABLE ROW LEVEL SECURITY'.format(tabla.name)))
     return sorted(inspect(motor).get_table_names())
+
+
+def probar_conexion():
+    """Verifica la conexión y resume el estado de la base.
+
+    Es lo primero que conviene ejecutar al configurar un servidor nuevo: si
+    falla aquí, el problema es de red o de credenciales y no del sistema.
+    """
+    motor = obtener_motor()
+    inicio = datetime.now()
+    with motor.connect() as conexion:
+        if motor.dialect.name == "postgresql":
+            version = conexion.execute(text("SHOW server_version")).scalar()
+            ssl = conexion.execute(text(
+                "SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()")).scalar()
+        else:
+            version = conexion.execute(text("SELECT sqlite_version()")).scalar()
+            ssl = None
+        latencia = (datetime.now() - inicio).total_seconds() * 1000
+
+        tablas = sorted(inspect(motor).get_table_names())
+        conteos = {t: conexion.execute(text('SELECT COUNT(*) FROM "{}"'.format(t))).scalar()
+                   for t in tablas}
+
+    return {"motor": describir_motor(), "version": version, "ssl": ssl,
+            "latencia_ms": round(latencia), "tablas": conteos}
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +244,7 @@ def leer_cartera(carga_id=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Administra la base de datos del sistema.")
     sub = parser.add_subparsers(dest="accion", required=True)
+    sub.add_parser("probar", help="verifica la conexión y muestra el estado de la base")
     sub.add_parser("crear", help="crea las tablas")
     p_sint = sub.add_parser("sintetica", help="genera una cartera ficticia y la carga")
     p_sint.add_argument("--registros", type=int, default=None)
@@ -205,7 +255,19 @@ if __name__ == "__main__":
 
     print("Base de datos: {}".format(describir_motor()))
 
-    if args.accion == "crear":
+    if args.accion == "probar":
+        estado = probar_conexion()
+        print("  Versión del servidor : {}".format(estado["version"]))
+        if estado["ssl"] is not None:
+            print("  Conexión cifrada     : {}".format("sí (SSL)" if estado["ssl"] else "NO"))
+        print("  Latencia             : {} ms".format(estado["latencia_ms"]))
+        if estado["tablas"]:
+            for tabla, filas in estado["tablas"].items():
+                print("  Tabla {:<15}: {:,} filas".format(tabla, filas))
+        else:
+            print("  Sin tablas todavía: ejecute 'crear' o 'sintetica'.")
+
+    elif args.accion == "crear":
         print("  Tablas: {}".format(", ".join(crear_esquema())))
 
     elif args.accion == "sintetica":
