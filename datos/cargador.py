@@ -20,7 +20,10 @@ de 2012. El modelo no necesita saber QUIÉN es cada quien, sino CÓMO se comport
 """
 
 import hashlib
+import hmac
+import os
 import re
+import secrets
 
 import numpy as np
 import pandas as pd
@@ -48,15 +51,47 @@ def _normalizar_columnas(df):
     return df
 
 
-def _seudonimo(valor):
+def _clave_seudonimos():
+    """Obtiene la clave secreta con la que se firman los seudónimos.
+
+    Un hash simple de la cédula NO es irreversible: una cédula tiene como mucho
+    diez dígitos, así que basta calcular el hash de los diez mil millones de
+    valores posibles para encontrar la original, y eso toma minutos. Firmar con
+    una clave secreta (HMAC) cierra esa puerta: sin la clave no se puede
+    reproducir el cálculo, y con la misma clave el seudónimo sigue siendo estable
+    entre meses.
+
+    La clave vive en el archivo .env. Si no está definida, se genera una
+    aleatoria para esta ejecución: los seudónimos siguen siendo irreversibles,
+    pero dejan de ser comparables con los de otras cargas.
+    """
+    global _CLAVE_EFIMERA
+    clave = os.getenv("SEUDONIMO_CLAVE")
+    if clave:
+        return clave.encode("utf-8")
+    if _CLAVE_EFIMERA is None:
+        print("  AVISO: SEUDONIMO_CLAVE no está definida en .env; se usa una clave")
+        print("         temporal y los seudónimos no serán comparables entre cargas.")
+        _CLAVE_EFIMERA = secrets.token_bytes(32)
+    return _CLAVE_EFIMERA
+
+
+_CLAVE_EFIMERA = None
+
+
+def _seudonimo(valor, prefijo="C"):
     """Convierte un identificador en un seudónimo estable e irreversible.
 
-    Se usa SHA-256 truncado: la misma cédula produce siempre el mismo código,
-    lo que permite seguir a una cuenta entre meses, pero el código no permite
-    recuperar la cédula original.
+    Se usa HMAC-SHA256 con la clave secreta del sistema: el mismo valor produce
+    siempre el mismo código, lo que permite seguir una cuenta entre meses, pero
+    sin la clave el código no permite recuperar el valor original.
+
+    El prefijo distingue el tipo de identificador (C para titulares, K para
+    créditos), para que un seudónimo nunca se confunda con otro.
     """
     texto = str(valor).strip().encode("utf-8")
-    return "C" + hashlib.sha256(texto).hexdigest()[:12].upper()
+    firma = hmac.new(_clave_seudonimos(), texto, hashlib.sha256).hexdigest()
+    return prefijo + firma[:12].upper()
 
 
 def _contar_canales(df):
@@ -121,17 +156,32 @@ def _meses_en_gestion(df):
     return (mes_actual - numero_mes).fillna(0).astype(int)
 
 
-def cargar(ruta=None, hoja=None):
-    """Ejecuta el proceso completo y retorna la tabla lista para analizar."""
+def leer_bruto(ruta=None, hoja=None):
+    """Lee el archivo de asignación sin transformarlo, con columnas normalizadas."""
     ruta = ruta or config.ARCHIVO_ASIGNACION
     hoja = hoja or config.HOJA_ASIGNACION
+    return _normalizar_columnas(pd.read_excel(ruta, sheet_name=hoja))
 
-    bruto = _normalizar_columnas(pd.read_excel(ruta, sheet_name=hoja))
+
+def cargar(ruta=None, hoja=None, bruto=None):
+    """Ejecuta el proceso completo y retorna la tabla lista para analizar.
+
+    Acepta la ruta de un archivo o directamente un DataFrame ya leído, lo que
+    permite procesar tanto la asignación real como una generada en memoria.
+    """
+    if bruto is None:
+        bruto = leer_bruto(ruta, hoja)
+    else:
+        bruto = _normalizar_columnas(bruto.copy())
     df = pd.DataFrame(index=bruto.index)
 
     # --- Identidad seudonimizada ------------------------------------------
-    df["cuenta_id"] = bruto["CEDULA"].map(_seudonimo)
-    df["credito"] = bruto["CREDITO"]
+    # Tanto la cédula como el número de crédito identifican a una persona: el
+    # número de crédito, cruzado con el sistema del originador, lleva directo
+    # al titular. Por eso ninguno de los dos pasa en claro a la tabla de
+    # trabajo.
+    df["cuenta_id"] = bruto["CEDULA"].map(lambda v: _seudonimo(v, "C"))
+    df["credito_id"] = bruto["CREDITO"].map(lambda v: _seudonimo(v, "K"))
 
     # --- Variables financieras --------------------------------------------
     for destino, origen in [("saldo", "SALDO"),
