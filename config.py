@@ -9,11 +9,33 @@ archivo y el sistema completo se adapta.
 """
 
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# HORA OFICIAL
+# ---------------------------------------------------------------------------
+# Los servidores en la nube (GitHub, Streamlit Cloud) trabajan en hora UTC. Si
+# el sistema usara la hora del servidor, después de las 7 de la noche en
+# Colombia ya sería "mañana" y el motor evaluaría el día equivocado. Colombia
+# no tiene horario de verano, así que basta un desfase fijo de -5 horas, sin
+# depender de bases de zonas horarias que en Windows no vienen instaladas.
+
+ZONA_COLOMBIA = timezone(timedelta(hours=-5), "COT")
+
+
+def ahora():
+    """Fecha y hora oficial de Colombia, sin zona, lista para guardar."""
+    return datetime.now(ZONA_COLOMBIA).replace(tzinfo=None)
+
+
+def hoy():
+    return ahora().date()
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +96,10 @@ HORARIO_HABIL = {
     5: (8, 15),   # sábado
     6: None,      # domingo: prohibido
 }
+
+# Días antes de la fecha de un compromiso de pago en que se envía recordatorio.
+# Antes de esa ventana la cuenta queda en espera, sin contacto.
+DIAS_AVISO_COMPROMISO = 2
 
 
 # ---------------------------------------------------------------------------
