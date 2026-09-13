@@ -1,0 +1,63 @@
+# Carga de una cartera ficticia en la base de datos externa (Supabase).
+#
+# Se ejecuta a mano desde la pestaña Actions del repositorio. Todo ocurre en
+# los servidores de GitHub: la cartera se genera allí y se envía directo a
+# Supabase, sin pasar por ningún equipo local.
+#
+# Requiere configurar en el repositorio el secreto DATABASE_URL con la cadena
+# de conexión del pooler de Supabase (Settings -> Secrets and variables ->
+# Actions). El secreto nunca aparece en los registros de ejecución.
+
+name: Sembrar base en Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      registros:
+        description: "Cantidad de cuentas ficticias a generar"
+        required: true
+        default: "5000"
+      semilla:
+        description: "Semilla aleatoria (cambiarla produce una cartera distinta)"
+        required: true
+        default: "42"
+
+jobs:
+  sembrar:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SEUDONIMO_CLAVE: ${{ secrets.SEUDONIMO_CLAVE }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - name: Verificar que el secreto esté configurado
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Falta el secreto DATABASE_URL en Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Verificar la conexión con Supabase
+        run: python -m datos.base_datos probar
+
+      - name: Generar y cargar la cartera ficticia
+        run: >
+          python -m datos.base_datos sintetica
+          --registros ${{ inputs.registros }}
+          --semilla ${{ inputs.semilla }}
+
+      - name: Cargas registradas
+        run: python -m datos.base_datos cargas

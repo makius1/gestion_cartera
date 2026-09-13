@@ -1,0 +1,39 @@
+# Consulta periódica a la base de Supabase.
+#
+# Los proyectos del plan gratuito de Supabase se pausan tras unos días sin
+# actividad, y una base pausada no responde hasta que se reactiva a mano desde
+# el panel. Esta consulta cada tres días reduce ese riesgo, que sería
+# especialmente inoportuno durante una demostración.
+
+name: Mantener activa la base
+
+on:
+  schedule:
+    - cron: "0 12 */3 * *"   # cada tres días, 7:00 a. m. hora de Colombia
+  workflow_dispatch:
+
+jobs:
+  consultar:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Omitir si no hay base configurada
+        id: verificar
+        run: echo "configurada=$([ -n "$DATABASE_URL" ] && echo si || echo no)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.verificar.outputs.configurada == 'si'
+
+      - uses: actions/setup-python@v5
+        if: steps.verificar.outputs.configurada == 'si'
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Consultar la base
+        if: steps.verificar.outputs.configurada == 'si'
+        run: |
+          pip install -r requirements.txt
+          python -m datos.base_datos probar

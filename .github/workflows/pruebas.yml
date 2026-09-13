@@ -1,0 +1,77 @@
+# Prueba de integración contra un PostgreSQL real.
+#
+# En cada envío al repositorio, GitHub levanta un servidor PostgreSQL temporal,
+# genera una cartera ficticia, la carga y verifica que quedó completa. Así se
+# comprueba en cada cambio que el sistema funciona sobre el mismo motor que usa
+# Supabase, sin tocar la base de producción ni depender de ningún equipo local.
+
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  base-de-datos:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cobranza
+        ports:
+          - 5432:5432
+        # Espera a que el servidor acepte conexiones antes de empezar.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cobranza
+      # Clave fija solo para esta prueba: los datos son ficticios y la base se
+      # destruye al terminar.
+      SEUDONIMO_CLAVE: clave-exclusiva-de-integracion-continua
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Verificar la conexión
+        run: python -m datos.base_datos probar
+
+      - name: Generar y cargar una cartera ficticia
+        run: python -m datos.base_datos sintetica --registros 2000
+
+      - name: Comprobar que la carga quedó completa
+        run: |
+          python - <<'PY'
+          from datos.base_datos import leer_cartera, listar_cargas
+          cargas = listar_cargas()
+          cartera = leer_cartera()
+          assert len(cargas) == 1, "se esperaba una carga, hay %d" % len(cargas)
+          assert len(cartera) == 2000, "se esperaban 2000 cuentas, hay %d" % len(cartera)
+          assert cartera["credito_id"].is_unique, "hay créditos duplicados"
+          assert cartera["cuenta_id"].str.len().eq(13).all(), "seudónimos mal formados"
+          print("Carga verificada: %d cuentas, saldo total $%s" % (
+              len(cartera), "{:,.0f}".format(float(cartera["saldo"].sum()))))
+          PY
+
+      - name: Estado final de la base
+        run: python -m datos.base_datos probar
