@@ -1,0 +1,34 @@
+# Configuración de la aplicación web (Streamlit).
+#
+# Este archivo sí se versiona porque no contiene secretos. Las credenciales van
+# en .streamlit/secrets.toml en local o en el panel de secretos de Streamlit
+# Community Cloud, y ambos quedan fuera del repositorio.
+
+[server]
+headless = true
+# Protección contra falsificación de peticiones entre sitios y validación del
+# origen de las conexiones: vienen activas por defecto y se dejan explícitas
+# para que nadie las apague sin notarlo.
+enableXsrfProtection = true
+enableCORS = true
+# Tamaño máximo de archivo que la aplicación acepta, en MB.
+maxUploadSize = 20
+
+[browser]
+# No se envían estadísticas de uso a terceros.
+gatherUsageStats = false
+
+[client]
+# Los errores no muestran el detalle técnico al usuario: una traza puede
+# revelar rutas internas o fragmentos de la cadena de conexión. El detalle
+# queda en el registro del servidor.
+showErrorDetails = false
+# Oculta el menú de desarrollador a los usuarios de la aplicación.
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#1f4e79"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f2f5f9"
+textColor = "#1c2833"
