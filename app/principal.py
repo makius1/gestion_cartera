@@ -106,6 +106,7 @@ if not comun.controlar_sesion():
 PAGINAS = {
     "Operación": [
         ("paginas/tablero.py", "Tablero", ":material/dashboard:", "ver_tablero"),
+        ("paginas/gestion.py", "Gestión de cuentas", ":material/support_agent:", "registrar_gestion"),
         ("paginas/cartera.py", "Cartera", ":material/table_view:", "ver_cartera"),
         ("paginas/motor.py", "Motor de elegibilidad", ":material/rule:", "ver_motor"),
         ("paginas/priorizacion.py", "Priorización", ":material/sort:", "ver_priorizacion"),
