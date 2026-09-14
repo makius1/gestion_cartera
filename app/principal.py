@@ -108,6 +108,7 @@ PAGINAS = {
         ("paginas/tablero.py", "Tablero", ":material/dashboard:", "ver_tablero"),
         ("paginas/cartera.py", "Cartera", ":material/table_view:", "ver_cartera"),
         ("paginas/motor.py", "Motor de elegibilidad", ":material/rule:", "ver_motor"),
+        ("paginas/priorizacion.py", "Priorización", ":material/sort:", "ver_priorizacion"),
     ],
     "Conocimiento": [
         ("paginas/conocimiento.py", "Base de conocimiento", ":material/menu_book:", "ver_conocimiento"),

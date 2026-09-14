@@ -8,16 +8,24 @@ cuenta imaginaria y el motor responde qué haría y por qué. Es la forma de
 revisar la base de conocimiento con un experto del negocio o con el área
 jurídica sin leer código.
 
-Las reglas se modifican en motor/base_conocimiento.py y no desde la pantalla:
+Incluye también la base difusa de la priorización: variables lingüísticas, sus
+conjuntos y las reglas con que se ordena la cartera.
+
+Las reglas se modifican en motor/base_conocimiento.py y
+decision/conocimiento_difuso.py, no desde la pantalla:
 así cada cambio de una regla queda registrado en el historial del repositorio,
 con autor, fecha y motivo, que es lo que exige una norma auditable.
 """
 
+import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 import config
 from app import comun
+from decision import conocimiento_difuso as kd
+from decision.priorizacion import _pertenencia
 from motor import base_conocimiento as bc
 from motor import elegibilidad as motor
 
@@ -66,8 +74,8 @@ def describir_efecto(efecto):
     return "; ".join(partes)
 
 
-pestana_reglas, pestana_simulador, pestana_parametros = st.tabs(
-    ["Reglas", "Simulador de consulta", "Parámetros y calendario"])
+pestana_reglas, pestana_simulador, pestana_parametros, pestana_difusa = st.tabs(
+    ["Reglas", "Simulador de consulta", "Parámetros y calendario", "Reglas difusas de priorización"])
 
 # --- Reglas por fase ------------------------------------------------------------
 with pestana_reglas:
@@ -153,3 +161,40 @@ with pestana_parametros:
         festivos = motor._festivos(anio)
         st.dataframe(pd.DataFrame(sorted(festivos.items()), columns=["Fecha", "Festivo"]),
                      hide_index=True, use_container_width=True, height=420)
+
+# --- Base difusa de la priorización -----------------------------------------------
+with pestana_difusa:
+    errores_difusos = kd.validar()
+    if errores_difusos:
+        st.error("La base difusa tiene inconsistencias:
+
+" +
+                 "
+".join("- " + e for e in errores_difusos))
+    else:
+        st.success("{} reglas difusas sobre {} variables, sin inconsistencias y con cobertura "
+                   "completa de saldo y mora.".format(len(kd.REGLAS_DIFUSAS), len(kd.VARIABLES)))
+    st.caption("Inferencia Mamdani: la fuerza de cada regla es el mínimo de sus premisas, las "
+               "salidas se unen con el máximo y la prioridad es el centro de gravedad del área.")
+
+    st.dataframe(pd.DataFrame([{
+        "Id": r["id"],
+        "Si": " Y ".join("{} es {}".format(v, c) for v, c in r["si"].items()),
+        "Entonces": "prioridad " + r["entonces"],
+        "Fundamento": r["fundamento"],
+    } for r in kd.REGLAS_DIFUSAS]), hide_index=True, use_container_width=True,
+        column_config={"Fundamento": st.column_config.TextColumn(width="large")})
+
+    # Gráfica de los conjuntos de cada variable: muestra dónde se solapan, que
+    # es lo que permite que un mismo valor sea "medio" y "alto" a la vez.
+    variables = list(kd.VARIABLES.items()) + [(kd.SALIDA["nombre"], kd.SALIDA)]
+    columnas = st.columns(2)
+    for i, (nombre, variable) in enumerate(variables):
+        x = np.linspace(*variable["universo"], 300)
+        figura = go.Figure()
+        for conjunto, definicion in variable["conjuntos"].items():
+            figura.add_trace(go.Scatter(x=x, y=_pertenencia(x, definicion), name=conjunto,
+                                        mode="lines", fill="tozeroy"))
+        figura.update_layout(title=variable["descripcion"], height=260,
+                             margin=dict(l=10, r=10, t=40, b=10), yaxis_title="Grado")
+        columnas[i % 2].plotly_chart(figura, use_container_width=True)

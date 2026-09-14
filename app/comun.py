@@ -132,6 +132,23 @@ def evaluaciones(ejecucion_id):
     return bd.leer_evaluaciones(ejecucion_id)
 
 
+@st.cache_data(ttl=120, show_spinner="Consultando priorizaciones...")
+def priorizaciones():
+    return bd.listar_priorizaciones(200)
+
+
+@st.cache_data(ttl=600, show_spinner="Consultando la priorización...")
+def prioridades(priorizacion_id):
+    tabla = bd.leer_prioridades(priorizacion_id)
+    tabla["posicion"] = tabla["posicion"].astype("Int64")
+    return tabla
+
+
+@st.cache_data(ttl=600)
+def resumen_priorizacion(priorizacion_id):
+    return bd.leer_resumen_priorizacion(priorizacion_id)
+
+
 def limpiar_cache():
     st.cache_data.clear()
 
