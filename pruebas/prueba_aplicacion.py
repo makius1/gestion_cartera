@@ -36,7 +36,7 @@ PAGINAS = {
     "tablero": "ver_tablero", "cartera": "ver_cartera", "motor": "ver_motor",
     "conocimiento": "ver_conocimiento", "cargas": "gestionar_cargas",
     "usuarios": "gestionar_usuarios", "auditoria": "ver_auditoria", "mi_cuenta": None,
-    "priorizacion": "ver_priorizacion",
+    "priorizacion": "ver_priorizacion", "gestion": "registrar_gestion",
 }
 TIEMPO = 120   # segundos máximos por pantalla
 # AppTest interpreta las rutas relativas desde este archivo, no desde la raíz.
@@ -92,10 +92,39 @@ def prueba_ingreso():
     print("  Ingreso: rechaza la clave errónea y acepta la correcta")
 
 
+def prueba_gestion():
+    """Abre la gestión con una cuenta tomada de la cola y graba un intento.
+
+    Se registra como gestión entrante para que la prueba no dependa de la hora
+    ni del día en que corre: una saliente fuera de horario sería rechazada, que
+    es lo correcto, pero haría fallar la prueba un domingo.
+    """
+    usuario, _ = usuario_de_prueba("GESTOR")
+    sesion = {"usuario": usuario, "nombre": "Prueba", "rol": "GESTOR", "ultimo_ingreso": None}
+    pagina = abrir("gestion", sesion)
+    pagina.button[0].click().run()          # Siguiente de la cola
+    assert not pagina.exception, pagina.exception
+    credito = pagina.session_state["gestion_credito"]
+    carga = int(bd.listar_priorizaciones(1).iloc[0]["carga_id"])
+    antes = len(bd.leer_gestiones(carga, credito))
+
+    pagina.selectbox[2].set_value("ENTRANTE")
+    pagina.selectbox[3].set_value("CONTACTO_TITULAR")
+    pagina.selectbox[4].set_value("CONTACTO SIN ACUERDO")
+    pagina.text_area[0].input("Prueba automática: el titular llama a consultar su saldo.")
+    pagina.button[1].click().run()          # Grabar gestión
+    assert not pagina.exception, pagina.exception
+    assert len(bd.leer_gestiones(carga, credito)) == antes + 1, "la gestión no se guardó"
+    fila = bd.leer_cartera(carga).set_index("credito_id").loc[credito]
+    assert fila["resultado_gestion"] == "CONTACTO_TITULAR", "la cartera no se actualizó"
+    print("  Gestión: toma la cuenta de la cola, graba y actualiza la cartera")
+
+
 if __name__ == "__main__":
     bd.crear_esquema()
     asegurar_datos()
     prueba_ingreso()
+    prueba_gestion()
 
     fallas = 0
     for rol in auth.ROLES:

@@ -111,6 +111,40 @@ jobs:
               len(candidatas), cabecera["k_segmentos"], cabecera["metodo_elegido"]))
           PY
 
+      # Se registra una gestión saliente con un momento fijo (martes a las 10) y
+      # se comprueba que la cartera se actualiza, que el motor bloquea un nuevo
+      # contacto por frecuencia y que las reglas rechazan una gestión inválida.
+      - name: Registrar gestiones y verificar la retroalimentación
+        run: |
+          python - <<'PY'
+          from datetime import date, datetime
+          from datos import base_datos as bd
+          from gestion import operacion as op
+          momento = datetime(2026, 9, 15, 10, 0)
+          cartera = bd.leer_cartera()
+          carga = int(cartera["carga_id"].iloc[0])
+          filas = cartera.to_dict(orient="records")
+          fila = next(f for f in filas if op.estado_hoy(f, momento)["estado"] == "CONTACTABLE")
+          datos = {"canal": op.estado_hoy(fila, momento)["canal_recomendado"], "sentido": "SALIENTE",
+                   "resultado": "ACUERDO", "codigo": "PAGO TOTAL", "motivo_no_pago": "No aplica",
+                   "valor_acordado": float(fila["cobranza_min"]), "fecha_compromiso": date(2026, 9, 20),
+                   "fecha_proxima_gestion": date(2026, 9, 25),
+                   "observacion": "Verificacion automatica: acuerdo de pago total."}
+          op.registrar(carga, fila["credito_id"], datos, "integracion", momento)
+          nueva = bd.leer_cartera(carga).set_index("credito_id").loc[fila["credito_id"]]
+          assert nueva["codigo"] == "PAGO TOTAL" and bool(nueva["tiene_compromiso"])
+          despues = op.estado_hoy(nueva.to_dict() | {"credito_id": fila["credito_id"]},
+                                  datetime(2026, 9, 15, 11, 0))
+          assert despues["regla_determinante"] == "L2", despues["regla_determinante"]
+          try:
+              op.registrar(carga, fila["credito_id"], dict(datos, resultado="BUZON"), "integracion", momento)
+              raise AssertionError("se aceptó un acuerdo sin contacto")
+          except ValueError as error:
+              reglas = [r for r, _ in error.args[0]]
+          assert "G5" in reglas or "G6" in reglas, reglas
+          print("Gestión verificada: cartera actualizada, recontacto bloqueado y reglas %s" % reglas)
+          PY
+
       - name: Probar la aplicación web por rol
         run: python -m pruebas.prueba_aplicacion
 
