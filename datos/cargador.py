@@ -269,6 +269,47 @@ def cargar(ruta=None, hoja=None, bruto=None):
     return df
 
 
+def extraer_directorio(bruto):
+    """Separa la identidad y los contactos de cada titular.
+
+    La tabla de trabajo (cartera) nunca guarda nombres, documentos, teléfonos
+    ni correos: guarda seudónimos. Pero el gestor necesita a quién llamar. La
+    solución es la separación que recomienda la protección de datos: la
+    identidad va en un directorio aparte, unido a la cartera solo por el
+    seudónimo, con acceso restringido y cada consulta registrada.
+
+    Retorna (titulares, contactos). Del documento solo se conservan los cuatro
+    últimos dígitos: basta para confirmar identidad al teléfono sin guardar el
+    número completo.
+    """
+    bruto = _normalizar_columnas(bruto.copy())
+    base = pd.DataFrame({"cuenta_id": bruto["CEDULA"].map(lambda v: _seudonimo(v, "C"))})
+    documento = bruto["CEDULA"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
+    titulares = pd.DataFrame({
+        "cuenta_id": base["cuenta_id"],
+        "nombre": bruto.get("NOMBRE", pd.Series("", index=bruto.index)).astype(str).str.strip().str.title(),
+        "documento_enmascarado": "******" + documento.str[-4:],
+        "ciudad": bruto["CIUDAD"].astype(str).str.strip().str.upper(),
+    }).drop_duplicates("cuenta_id")
+
+    contactos = []
+    for tipo, columna in [("CELULAR", "Celular 1"), ("FIJO", "Telefono")]:
+        if columna in bruto.columns:
+            numero = pd.to_numeric(bruto[columna], errors="coerce")
+            validos = numero.notna() & (numero > 999_999)
+            contactos.append(pd.DataFrame({"cuenta_id": base.loc[validos, "cuenta_id"], "tipo": tipo,
+                                           "valor": numero[validos].astype("int64").astype(str)}))
+    for columna in ["email", "email_1"]:
+        if columna in bruto.columns:
+            texto = bruto[columna].astype(str).str.strip().str.lower()
+            validos = texto.str.contains("@", na=False) & (texto != "nan")
+            contactos.append(pd.DataFrame({"cuenta_id": base.loc[validos, "cuenta_id"],
+                                           "tipo": "EMAIL", "valor": texto[validos]}))
+    contactos = (pd.concat(contactos, ignore_index=True) if contactos
+                 else pd.DataFrame(columns=["cuenta_id", "tipo", "valor"]))
+    return titulares.reset_index(drop=True), contactos.drop_duplicates().reset_index(drop=True)
+
+
 def perfilar(df):
     """Imprime el diagnóstico de la asignación cargada."""
     total = df["saldo"].sum()

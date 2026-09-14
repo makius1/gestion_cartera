@@ -238,6 +238,42 @@ gestiones = Table(
 Index("ix_gestiones_cuenta", gestiones.c.carga_id, gestiones.c.credito_id)
 
 
+# --- Directorio de titulares -----------------------------------------------------
+# La identidad y los contactos viven aparte de la cartera, unidos solo por el
+# seudónimo del titular. El titular no depende de la carga: una misma persona
+# aparece en varias asignaciones y sus datos se administran una sola vez.
+
+titulares = Table(
+    "titulares", metadatos,
+    Column("cuenta_id", String(13), primary_key=True),
+    Column("nombre", String(120)),
+    # Solo los cuatro últimos dígitos: suficiente para confirmar identidad.
+    Column("documento_enmascarado", String(20)),
+    Column("ciudad", String(60)),
+    Column("actualizado", DateTime),
+    Column("actualizado_por", String(40)),
+)
+
+contactos = Table(
+    "contactos", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("cuenta_id", String(13), nullable=False),
+    Column("tipo", String(10), nullable=False),          # CELULAR, FIJO o EMAIL
+    Column("valor", String(120), nullable=False),
+    # SIN_VERIFICAR al llegar en una carga; VALIDO o ERRADO según lo que
+    # confirme el gestor. Un contacto errado no se borra: queda como evidencia de
+    # que ese número no pertenece al titular y no se debe volver a marcar.
+    Column("estado", String(15), nullable=False),
+    Column("origen", String(10), nullable=False),        # CARGA o GESTOR
+    Column("creado", DateTime, nullable=False),
+    Column("creado_por", String(40), nullable=False),
+    Column("actualizado", DateTime),
+    Column("actualizado_por", String(40)),
+)
+Index("ix_contactos_cuenta", contactos.c.cuenta_id)
+Index("ux_contactos_valor", contactos.c.cuenta_id, contactos.c.tipo, contactos.c.valor, unique=True)
+
+
 # ---------------------------------------------------------------------------
 # 2. CONEXIÓN Y CREACIÓN
 # ---------------------------------------------------------------------------
@@ -455,6 +491,88 @@ def registrar_carga(df, origen, archivo=None, semilla=None, permitir_real_en_nub
     return carga_id
 
 
+def _ids_existentes(conexion, columna, valores, *condiciones):
+    """Valores de `columna` que ya existen, consultados por bloques de 1.000
+    para no pasar miles de parámetros en una sola sentencia."""
+    existentes = set()
+    valores = list(valores)
+    for inicio in range(0, len(valores), 1000):
+        consulta = select(columna).where(columna.in_(valores[inicio:inicio + 1000]), *condiciones)
+        existentes.update(conexion.execute(consulta).scalars())
+    return existentes
+
+
+def registrar_directorio(titulares_df, contactos_df, origen, usuario="sistema",
+                         permitir_real_en_nube=False):
+    """Agrega al directorio los titulares y contactos que aún no existen.
+
+    No sobrescribe nada: si un gestor ya corrigió el nombre de un titular o
+    marcó un teléfono como errado, una carga posterior no deshace ese trabajo.
+    Aplica la misma protección que las cargas: datos reales solo en la base
+    local, salvo confirmación explícita. Retorna (titulares_nuevos, contactos_nuevos).
+    """
+    if origen == "REAL" and not es_local() and not permitir_real_en_nube:
+        raise PermissionError("Se intentó guardar el directorio de datos REALES en una base "
+                              "remota ({}).".format(describir_motor()))
+    motor = obtener_motor()
+    crear_esquema(motor)
+    ahora = config.ahora()
+    with motor.begin() as conexion:
+        existentes = _ids_existentes(conexion, titulares.c.cuenta_id, titulares_df["cuenta_id"])
+        nuevos = titulares_df[~titulares_df["cuenta_id"].isin(existentes)].copy()
+        nuevos["actualizado"], nuevos["actualizado_por"] = ahora, usuario
+        filas = nuevos.to_dict(orient="records")
+        for inicio in range(0, len(filas), 1000):
+            conexion.execute(insert(titulares), filas[inicio:inicio + 1000])
+
+        # Un contacto ya registrado se identifica por (titular, tipo, valor).
+        claves = set()
+        cuentas = contactos_df["cuenta_id"].unique().tolist()
+        for inicio in range(0, len(cuentas), 1000):
+            consulta = select(contactos.c.cuenta_id, contactos.c.tipo, contactos.c.valor).where(
+                contactos.c.cuenta_id.in_(cuentas[inicio:inicio + 1000]))
+            claves.update(tuple(f) for f in conexion.execute(consulta))
+        clave = list(zip(contactos_df["cuenta_id"], contactos_df["tipo"], contactos_df["valor"]))
+        faltantes = contactos_df[[c not in claves for c in clave]].copy()
+        faltantes["estado"], faltantes["origen"] = "SIN_VERIFICAR", "CARGA"
+        faltantes["creado"], faltantes["creado_por"] = ahora, usuario
+        filas = faltantes.to_dict(orient="records")
+        for inicio in range(0, len(filas), 1000):
+            conexion.execute(insert(contactos), filas[inicio:inicio + 1000])
+    return len(nuevos), len(faltantes)
+
+
+def completar_columnas(carga_id, tabla, columnas):
+    """Llena en la cartera de una carga las columnas que están vacías.
+
+    Solo toca celdas nulas: lo que un gestor ya actualizó no se sobrescribe.
+    En PostgreSQL se hace con una sola sentencia UPDATE ... FROM (VALUES ...)
+    por bloque; fila por fila serían miles de viajes de ida y vuelta al
+    servidor. Retorna la cantidad de filas procesadas.
+    """
+    motor = obtener_motor()
+    filas = tabla[["credito_id"] + columnas].astype(object).where(tabla[["credito_id"] + columnas].notna(), None)
+    registros = [tuple(f) for f in filas.itertuples(index=False)]
+    with motor.begin() as conexion:
+        if motor.dialect.name == "postgresql":
+            from psycopg2.extras import execute_values
+            # Cada valor se convierte al tipo de su columna: en una lista VALUES
+            # PostgreSQL no sabe de qué tipo es un NULL.
+            asignaciones = ", ".join('"{0}" = COALESCE(c."{0}", v."{0}"::{1})'.format(
+                c, cartera.c[c].type.compile(dialect=motor.dialect)) for c in columnas)
+            sentencia = ('UPDATE cartera AS c SET {} FROM (VALUES %s) AS v(credito_id, {}) '
+                         'WHERE c.carga_id = {} AND c.credito_id = v.credito_id').format(
+                asignaciones, ", ".join('"{}"'.format(c) for c in columnas), int(carga_id))
+            cursor = conexion.connection.dbapi_connection.cursor()
+            execute_values(cursor, sentencia, registros, page_size=1000)
+        else:
+            sentencia = text('UPDATE cartera SET {} WHERE carga_id = :carga AND credito_id = :credito'.format(
+                ", ".join('"{0}" = COALESCE("{0}", :{0})'.format(c) for c in columnas)))
+            conexion.execute(sentencia, [dict(zip(["credito"] + columnas, r), carga=int(carga_id))
+                                         for r in registros])
+    return len(registros)
+
+
 def guardar_ejecucion(resumen, resultados, usuario):
     """Guarda una ejecución del motor de elegibilidad y su resultado por cuenta.
 
@@ -663,14 +781,19 @@ if __name__ == "__main__":
         from datos.cargador import cargar
         from datos.generador import generar
         from datos.perfilador import cargar_perfil
+        from datos.cargador import extraer_directorio
         bruto = generar(cargar_perfil(), n=args.registros, semilla=args.semilla)
         carga_id = registrar_carga(cargar(bruto=bruto), "SINTETICO",
                                    "generada_en_memoria", semilla=args.semilla)
-        print("  Carga {} registrada: {:,} cuentas ficticias".format(carga_id, len(bruto)))
+        titulares_n, contactos_n = registrar_directorio(*extraer_directorio(bruto), "SINTETICO", "terminal")
+        print("  Carga {} registrada: {:,} cuentas simuladas, {:,} titulares y {:,} contactos nuevos"
+              .format(carga_id, len(bruto), titulares_n, contactos_n))
 
     elif args.accion == "real":
-        from datos.cargador import cargar
-        carga_id = registrar_carga(cargar(), "REAL", config.ARCHIVO_ASIGNACION)
+        from datos.cargador import cargar, extraer_directorio, leer_bruto
+        bruto = leer_bruto()
+        carga_id = registrar_carga(cargar(bruto=bruto), "REAL", config.ARCHIVO_ASIGNACION)
+        registrar_directorio(*extraer_directorio(bruto), "REAL", "terminal")
         print("  Carga {} registrada con la asignación real".format(carga_id))
 
     elif args.accion == "cargas":
