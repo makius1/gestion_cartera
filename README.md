@@ -53,7 +53,9 @@ ASIGNACIÓN (Excel / base de datos)
 [3] ORQUESTADOR DIARIO DE COLAS POR CANAL
         │
 [4] EJECUCIÓN MULTICANAL                     (correo, SMS, WhatsApp, llamada)
-    └─ Registro de gestiones del gestor                                 ← implementado
+    ├─ Registro de gestiones del gestor                                 ← implementado
+    ├─ Directorio de titulares y contactos                              ← implementado
+    └─ Plan de trabajo diario y traza de trabajo                        ← implementado
         │
 [5] RETROALIMENTACIÓN                        (cada resultado reentrena el modelo)
 
@@ -263,6 +265,61 @@ con eso se cierra el ciclo del sistema experto:
 
 ---
 
+## Directorio de titulares
+
+La cartera de análisis nunca guarda nombres, documentos, teléfonos ni correos:
+guarda seudónimos. Pero el gestor necesita saber a quién llamar. La identidad
+y los contactos van en un **directorio aparte** (tablas `titulares` y
+`contactos`), unido a la cartera solo por el seudónimo del titular:
+
+- Del documento se guardan solo los cuatro últimos dígitos, suficientes para
+  confirmar identidad al teléfono.
+- Los contactos se muestran enmascarados (`399****71`). Ver el dato completo
+  es una acción explícita que queda en la auditoría.
+- El gestor agrega teléfonos y correos (con validación de formato), marca cada
+  contacto como válido o errado y corrige nombre y ciudad. Cada cambio
+  recalcula los canales de todas las cuentas del titular, y el motor los usa
+  de inmediato.
+- Un contacto errado no se borra: queda como evidencia para no volver a
+  llamar a un tercero si el número llega en otra asignación.
+- Una carga nueva agrega al directorio lo que falta, sin deshacer lo que un
+  gestor ya corrigió.
+
+### Completar cargas incompletas
+
+Las cargas registradas antes de que existieran estos datos se completan desde
+la pantalla **Cargas** o con `python -m datos.completar --carga N`. Una carga
+simulada se reconstruye con su semilla, se verifica crédito por crédito y
+saldo por saldo, y solo se llenan los datos vacíos.
+
+---
+
+## Plan de trabajo y traza
+
+**Plan de trabajo.** El supervisor toma una priorización y reparte las
+cuentas del día entre los gestores activos:
+
+1. Las cuentas se vuelven a evaluar con el motor para la fecha del plan.
+2. Entran las de mayor prioridad hasta completar el cupo del equipo.
+3. Se reparten **en serpentina** (1, 2, 3… y luego …3, 2, 1): cada gestor
+   recibe una mezcla equivalente de cuentas de alta y baja prioridad, y sus
+   resultados se pueden comparar con justicia.
+
+En la pantalla de gestión, *Siguiente cuenta* entrega primero la del plan del
+gestor y, cuando lo completa, la de la cola general. El avance no se guarda:
+se calcula cruzando las asignaciones con las gestiones del día.
+
+**Traza de trabajo.**
+
+- *Por gestor*: gestiones por día con la primera y la última hora de la
+  jornada, efectividad de contacto, acuerdos, valor comprometido y
+  distribución por hora. El gestor ve la suya; el supervisor la del equipo.
+- *Por cuenta*: la línea de tiempo completa (carga, decisiones del motor,
+  priorizaciones, asignaciones al plan, gestiones y cambios del titular). Es
+  lo que se presenta ante una auditoría o una queja.
+
+---
+
 ## Aplicación web
 
 La operación se hace desde el navegador, con ingreso por usuario y contraseña.
@@ -272,13 +329,18 @@ Cada rol ve solo las pantallas que le corresponden:
 |---|:---:|:---:|:---:|
 | Tablero: cartera frente a la meta | ✅ | ✅ | ✅ |
 | Gestión de cuentas: cola del día, estado legal y registro del contacto | ✅ | ✅ | ✅ |
+| Titular y datos de contacto: agregar, validar, marcar errados | ✅ | ✅ | ✅ |
+| Plan de trabajo: ver el propio | ✅ | ✅ | ✅ |
+| Plan de trabajo: crear y ver el del equipo | | ✅ | ✅ |
+| Traza de trabajo: la propia | ✅ | ✅ | ✅ |
+| Traza de trabajo: la del equipo | | ✅ | ✅ |
 | Cartera: consulta con filtros y descarga | ✅ | ✅ | ✅ |
 | Motor: resultados y explicación por cuenta | ✅ | ✅ | ✅ |
 | Motor: ejecutar sobre una carga y una fecha | | ✅ | ✅ |
 | Priorización: comparación de métodos, segmentos, cola del día y explicación por cuenta | ✅ | ✅ | ✅ |
 | Priorización: ejecutar sobre una carga | | ✅ | ✅ |
 | Base de conocimiento, reglas difusas y simulador de consulta | ✅ | ✅ | ✅ |
-| Cargas: registrar y simular carteras | | ✅ | ✅ |
+| Cargas: registrar, simular y completar carteras | | ✅ | ✅ |
 | Auditoría: bitácora de acciones | | ✅ | ✅ |
 | Usuarios: crear, cambiar rol, desactivar, restablecer | | | ✅ |
 | Mi cuenta: cambio de contraseña | ✅ | ✅ | ✅ |
@@ -363,6 +425,9 @@ Los registros simulados nunca se confunden con los de una asignación:
 | `priorizaciones` | Una fila por priorización: método elegido, segmentos, silueta y métricas de los tres métodos |
 | `prioridades` | El segmento, los tres puntajes, la posición y si entra en la cola del día, por cuenta |
 | `gestiones` | Cada contacto registrado por un gestor, con el estado que el motor asignaba a la cuenta en ese momento |
+| `titulares` | Directorio: nombre, documento enmascarado y ciudad de cada titular |
+| `contactos` | Teléfonos y correos de cada titular, con su estado (sin verificar, válido o errado) |
+| `planes` y `plan_asignaciones` | Plan de trabajo del día y la cuenta asignada a cada gestor |
 | `usuarios` | Cuentas de acceso: rol, estado y derivación de la contraseña |
 | `auditoria` | Bitácora de acciones del sistema |
 
@@ -395,6 +460,7 @@ uso, sin tocar los datos existentes.
 │   ├── perfil_demo.json        Perfil estadístico de referencia (solo agregados)
 │   ├── generador.py            Simulación y enmascarado de carteras
 │   ├── base_datos.py           Esquema, cargas históricas, resultados y auditoría
+│   ├── completar.py            Completado de cargas a las que les faltan datos
 │   └── configurar_conexion.py  Configuración asistida de la conexión a Supabase
 ├── motor/
 │   ├── base_conocimiento.py    Reglas de elegibilidad con su fundamento
@@ -406,7 +472,9 @@ uso, sin tocar los datos existentes.
 │   ├── conocimiento_difuso.py  Variables, conjuntos y reglas difusas
 │   └── priorizacion.py         Difuso, TOPSIS, ponderación y selección del óptimo
 ├── gestion/
-│   └── operacion.py            Registro de gestiones y reglas de validación
+│   ├── operacion.py            Registro de gestiones y reglas de validación
+│   ├── titulares.py            Directorio de titulares y datos de contacto
+│   └── plan.py                 Plan de trabajo diario con reparto en serpentina
 ├── seguridad/
 │   └── autenticacion.py        Contraseñas, ingreso, bloqueo, usuarios y roles
 ├── app/
@@ -537,6 +605,7 @@ python -m decision.priorizacion --ejecucion 1
 | 2b | Aplicación web con ingreso, roles y auditoría | ✅ |
 | 3 | Segmentación (K-Means) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
 | 3b | Gestión de cuentas con reglas de validación y actualización de la cartera | ✅ |
+| 3c | Directorio de titulares, plan de trabajo diario y traza de trabajo | ✅ |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
 | 5 | Optimización de campañas y asignación | Pendiente |
 
