@@ -53,6 +53,7 @@ ASIGNACIÓN (Excel / base de datos)
 [3] ORQUESTADOR DIARIO DE COLAS POR CANAL
         │
 [4] EJECUCIÓN MULTICANAL                     (correo, SMS, WhatsApp, llamada)
+    └─ Registro de gestiones del gestor                                 ← implementado
         │
 [5] RETROALIMENTACIÓN                        (cada resultado reentrena el modelo)
 
@@ -80,7 +81,7 @@ automáticos corren en los servidores de GitHub.
 
 | Pieza | Qué hace |
 |---|---|
-| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad, segmenta y prioriza, y abre cada pantalla de la aplicación con cada rol. |
+| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad, segmenta y prioriza, registra gestiones y abre cada pantalla de la aplicación con cada rol. |
 | **Sembrar base en Supabase** | Botón manual en la pestaña Actions: simula una cartera en GitHub y la registra directamente en Supabase. |
 | **Mantener activa la base** | Consulta la base cada tres días para reducir el riesgo de que el plan gratuito de Supabase la pause por inactividad. |
 | **Codespaces** | Entorno de desarrollo en el navegador, con Python y las dependencias instaladas automáticamente. |
@@ -227,6 +228,41 @@ puede revisar por qué se eligió uno y cómo habría quedado la cola con otro.
 
 ---
 
+## Gestión de cuentas
+
+Es el apartado de trabajo diario del gestor (`gestion/operacion.py`). Toma la
+**siguiente cuenta de la cola priorizada** o busca una por su seudónimo, ve la
+obligación, la última gestión, el historial y **lo que el motor permite hacer
+hoy** con ella, y registra el resultado del contacto.
+
+Cada gestión pasa por reglas de validación antes de guardarse, en el servidor:
+
+| Regla | Nivel | Qué verifica | Fundamento |
+|---|---|---|---|
+| G1 | Error | Un contacto saliente solo en día hábil y dentro del horario | Ley 2300 de 2023 |
+| G2 | Error | No contactar una cuenta que el motor bloquea hoy (por ejemplo, por frecuencia) | Ley 2300 y motor |
+| G3 | Error | El canal debe estar permitido para la cuenta | Motor de elegibilidad |
+| G4 | Aviso | Contacto durante un compromiso vigente | Política del negocio |
+| G5 | Error | Sin hablar con el titular, el código solo puede ser de localización | Calidad del dato |
+| G6 | Error | Acuerdo de pago y código de compromiso van juntos | Calidad del dato |
+| G7 | Error | Resultado y código de fallecimiento van juntos | Calidad del dato |
+| G8 | Error | El valor acordado no baja del mínimo autorizado ni supera lo cobrable; la fecha, dentro de 30 días | Banda de negociación |
+| G9 | Aviso | La próxima gestión no debe quedar antes del periodo de frecuencia | Ley 2300 de 2023 |
+| G10 | Error | Observación obligatoria | Soporte de la gestión |
+
+Un contacto **entrante** (el titular se comunica) se puede registrar cualquier
+día: la ley regula el contacto que inicia la casa de cobranza.
+
+La gestión y la actualización de la cartera van en **una sola transacción**, y
+con eso se cierra el ciclo del sistema experto:
+
+- El motor lee la nueva fecha de contacto: la regla de frecuencia bloquea el
+  recontacto y, si hubo acuerdo, se aplican las reglas de compromiso.
+- La priorización lee el nuevo resultado y ajusta la contactabilidad.
+- La historia de gestiones es la materia prima del modelo de propensión.
+
+---
+
 ## Aplicación web
 
 La operación se hace desde el navegador, con ingreso por usuario y contraseña.
@@ -235,6 +271,7 @@ Cada rol ve solo las pantallas que le corresponden:
 | Pantalla | Gestor | Supervisor | Administrador |
 |---|:---:|:---:|:---:|
 | Tablero: cartera frente a la meta | ✅ | ✅ | ✅ |
+| Gestión de cuentas: cola del día, estado legal y registro del contacto | ✅ | ✅ | ✅ |
 | Cartera: consulta con filtros y descarga | ✅ | ✅ | ✅ |
 | Motor: resultados y explicación por cuenta | ✅ | ✅ | ✅ |
 | Motor: ejecutar sobre una carga y una fecha | | ✅ | ✅ |
@@ -325,6 +362,7 @@ Los registros simulados nunca se confunden con los de una asignación:
 | `evaluaciones` | El resultado de cada cuenta en cada ejecución, con sus reglas y su explicación |
 | `priorizaciones` | Una fila por priorización: método elegido, segmentos, silueta y métricas de los tres métodos |
 | `prioridades` | El segmento, los tres puntajes, la posición y si entra en la cola del día, por cuenta |
+| `gestiones` | Cada contacto registrado por un gestor, con el estado que el motor asignaba a la cuenta en ese momento |
 | `usuarios` | Cuentas de acceso: rol, estado y derivación de la contraseña |
 | `auditoria` | Bitácora de acciones del sistema |
 
@@ -367,6 +405,8 @@ uso, sin tocar los datos existentes.
 ├── decision/
 │   ├── conocimiento_difuso.py  Variables, conjuntos y reglas difusas
 │   └── priorizacion.py         Difuso, TOPSIS, ponderación y selección del óptimo
+├── gestion/
+│   └── operacion.py            Registro de gestiones y reglas de validación
 ├── seguridad/
 │   └── autenticacion.py        Contraseñas, ingreso, bloqueo, usuarios y roles
 ├── app/
@@ -496,6 +536,7 @@ python -m decision.priorizacion --ejecucion 1
 | 2 | Motor de reglas de elegibilidad de contacto | ✅ |
 | 2b | Aplicación web con ingreso, roles y auditoría | ✅ |
 | 3 | Segmentación (K-Means) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
+| 3b | Gestión de cuentas con reglas de validación y actualización de la cartera | ✅ |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
 | 5 | Optimización de campañas y asignación | Pendiente |
 
