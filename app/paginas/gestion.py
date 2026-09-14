@@ -21,6 +21,7 @@ import config
 from app import comun
 from datos import base_datos as bd
 from gestion import operacion as op
+from gestion import plan
 from gestion import titulares as tit
 
 comun.exigir("registrar_gestion")
@@ -54,14 +55,26 @@ with st.container(border=True):
     busqueda = c1.text_input("Buscar por crédito o titular",
                              placeholder="Seudónimo del crédito (K…) o del titular (C…)")
     c2.write("")
-    if c2.button("Siguiente de la cola", icon=":material/skip_next:", use_container_width=True):
-        credito, posicion = op.siguiente_de_la_cola(carga_id)
-        if credito is None:
-            st.info("No hay cuentas pendientes: no existe una priorización para esta carga o "
-                    "todas las cuentas de la cola ya se gestionaron hoy.")
-        else:
+    if c2.button("Siguiente cuenta", icon=":material/skip_next:", use_container_width=True):
+        # Primero el plan de trabajo del gestor; si no tiene plan hoy o ya lo
+        # completó, la cola general de la última priorización.
+        credito, orden, total = plan.siguiente_del_plan(carga_id, usuario)
+        if credito is not None:
             st.session_state["gestion_credito"] = credito
-            st.session_state["gestion_posicion"] = posicion
+            st.session_state["gestion_posicion"] = None
+            st.session_state["gestion_origen"] = "Cuenta {} de {} de su plan de trabajo de hoy.".format(
+                orden, total)
+        else:
+            credito, posicion = op.siguiente_de_la_cola(carga_id)
+            if credito is None:
+                st.info("No hay cuentas pendientes: no existe una priorización para esta carga o "
+                        "todas las cuentas de la cola ya se gestionaron hoy.")
+            else:
+                st.session_state["gestion_credito"] = credito
+                st.session_state["gestion_posicion"] = posicion
+                st.session_state["gestion_origen"] = (
+                    "Completó su plan de hoy; cuenta tomada de la cola general." if total
+                    else "Cuenta tomada de la cola general (no tiene plan de trabajo hoy).")
 
     if busqueda.strip():
         texto = busqueda.strip().upper()
@@ -93,6 +106,9 @@ decision = op.estado_hoy(fila)
 
 posicion = st.session_state.get("gestion_posicion")
 st.subheader("Crédito {} · titular {}".format(credito, fila["cuenta_id"]))
+origen = st.session_state.get("gestion_origen")
+if origen:
+    st.caption(origen)
 if posicion:
     st.caption("Posición {} en la cola priorizada del día.".format(comun.numero(posicion)))
 

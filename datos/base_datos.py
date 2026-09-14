@@ -271,6 +271,36 @@ contactos = Table(
     Column("actualizado_por", String(40)),
 )
 Index("ix_contactos_cuenta", contactos.c.cuenta_id)
+
+
+# --- Plan de trabajo -----------------------------------------------------------------
+# El reparto de las cuentas del día entre los gestores. El avance no se guarda:
+# se calcula cruzando las asignaciones con las gestiones registradas, así nunca
+# puede quedar desactualizado.
+
+planes = Table(
+    "planes", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fecha", Date, nullable=False),
+    Column("carga_id", Integer, ForeignKey("cargas.id"), nullable=False),
+    Column("priorizacion_id", Integer, ForeignKey("priorizaciones.id"), nullable=False),
+    Column("gestores", Integer, nullable=False),
+    Column("cupo", Integer, nullable=False),
+    Column("cuentas", Integer, nullable=False),
+    Column("creado", DateTime, nullable=False),
+    Column("creado_por", String(40), nullable=False),
+)
+
+plan_asignaciones = Table(
+    "plan_asignaciones", metadatos,
+    Column("plan_id", Integer, ForeignKey("planes.id"), primary_key=True),
+    Column("credito_id", String(13), primary_key=True),
+    Column("gestor", String(40), nullable=False),
+    Column("orden", Integer, nullable=False),
+    Column("posicion", Integer),
+    Column("prioridad", Float),
+)
+Index("ix_plan_gestor", plan_asignaciones.c.plan_id, plan_asignaciones.c.gestor)
 Index("ux_contactos_valor", contactos.c.cuenta_id, contactos.c.tipo, contactos.c.valor, unique=True)
 
 
@@ -654,6 +684,20 @@ def registrar_gestion(gestion, cambios_cartera):
     return gestion_id
 
 
+def guardar_plan(plan, asignaciones):
+    """Guarda un plan de trabajo con sus asignaciones. Retorna el id del plan."""
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.begin() as conexion:
+        plan_id = conexion.execute(insert(planes).values(**plan)).inserted_primary_key[0]
+        filas = asignaciones.astype(object).where(asignaciones.notna(), None).to_dict(orient="records")
+        for fila in filas:
+            fila["plan_id"] = plan_id
+        for inicio in range(0, len(filas), 1000):
+            conexion.execute(insert(plan_asignaciones), filas[inicio:inicio + 1000])
+    return plan_id
+
+
 def registrar_evento(usuario, accion, detalle=None):
     """Deja constancia de una acción en la bitácora de auditoría.
 
@@ -745,6 +789,80 @@ def leer_gestiones(carga_id, credito_id=None):
         consulta = consulta.where(gestiones.c.credito_id == credito_id)
     with obtener_motor().connect() as conexion:
         return pd.read_sql(consulta.order_by(gestiones.c.id.desc()), conexion)
+
+
+def listar_planes(limite=100):
+    with obtener_motor().connect() as conexion:
+        return pd.read_sql(select(planes).order_by(planes.c.id.desc()).limit(limite), conexion)
+
+
+def leer_asignaciones(plan_id, gestor=None):
+    consulta = select(plan_asignaciones).where(plan_asignaciones.c.plan_id == plan_id)
+    if gestor is not None:
+        consulta = consulta.where(plan_asignaciones.c.gestor == gestor)
+    with obtener_motor().connect() as conexion:
+        return pd.read_sql(consulta.order_by(plan_asignaciones.c.gestor, plan_asignaciones.c.orden), conexion)
+
+
+def leer_gestiones_periodo(desde, hasta, usuario=None):
+    """Gestiones entre dos fechas (inclusive), de todas las cargas."""
+    consulta = select(gestiones).where(func.date(gestiones.c.fecha) >= desde,
+                                       func.date(gestiones.c.fecha) <= hasta)
+    if usuario is not None:
+        consulta = consulta.where(gestiones.c.usuario == usuario)
+    with obtener_motor().connect() as conexion:
+        return pd.read_sql(consulta.order_by(gestiones.c.fecha), conexion)
+
+
+def traza_cuenta(carga_id, credito_id, cuenta_id):
+    """Línea de tiempo de todo lo que el sistema hizo con una cuenta.
+
+    Reúne en un solo listado la carga, cada decisión del motor, cada
+    priorización, cada asignación a un plan, cada gestión y cada cambio en los
+    datos del titular. Es lo que se presenta ante una auditoría o una queja:
+    qué se sabía de la cuenta, qué decidió el sistema y qué hizo el equipo.
+    """
+    eventos = []
+    with obtener_motor().connect() as conexion:
+        carga = conexion.execute(select(cargas).where(cargas.c.id == carga_id)).first()
+        if carga:
+            eventos.append((carga.fecha_carga, "Carga", "sistema",
+                            "La cuenta llega en la carga {} ({})".format(carga_id, carga.origen)))
+        for f in conexion.execute(
+                select(ejecuciones_motor.c.fecha, ejecuciones_motor.c.usuario, ejecuciones_motor.c.fecha_objetivo,
+                       evaluaciones.c.estado, evaluaciones.c.canal_recomendado, evaluaciones.c.regla_determinante)
+                .join(evaluaciones, evaluaciones.c.ejecucion_id == ejecuciones_motor.c.id)
+                .where(ejecuciones_motor.c.carga_id == carga_id, evaluaciones.c.credito_id == credito_id)):
+            eventos.append((f.fecha, "Motor", f.usuario, "Para el {}: {}{} (regla {})".format(
+                f.fecha_objetivo, f.estado, " por " + f.canal_recomendado if f.canal_recomendado else "",
+                f.regla_determinante)))
+        for f in conexion.execute(
+                select(priorizaciones.c.fecha, priorizaciones.c.usuario, priorizaciones.c.metodo_elegido,
+                       prioridades.c.posicion, prioridades.c.prioridad, prioridades.c.nombre_segmento)
+                .join(prioridades, prioridades.c.priorizacion_id == priorizaciones.c.id)
+                .where(priorizaciones.c.carga_id == carga_id, prioridades.c.credito_id == credito_id)):
+            eventos.append((f.fecha, "Priorización", f.usuario, "{} · posición {} · prioridad {:.1f} ({})".format(
+                f.nombre_segmento, f.posicion if f.posicion is not None else "fuera de la cola",
+                f.prioridad or 0, f.metodo_elegido)))
+        for f in conexion.execute(
+                select(planes.c.creado, planes.c.creado_por, planes.c.fecha, plan_asignaciones.c.gestor,
+                       plan_asignaciones.c.orden)
+                .join(plan_asignaciones, plan_asignaciones.c.plan_id == planes.c.id)
+                .where(planes.c.carga_id == carga_id, plan_asignaciones.c.credito_id == credito_id)):
+            eventos.append((f.creado, "Plan de trabajo", f.creado_por,
+                            "Asignada a {} para el {} (orden {})".format(f.gestor, f.fecha, f.orden)))
+        for f in conexion.execute(select(gestiones).where(gestiones.c.carga_id == carga_id,
+                                                          gestiones.c.credito_id == credito_id)):
+            eventos.append((f.fecha, "Gestión", f.usuario, "{} {} por {}: {} · {}{} — {}".format(
+                f.sentido.lower(), f.id, f.canal, f.resultado, f.codigo,
+                " · acuerdo {:,.0f} para el {}".format(float(f.valor_acordado), f.fecha_compromiso)
+                if f.valor_acordado else "", f.observacion)))
+        for f in conexion.execute(select(auditoria).where(
+                auditoria.c.accion.in_(["AGREGAR_CONTACTO", "ESTADO_CONTACTO", "VER_CONTACTO", "ACTUALIZAR_TITULAR"]),
+                auditoria.c.detalle.like("%{}%".format(cuenta_id)))):
+            eventos.append((f.fecha, "Titular", f.usuario, "{}: {}".format(f.accion, f.detalle)))
+    tabla = pd.DataFrame(eventos, columns=["fecha", "evento", "usuario", "detalle"])
+    return tabla.sort_values("fecha", ascending=False).reset_index(drop=True)
 
 
 def leer_auditoria(limite=500):
