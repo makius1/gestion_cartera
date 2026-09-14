@@ -168,20 +168,41 @@ def porcentaje(valor):
     return "{:.1f} %".format(float(valor) * 100).replace(".", ",")
 
 
+@st.cache_data(ttl=600)
+def cargas_incompletas():
+    return bd.cargas_incompletas()
+
+
 def selector_carga(clave="carga"):
     """Selector de carga compartido. Retorna la fila de la carga elegida o
-    None si no hay cargas. Por defecto propone la más reciente."""
+    None si no hay cargas.
+
+    Propone por defecto la carga completa más reciente. Las cargas a las que
+    les faltan los datos de contacto se marcan en la lista y, si se eligen, se
+    advierte que el motor las bloqueará: sin esa advertencia el resultado (todo
+    bloqueado) parece un error del análisis y no un problema de los datos.
+    """
     tabla = cargas()
     if tabla.empty:
         st.info("Todavía no hay carteras cargadas. Un supervisor o administrador "
-                "puede generar una desde la pantalla Cargas.")
+                "puede registrar una desde la pantalla Cargas.")
         return None
     tabla = tabla.sort_values("id", ascending=False)
-    etiquetas = {int(f.id): "Carga {} · {} · {} cuentas · {}".format(
-        int(f.id), f.origen, numero(f.registros), pd.Timestamp(f.fecha_carga).strftime("%Y-%m-%d %H:%M"))
+    incompletas = cargas_incompletas()
+    etiquetas = {int(f.id): "Carga {} · {} · {} cuentas · {}{}".format(
+        int(f.id), f.origen, numero(f.registros), pd.Timestamp(f.fecha_carga).strftime("%Y-%m-%d %H:%M"),
+        " · incompleta" if int(f.id) in incompletas else "")
         for f in tabla.itertuples()}
-    elegido = st.selectbox("Carga", list(etiquetas), format_func=etiquetas.get, key=clave)
+    ids = list(etiquetas)
+    completas = [i for i in ids if i not in incompletas]
+    inicial = ids.index(completas[0]) if completas else 0
+    elegido = st.selectbox("Carga", ids, index=inicial, format_func=etiquetas.get, key=clave)
     fila = tabla[tabla["id"] == elegido].iloc[0]
-    if fila["origen"] == "SINTETICO":
-        st.caption("Cartera ficticia: ningún dato corresponde a una persona real.")
+    if elegido in incompletas:
+        st.warning("Esta carga se registró antes de que el sistema guardara los canales de "
+                   "contacto y la fecha del último contacto de cada cuenta. Sin esos datos no "
+                   "se puede verificar la Ley 2300, y el motor bloqueará todas sus cuentas por "
+                   "precaución (regla L3). Registre una carga nueva desde la pantalla Cargas.")
+    elif fila["origen"] == "SINTETICO":
+        st.caption("Cartera generada con el módulo de simulación.")
     return fila

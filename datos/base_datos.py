@@ -520,6 +520,21 @@ def leer_cartera(carga_id=None):
         return pd.read_sql(consulta, conexion)
 
 
+def cargas_incompletas():
+    """Ids de las cargas a las que les faltan los datos de contacto.
+
+    Son las registradas antes de que el esquema guardara los canales por tipo y
+    la fecha del último contacto. El motor las bloquea completas por precaución
+    (regla L3), así que las pantallas deben advertirlo antes de usarlas.
+    """
+    with obtener_motor().connect() as conexion:
+        filas = conexion.execute(
+            select(cartera.c.carga_id)
+            .group_by(cartera.c.carga_id)
+            .having(func.count(cartera.c.tiene_celular) < func.count()))
+        return {int(f.carga_id) for f in filas}
+
+
 def listar_ejecuciones(limite=50):
     with obtener_motor().connect() as conexion:
         consulta = select(ejecuciones_motor).order_by(ejecuciones_motor.c.id.desc()).limit(limite)
