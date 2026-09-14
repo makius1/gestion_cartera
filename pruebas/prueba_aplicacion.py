@@ -37,6 +37,7 @@ PAGINAS = {
     "conocimiento": "ver_conocimiento", "cargas": "gestionar_cargas",
     "usuarios": "gestionar_usuarios", "auditoria": "ver_auditoria", "mi_cuenta": None,
     "priorizacion": "ver_priorizacion", "gestion": "registrar_gestion",
+    "plan": "ver_plan", "traza": "ver_traza",
 }
 TIEMPO = 120   # segundos máximos por pantalla
 # AppTest interpreta las rutas relativas desde este archivo, no desde la raíz.
@@ -60,6 +61,24 @@ def asegurar_datos():
         from decision.priorizacion import ejecutar as priorizar
         ejecucion = int(bd.listar_ejecuciones(1).iloc[0]["id"])
         priorizar(ejecucion_id=ejecucion, usuario="prueba_aplicacion")
+
+
+def prueba_plan():
+    """Crea un plan para un martes hábil y verifica el reparto en serpentina."""
+    from datetime import date
+    from gestion import plan as pl
+    gestores = [usuario_de_prueba("GESTOR")[0] for _ in range(3)]
+    priorizacion = bd.listar_priorizaciones(1).iloc[0]
+    plan_id, resumen = pl.crear_plan(int(priorizacion["carga_id"]), int(priorizacion["id"]),
+                                     date(2026, 9, 15), gestores, 10, "prueba_aplicacion")
+    asignaciones = bd.leer_asignaciones(plan_id)
+    assert len(asignaciones) == 30 and asignaciones["credito_id"].is_unique
+    assert asignaciones.groupby("gestor").size().tolist() == [10, 10, 10], "reparto desigual"
+    # Serpentina: la mejor cuenta va al primer gestor y la cuarta (inicio de la
+    # segunda vuelta) al último.
+    por_posicion = asignaciones.sort_values("posicion")["gestor"].tolist()
+    assert por_posicion[0] == gestores[0] and por_posicion[3] == gestores[2], por_posicion[:6]
+    print("  Plan de trabajo: 30 cuentas repartidas en serpentina entre 3 gestores")
 
 
 def usuario_de_prueba(rol):
@@ -108,7 +127,7 @@ def prueba_gestion():
     def control(lista, etiqueta):
         return next(c for c in lista if c.label == etiqueta)
 
-    control(pagina.button, "Siguiente de la cola").click().run()
+    control(pagina.button, "Siguiente cuenta").click().run()
     assert not pagina.exception, pagina.exception
     credito = pagina.session_state["gestion_credito"]
     carga = int(bd.listar_priorizaciones(1).iloc[0]["carga_id"])
@@ -130,6 +149,7 @@ if __name__ == "__main__":
     bd.crear_esquema()
     asegurar_datos()
     prueba_ingreso()
+    prueba_plan()
     prueba_gestion()
 
     fallas = 0
