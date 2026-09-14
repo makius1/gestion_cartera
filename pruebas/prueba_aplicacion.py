@@ -36,6 +36,7 @@ PAGINAS = {
     "tablero": "ver_tablero", "cartera": "ver_cartera", "motor": "ver_motor",
     "conocimiento": "ver_conocimiento", "cargas": "gestionar_cargas",
     "usuarios": "gestionar_usuarios", "auditoria": "ver_auditoria", "mi_cuenta": None,
+    "priorizacion": "ver_priorizacion",
 }
 TIEMPO = 120   # segundos máximos por pantalla
 # AppTest interpreta las rutas relativas desde este archivo, no desde la raíz.
@@ -43,7 +44,7 @@ APP = config.RAIZ / "app"
 
 
 def asegurar_datos():
-    """Garantiza al menos una carga y una ejecución del motor para mostrar."""
+    """Garantiza al menos una carga, una ejecución del motor y una priorización."""
     if bd.listar_cargas().empty:
         from datos.cargador import cargar
         from datos.generador import generar
@@ -51,8 +52,14 @@ def asegurar_datos():
         bd.registrar_carga(cargar(bruto=generar(cargar_perfil(), n=800, semilla=3)),
                            "SINTETICO", "prueba_aplicacion", semilla=3)
     if bd.listar_ejecuciones(1).empty:
+        from datetime import date
         from motor.elegibilidad import ejecutar
-        ejecutar(usuario="prueba_aplicacion")
+        # Un martes hábil fijo: un domingo o festivo dejaría todo bloqueado.
+        ejecutar(fecha_objetivo=date(2026, 9, 15), usuario="prueba_aplicacion")
+    if bd.listar_priorizaciones(1).empty:
+        from decision.priorizacion import ejecutar as priorizar
+        ejecucion = int(bd.listar_ejecuciones(1).iloc[0]["id"])
+        priorizar(ejecucion_id=ejecucion, usuario="prueba_aplicacion")
 
 
 def usuario_de_prueba(rol):
