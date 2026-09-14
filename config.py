@@ -125,6 +125,57 @@ PRESUPUESTO_CAMPANA = 2_000_000     # COP disponibles para campañas del mes
 
 GESTIONES_POR_GESTOR_DIA = 80
 DIAS_HABILES_MES = 22
+NUMERO_GESTORES = 6             # gestores activos en la campaña
+
+
+# ---------------------------------------------------------------------------
+# SEGMENTACIÓN Y PRIORIZACIÓN
+# ---------------------------------------------------------------------------
+
+# Probabilidad relativa de lograr contacto efectivo según el resultado de la
+# última gestión. Es conocimiento del experto de cobranza, no un dato de la
+# cartera: quien colgó o pidió otro momento ya fue localizado; quien cae en
+# buzón o tiene el teléfono apagado todavía no. Una cuenta sin gestión real
+# queda en un punto intermedio porque su contactabilidad es desconocida.
+CONTACTABILIDAD_RESULTADO = {
+    "ACUERDO": 1.00,
+    "REINTENTAR": 0.75,
+    "CUELGA": 0.60,
+    "CORREO_ENVIADO": 0.55,
+    "MENSAJE_DEJADO": 0.50,
+    "SIN_GESTION_REAL": 0.50,
+    "OTRO": 0.40,
+    "NO_CONTESTA": 0.30,
+    "BUZON": 0.30,
+    "APAGADO": 0.20,
+    "NUMERO_ERRADO": 0.05,
+    "FALLECIDO": 0.00,
+}
+
+# Criterios de priorización y su peso para TOPSIS y la ponderación simple. El
+# sentido indica si conviene un valor alto (beneficio) o bajo (costo): una mora
+# más antigua o más meses sin resolver reducen la probabilidad de recaudo.
+CRITERIOS = {
+    "saldo":            {"peso": 0.35, "sentido": "beneficio"},
+    "contactabilidad":  {"peso": 0.25, "sentido": "beneficio"},
+    "dias_mora":        {"peso": 0.20, "sentido": "costo"},
+    "margen_pct":       {"peso": 0.10, "sentido": "beneficio"},
+    "meses_en_gestion": {"peso": 0.10, "sentido": "costo"},
+}
+
+# Rango de segmentos que prueba K-Means. Se queda con el de mejor silueta, pero
+# si un k menor queda a menos de la tolerancia del mejor, gana el menor: con
+# siluetas casi iguales, menos segmentos son más fáciles de operar y explicar.
+SEGMENTOS_MINIMO = 2
+SEGMENTOS_MAXIMO = 6
+TOLERANCIA_SILUETA = 0.01
+
+# Peso de cada métrica en el puntaje con el que se elige el método óptimo:
+# el recaudo esperado manda, pero un método que cambia su cola ante pequeñas
+# variaciones de los datos, o que no logra desempatar cuentas, no es confiable.
+PESOS_EVALUACION = {"recaudo": 0.60, "robustez": 0.25, "discriminacion": 0.15}
+REPLICAS_ROBUSTEZ = 5
+RUIDO_ROBUSTEZ = 0.10           # variación relativa máxima de los datos (±10 %)
 
 
 # ---------------------------------------------------------------------------
@@ -188,12 +239,14 @@ LONGITUD_MINIMA_CLAVE = 10
 # supervisor además opera (carga carteras y ejecuta el motor) y revisa la
 # bitácora; el administrador además administra los usuarios.
 PERMISOS = {
-    "GESTOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento"},
+    "GESTOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
+               "ver_priorizacion"},
     "SUPERVISOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-                   "ejecutar_motor", "gestionar_cargas", "ver_auditoria"},
+                   "ver_priorizacion", "ejecutar_motor", "ejecutar_priorizacion",
+                   "gestionar_cargas", "ver_auditoria"},
     "ADMINISTRADOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-                      "ejecutar_motor", "gestionar_cargas", "ver_auditoria",
-                      "gestionar_usuarios"},
+                      "ver_priorizacion", "ejecutar_motor", "ejecutar_priorizacion",
+                      "gestionar_cargas", "ver_auditoria", "gestionar_usuarios"},
 }
 
 
