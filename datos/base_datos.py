@@ -18,12 +18,13 @@ El código es el mismo en ambos casos gracias a SQLAlchemy.
 """
 
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey,
-                        Index, Integer, MetaData, Numeric, String, Table,
+                        Index, Integer, MetaData, Numeric, String, Table, Text,
                         create_engine, func, insert, inspect, select, text)
 
 import config
@@ -161,6 +162,48 @@ evaluaciones = Table(
     Column("regla_determinante", String(10)),
     Column("reglas", String(200)),
     Column("explicacion", String(1000)),
+)
+
+
+# --- Segmentación y priorización -------------------------------------------------
+# Cada priorización guarda qué método resultó óptimo y por qué (las métricas de
+# los tres métodos van en el resumen), y el puntaje de cada cuenta con los tres
+# métodos: así se puede revisar después cómo habría quedado la cola con otro.
+
+priorizaciones = Table(
+    "priorizaciones", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fecha", DateTime, nullable=False),
+    Column("usuario", String(40), nullable=False),
+    Column("carga_id", Integer, ForeignKey("cargas.id"), nullable=False),
+    # Ejecución del motor de la que salen las cuentas contactables. Sin ella se
+    # prioriza toda la cartera gestionable.
+    Column("ejecucion_id", Integer, ForeignKey("ejecuciones_motor.id")),
+    Column("candidatos", Integer, nullable=False),
+    Column("capacidad", Integer, nullable=False),
+    Column("k_segmentos", Integer, nullable=False),
+    Column("silueta", Float, nullable=False),
+    Column("metodo_elegido", String(20), nullable=False),
+    # Métricas por método, siluetas por k y perfiles de segmento, en JSON.
+    Column("resumen", Text, nullable=False),
+)
+
+prioridades = Table(
+    "prioridades", metadatos,
+    Column("priorizacion_id", Integer, ForeignKey("priorizaciones.id"), primary_key=True),
+    Column("credito_id", String(13), primary_key=True),
+    Column("segmento", Integer, nullable=False),
+    Column("nombre_segmento", String(80)),
+    Column("estado_motor", String(20)),
+    Column("candidata", Boolean, nullable=False),
+    Column("puntaje_difuso", Float),
+    Column("puntaje_topsis", Float),
+    Column("puntaje_ponderado", Float),
+    Column("prioridad", Float),
+    Column("posicion", Integer),
+    Column("en_capacidad", Boolean),
+    Column("pca_x", Float),
+    Column("pca_y", Float),
 )
 
 
@@ -413,6 +456,34 @@ def guardar_ejecucion(resumen, resultados, usuario):
     return ejecucion_id
 
 
+def guardar_priorizacion(resumen, tabla, usuario):
+    """Guarda una priorización y el resultado de cada cuenta en una transacción."""
+    motor = obtener_motor()
+    crear_esquema(motor)
+    columnas = [c.name for c in prioridades.columns if c.name != "priorizacion_id"]
+    detalle = tabla[columnas].astype(object).where(tabla[columnas].notna(), None)
+
+    with motor.begin() as conexion:
+        priorizacion_id = conexion.execute(insert(priorizaciones).values(
+            fecha=config.ahora(),
+            usuario=usuario,
+            carga_id=int(resumen["carga_id"]),
+            ejecucion_id=resumen.get("ejecucion_id"),
+            candidatos=int(resumen["candidatos"]),
+            capacidad=int(resumen["capacidad"]),
+            k_segmentos=int(resumen["k"]),
+            silueta=float(resumen["silueta"]),
+            metodo_elegido=resumen["elegido"],
+            resumen=json.dumps(resumen["detalle"], ensure_ascii=False, default=float),
+        )).inserted_primary_key[0]
+        filas = detalle.to_dict(orient="records")
+        for fila in filas:
+            fila["priorizacion_id"] = priorizacion_id
+        for inicio in range(0, len(filas), 1000):
+            conexion.execute(insert(prioridades), filas[inicio:inicio + 1000])
+    return priorizacion_id
+
+
 def registrar_evento(usuario, accion, detalle=None):
     """Deja constancia de una acción en la bitácora de auditoría.
 
@@ -458,6 +529,27 @@ def listar_ejecuciones(limite=50):
 def leer_evaluaciones(ejecucion_id):
     with obtener_motor().connect() as conexion:
         consulta = select(evaluaciones).where(evaluaciones.c.ejecucion_id == ejecucion_id)
+        return pd.read_sql(consulta, conexion)
+
+
+def listar_priorizaciones(limite=50):
+    """Priorizaciones guardadas, sin el resumen JSON (se lee aparte)."""
+    columnas = [c for c in priorizaciones.columns if c.name != "resumen"]
+    with obtener_motor().connect() as conexion:
+        consulta = select(*columnas).order_by(priorizaciones.c.id.desc()).limit(limite)
+        return pd.read_sql(consulta, conexion)
+
+
+def leer_resumen_priorizacion(priorizacion_id):
+    with obtener_motor().connect() as conexion:
+        texto = conexion.execute(select(priorizaciones.c.resumen).where(
+            priorizaciones.c.id == priorizacion_id)).scalar()
+    return json.loads(texto) if texto else {}
+
+
+def leer_prioridades(priorizacion_id):
+    with obtener_motor().connect() as conexion:
+        consulta = select(prioridades).where(prioridades.c.priorizacion_id == priorizacion_id)
         return pd.read_sql(consulta, conexion)
 
 

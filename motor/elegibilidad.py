@@ -355,6 +355,9 @@ def ejecutar(carga_id=None, fecha_objetivo=None, usuario="sistema", guardar=True
         raise ValueError("La base de conocimiento tiene errores: " + "; ".join(errores))
 
     fecha_objetivo = fecha_objetivo or config.hoy()
+    # Esquema al día antes de leer: una base de una versión anterior no tendría
+    # las columnas que el motor necesita.
+    bd.crear_esquema()
     cartera = bd.leer_cartera(carga_id)
     if cartera.empty:
         raise LookupError("No hay cartera cargada para evaluar.")
