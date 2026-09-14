@@ -69,7 +69,7 @@ regla.
 
 ```
    GitHub (código)                    Supabase (PostgreSQL)
-   ├─ Actions: pruebas   ──────────►  base temporal de prueba
+   ├─ Actions: pruebas   ──────────►  base temporal de verificación
    ├─ Actions: sembrar   ──────────►  base externa del proyecto  ◄── Codespaces
    ├─ Actions: mantener  ──────────►  consulta cada tres días    ◄── equipo local
    └─ Streamlit Cloud    ──────────►  aplicación web con ingreso
@@ -80,8 +80,8 @@ automáticos corren en los servidores de GitHub.
 
 | Pieza | Qué hace |
 |---|---|
-| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, genera una cartera ficticia, la carga, ejecuta el motor de elegibilidad y abre cada pantalla de la aplicación con cada rol. |
-| **Sembrar base en Supabase** | Botón manual en la pestaña Actions: genera una cartera ficticia en GitHub y la carga directo en Supabase. |
+| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad y abre cada pantalla de la aplicación con cada rol. |
+| **Sembrar base en Supabase** | Botón manual en la pestaña Actions: simula una cartera en GitHub y la registra directamente en Supabase. |
 | **Mantener activa la base** | Consulta la base cada tres días para reducir el riesgo de que el plan gratuito de Supabase la pause por inactividad. |
 | **Codespaces** | Entorno de desarrollo en el navegador, con Python y las dependencias instaladas automáticamente. |
 | **Streamlit Community Cloud** | Publica la aplicación web directamente desde este repositorio: cada envío a `main` la actualiza. |
@@ -136,8 +136,8 @@ variables → Actions → New repository secret*. Crear dos secretos:
 Para Codespaces, crear los mismos secretos en *Settings → Secrets and variables
 → Codespaces*.
 
-**5. Cargar la cartera ficticia.** Pestaña **Actions** → *Sembrar base en
-Supabase* → **Run workflow**.
+**5. Registrar la primera cartera.** Pestaña **Actions** → *Sembrar base en
+Supabase* → **Run workflow**, o desde la pantalla **Cargas** de la aplicación.
 
 ### Seguridad de la base
 
@@ -201,7 +201,7 @@ Cada rol ve solo las pantallas que le corresponden:
 | Motor: resultados y explicación por cuenta | ✅ | ✅ | ✅ |
 | Motor: ejecutar sobre una carga y una fecha | | ✅ | ✅ |
 | Base de conocimiento y simulador de consulta | ✅ | ✅ | ✅ |
-| Cargas: generar carteras ficticias | | ✅ | ✅ |
+| Cargas: registrar y simular carteras | | ✅ | ✅ |
 | Auditoría: bitácora de acciones | | ✅ | ✅ |
 | Usuarios: crear, cambiar rol, desactivar, restablecer | | | ✅ |
 | Mi cuenta: cambio de contraseña | ✅ | ✅ | ✅ |
@@ -249,11 +249,13 @@ reactiva sola al abrirla; esa primera carga tarda unos segundos más.
 
 ---
 
-## Datos ficticios
+## Simulación de carteras
 
-El generador crea una cartera desde cero a partir de `datos/perfil_demo.json`,
-un perfil estadístico de demostración: frecuencias y cuantiles redondeados, con
-etiquetas genéricas.
+El módulo de simulación genera carteras completas a partir de
+`datos/perfil_demo.json`, un perfil estadístico de referencia: frecuencias y
+cuantiles redondeados, con etiquetas genéricas. Sirve para dimensionar
+campañas, capacitar al equipo y verificar el sistema sin exponer ninguna
+asignación.
 
 El muestreo conserva las relaciones que más pesan en el recaudo —el saldo según
 el código de gestión, la mora según el mes de asignación, el margen según la
@@ -261,14 +263,15 @@ franja de saldo— y las reglas de negocio: solo los códigos de acuerdo generan
 proyección de pago, la franja se deriva del máximo de cobranza y el rango de
 mora de los días de mora.
 
-Los datos están diseñados para no poder usarse por error en una campaña real:
+Los registros simulados nunca se confunden con los de una asignación:
 
 - Los documentos van en un rango de diez dígitos que empieza por 99, que no
   corresponde a cédulas expedidas.
-- Los correos usan el dominio `.test`, reservado para pruebas: ningún mensaje
-  puede entregarse.
+- Los correos usan el dominio reservado `.test`: ningún mensaje puede
+  entregarse.
 - Los celulares usan el prefijo 399.
-- Todo registro lleva la marca `ES_DEMO`.
+- Todo registro simulado lleva la marca `ES_DEMO` y su carga queda con origen
+  `SINTETICO`.
 
 ---
 
@@ -301,16 +304,16 @@ uso, sin tocar los datos existentes.
 .
 ├── .github/workflows/
 │   ├── pruebas.yml             Integración continua contra PostgreSQL
-│   ├── sembrar_supabase.yml    Carga manual de la cartera ficticia en Supabase
+│   ├── sembrar_supabase.yml    Registro manual de una cartera simulada en Supabase
 │   └── mantener_activa.yml     Consulta periódica para evitar la pausa
 ├── .devcontainer/              Entorno de GitHub Codespaces
 ├── .streamlit/config.toml      Configuración de la aplicación web (sin secretos)
 ├── config.py                   Parámetros del negocio, normativa, seguridad y roles
 ├── datos/
 │   ├── cargador.py             Carga, limpieza, seudonimización y derivación
-│   ├── perfilador.py           Perfil estadístico y perfil de demostración
-│   ├── perfil_demo.json        Perfil de demostración (datos agregados)
-│   ├── generador.py            Generación de carteras ficticias
+│   ├── perfilador.py           Perfil estadístico de la asignación
+│   ├── perfil_demo.json        Perfil estadístico de referencia (solo agregados)
+│   ├── generador.py            Simulación y enmascarado de carteras
 │   ├── base_datos.py           Esquema, cargas históricas, resultados y auditoría
 │   └── configurar_conexion.py  Configuración asistida de la conexión a Supabase
 ├── motor/
@@ -371,14 +374,14 @@ La primera vez, crear el administrador:
 python -m seguridad.autenticacion crear-admin
 ```
 
-Comandos de terminal para administración y pruebas. Verificar la conexión con
-la base configurada:
+Comandos de terminal para administración. Verificar la conexión con la base
+configurada:
 
 ```bash
 python -m datos.base_datos probar
 ```
 
-Generar una cartera ficticia y cargarla:
+Simular una cartera y registrarla:
 
 ```bash
 python -m datos.base_datos sintetica
@@ -396,8 +399,8 @@ Listar las cargas registradas:
 python -m datos.base_datos cargas
 ```
 
-Exportar una cartera ficticia a Excel, con las mismas columnas de una
-asignación real:
+Exportar una cartera simulada a Excel, con la misma estructura de una
+asignación:
 
 ```bash
 python -m datos.generador
@@ -413,18 +416,18 @@ python -m motor.elegibilidad --fecha 2026-09-15
 
 ## Protección de datos
 
-1. **Solo datos ficticios.** El proyecto no maneja ninguna cartera real.
-2. **Ningún archivo de datos entra al repositorio.** El `.gitignore` excluye
+1. **Ningún archivo de datos entra al repositorio.** El `.gitignore` excluye
    Excel, CSV y bases de datos.
-3. **Seudonimización con clave.** Los identificadores se firman con HMAC-SHA256
+2. **Seudonimización con clave.** Los identificadores se firman con HMAC-SHA256
    y una clave secreta. Un hash simple de un número de diez dígitos se puede
    revertir probando todos los valores posibles; sin la clave, no.
-4. **Credenciales fuera del código.** Viven en `.env` en local y en los secretos
+3. **Credenciales fuera del código.** Viven en `.env` en local y en los secretos
    de GitHub en la nube, nunca en el repositorio.
-5. **Row Level Security** activo en todas las tablas de PostgreSQL.
-6. **Datos reales solo en la base local.** La web solo genera carteras
-   ficticias, y el sistema se niega a subir una cartera real a una base remota
-   sin una confirmación explícita en el código.
+4. **Row Level Security** activo en todas las tablas de PostgreSQL.
+5. **Asignaciones desde archivo solo en la base local.** El sistema se niega a
+   enviar una asignación cargada desde archivo a una base remota sin una
+   confirmación explícita en el código; desde la web solo se registran carteras
+   simuladas.
 
 ---
 
@@ -434,7 +437,7 @@ python -m motor.elegibilidad --fecha 2026-09-15
 |---|---|---|
 | 1 | Carga, limpieza y seudonimización | ✅ |
 | 1b | Base de datos con historial de cargas | ✅ |
-| 1c | Generación de carteras ficticias | ✅ |
+| 1c | Simulación y enmascarado de carteras | ✅ |
 | 1d | Base externa en Supabase y ejecución en GitHub | ✅ |
 | 2 | Motor de reglas de elegibilidad de contacto | ✅ |
 | 2b | Aplicación web con ingreso, roles y auditoría | ✅ |
