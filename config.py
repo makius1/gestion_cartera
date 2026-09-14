@@ -277,19 +277,19 @@ MINUTOS_BLOQUEO = 15            # duración del bloqueo temporal
 MINUTOS_INACTIVIDAD = 30        # la sesión se cierra sola tras este tiempo sin uso
 LONGITUD_MINIMA_CLAVE = 10
 
-# Roles del sistema y lo que cada uno puede hacer. El gestor consulta; el
-# supervisor además opera (carga carteras y ejecuta el motor) y revisa la
-# bitácora; el administrador además administra los usuarios.
+# Roles del sistema y lo que cada uno puede hacer. El gestor consulta, gestiona
+# sus cuentas, mantiene los datos de contacto y ve su propia traza de trabajo.
+# El supervisor además opera (cargas, motor, priorización y plan de trabajo) y
+# revisa la traza del equipo y la bitácora. El administrador además administra
+# los usuarios.
+_CONSULTA = {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento", "ver_priorizacion",
+             "registrar_gestion", "gestionar_contactos", "ver_plan", "ver_traza"}
+_OPERACION = {"ejecutar_motor", "ejecutar_priorizacion", "gestionar_cargas", "gestionar_plan",
+              "ver_auditoria", "ver_traza_equipo"}
 PERMISOS = {
-    "GESTOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-               "ver_priorizacion", "registrar_gestion"},
-    "SUPERVISOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-                   "ver_priorizacion", "registrar_gestion", "ejecutar_motor",
-                   "ejecutar_priorizacion", "gestionar_cargas", "ver_auditoria"},
-    "ADMINISTRADOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-                      "ver_priorizacion", "registrar_gestion", "ejecutar_motor",
-                      "ejecutar_priorizacion", "gestionar_cargas", "ver_auditoria",
-                      "gestionar_usuarios"},
+    "GESTOR": _CONSULTA,
+    "SUPERVISOR": _CONSULTA | _OPERACION,
+    "ADMINISTRADOR": _CONSULTA | _OPERACION | {"gestionar_usuarios"},
 }
 
 

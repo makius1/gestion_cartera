@@ -21,6 +21,7 @@ import config
 from app import comun
 from datos import base_datos as bd
 from gestion import operacion as op
+from gestion import titulares as tit
 
 comun.exigir("registrar_gestion")
 comun.encabezado("Gestión de cuentas", "Registro del resultado de cada contacto con el titular")
@@ -133,6 +134,73 @@ with hoy.container(border=True):
     if not decision["en_horario"]:
         st.markdown(":red[Fuera del horario de contacto: solo se pueden registrar gestiones entrantes.]")
     st.caption(decision["explicacion"])
+
+# --- Titular y datos de contacto ------------------------------------------------
+# Los cambios de contacto recalculan los canales de la cuenta: se limpia la
+# caché y se vuelve a dibujar la pantalla para que el panel del motor los tome.
+
+def _tras_cambio(mensaje):
+    comun.limpiar_cache()
+    st.session_state["aviso_gestion"] = mensaje
+    st.rerun()
+
+
+titular = tit.leer_titular(fila["cuenta_id"])
+contactos = tit.leer_contactos(fila["cuenta_id"])
+with st.expander("Titular y datos de contacto · {}".format(titular["nombre"] if titular else "sin directorio"),
+                 expanded=True):
+    izquierda, derecha = st.columns([1, 2])
+    with izquierda:
+        with st.form("titular_{}".format(fila["cuenta_id"])):
+            nombre = st.text_input("Nombre", value=(titular or {}).get("nombre") or "")
+            st.text_input("Documento", value=(titular or {}).get("documento_enmascarado") or "—",
+                          disabled=True, help="Solo se guardan los cuatro últimos dígitos.")
+            ciudad = st.text_input("Ciudad", value=(titular or {}).get("ciudad") or fila["ciudad"])
+            if st.form_submit_button("Guardar titular"):
+                try:
+                    tit.actualizar_titular(fila["cuenta_id"], nombre, ciudad, usuario)
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    _tras_cambio("Datos del titular actualizados.")
+
+    with derecha:
+        if contactos.empty:
+            st.caption("El titular no tiene contactos en el directorio.")
+        else:
+            st.dataframe(contactos[["id", "tipo", "mostrado", "estado", "origen", "actualizado_por"]],
+                         hide_index=True, use_container_width=True,
+                         column_config={"id": "Id", "tipo": "Tipo", "mostrado": "Dato",
+                                        "estado": "Estado", "origen": "Origen",
+                                        "actualizado_por": "Actualizado por"})
+            opciones = contactos["id"].tolist()
+            etiqueta = dict(zip(contactos["id"], contactos["tipo"] + " " + contactos["mostrado"]))
+            c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+            elegido = c1.selectbox("Contacto", opciones, format_func=etiqueta.get,
+                                   label_visibility="collapsed")
+            if c2.button("Mostrar", icon=":material/visibility:", use_container_width=True):
+                # Ver el dato completo queda en la auditoría.
+                st.info("{}: {}".format(etiqueta[elegido].split()[0], tit.revelar(elegido, usuario)))
+            if c3.button("Válido", icon=":material/check:", use_container_width=True):
+                tit.cambiar_estado_contacto(elegido, "VALIDO", usuario)
+                _tras_cambio("Contacto marcado como válido.")
+            if c4.button("Errado", icon=":material/block:", use_container_width=True):
+                canales = tit.cambiar_estado_contacto(elegido, "ERRADO", usuario)
+                _tras_cambio("Contacto marcado como errado. Canales de la cuenta: {}.".format(
+                    ", ".join(t for t, c in tit.INDICADOR.items() if canales[c]) or "ninguno"))
+
+        with st.form("nuevo_contacto_{}".format(fila["cuenta_id"]), clear_on_submit=True):
+            c1, c2, c3 = st.columns([1, 2, 1])
+            tipo = c1.selectbox("Tipo", list(tit.TIPOS), format_func=tit.TIPOS.get)
+            valor = c2.text_input("Nuevo dato de contacto", placeholder="3001234567 o correo@dominio.com")
+            c3.write("")
+            if c3.form_submit_button("Agregar", use_container_width=True):
+                try:
+                    tit.agregar_contacto(fila["cuenta_id"], tipo, valor, usuario)
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    _tras_cambio("Contacto agregado como válido.")
 
 historial = bd.leer_gestiones(carga_id, credito)
 with st.expander("Historial de gestiones ({})".format(len(historial)), expanded=not historial.empty):

@@ -102,17 +102,23 @@ def prueba_gestion():
     usuario, _ = usuario_de_prueba("GESTOR")
     sesion = {"usuario": usuario, "nombre": "Prueba", "rol": "GESTOR", "ultimo_ingreso": None}
     pagina = abrir("gestion", sesion)
-    pagina.button[0].click().run()          # Siguiente de la cola
+
+    # Los controles se buscan por su etiqueta y no por su posición: la pantalla
+    # puede ganar controles nuevos sin que la prueba deje de apuntar al correcto.
+    def control(lista, etiqueta):
+        return next(c for c in lista if c.label == etiqueta)
+
+    control(pagina.button, "Siguiente de la cola").click().run()
     assert not pagina.exception, pagina.exception
     credito = pagina.session_state["gestion_credito"]
     carga = int(bd.listar_priorizaciones(1).iloc[0]["carga_id"])
     antes = len(bd.leer_gestiones(carga, credito))
 
-    pagina.selectbox[2].set_value("ENTRANTE")
-    pagina.selectbox[3].set_value("CONTACTO_TITULAR")
-    pagina.selectbox[4].set_value("CONTACTO SIN ACUERDO")
-    pagina.text_area[0].input("Prueba automática: el titular llama a consultar su saldo.")
-    pagina.button[1].click().run()          # Grabar gestión
+    control(pagina.selectbox, "Sentido").set_value("ENTRANTE")
+    control(pagina.selectbox, "Resultado del contacto").set_value("CONTACTO_TITULAR")
+    control(pagina.selectbox, "Código de gestión").set_value("CONTACTO SIN ACUERDO")
+    control(pagina.text_area, "Observación").input("Prueba automática: el titular llama a consultar su saldo.")
+    control(pagina.button, "Grabar gestión").click().run()
     assert not pagina.exception, pagina.exception
     assert len(bd.leer_gestiones(carga, credito)) == antes + 1, "la gestión no se guardó"
     fila = bd.leer_cartera(carga).set_index("credito_id").loc[credito]
