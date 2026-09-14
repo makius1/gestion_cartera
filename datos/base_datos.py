@@ -25,7 +25,7 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey,
                         Index, Integer, MetaData, Numeric, String, Table, Text,
-                        create_engine, func, insert, inspect, select, text)
+                        create_engine, func, insert, inspect, select, text, update)
 
 import config
 
@@ -205,6 +205,37 @@ prioridades = Table(
     Column("pca_x", Float),
     Column("pca_y", Float),
 )
+
+
+# --- Gestiones ---------------------------------------------------------------------
+# Cada intento de contacto que registra un gestor. Es la historia completa de la
+# cuenta: la tabla cartera guarda solo el estado más reciente, esta tabla guarda
+# todos los pasos. Es también la materia prima del modelo de propensión: qué se
+# hizo con cada cuenta y qué resultó.
+
+gestiones = Table(
+    "gestiones", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fecha", DateTime, nullable=False),
+    Column("usuario", String(40), nullable=False),
+    Column("carga_id", Integer, ForeignKey("cargas.id"), nullable=False),
+    Column("credito_id", String(13), nullable=False),
+    Column("canal", String(20), nullable=False),
+    # SALIENTE: la casa de cobranza contacta. ENTRANTE: el titular se comunica.
+    # La Ley 2300 regula el primero; el segundo puede atenderse cualquier día.
+    Column("sentido", String(10), nullable=False),
+    Column("resultado", String(30), nullable=False),
+    Column("codigo", String(40), nullable=False),
+    Column("motivo_no_pago", String(40)),
+    Column("valor_acordado", Numeric(18, 2)),
+    Column("fecha_compromiso", Date),
+    Column("fecha_proxima_gestion", Date),
+    Column("observacion", String(500), nullable=False),
+    # Estado que el motor asignaba a la cuenta en el momento de la gestión: deja
+    # constancia de que el contacto estaba permitido cuando se hizo.
+    Column("estado_motor", String(20)),
+)
+Index("ix_gestiones_cuenta", gestiones.c.carga_id, gestiones.c.credito_id)
 
 
 # ---------------------------------------------------------------------------
@@ -484,6 +515,27 @@ def guardar_priorizacion(resumen, tabla, usuario):
     return priorizacion_id
 
 
+def registrar_gestion(gestion, cambios_cartera):
+    """Guarda una gestión y actualiza el estado de la cuenta en la cartera.
+
+    Las dos escrituras van en una sola transacción: nunca queda una gestión
+    registrada sin que la cartera lo refleje, ni una cartera actualizada sin la
+    gestión que lo justifica. Retorna el id de la gestión.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.begin() as conexion:
+        gestion_id = conexion.execute(insert(gestiones).values(**gestion)).inserted_primary_key[0]
+        resultado = conexion.execute(update(cartera).where(
+            cartera.c.carga_id == gestion["carga_id"],
+            cartera.c.credito_id == gestion["credito_id"]).values(**cambios_cartera))
+        if resultado.rowcount != 1:
+            # Lanzar dentro de la transacción la deshace completa.
+            raise LookupError("La cuenta {} no existe en la carga {}.".format(
+                gestion["credito_id"], gestion["carga_id"]))
+    return gestion_id
+
+
 def registrar_evento(usuario, accion, detalle=None):
     """Deja constancia de una acción en la bitácora de auditoría.
 
@@ -566,6 +618,15 @@ def leer_prioridades(priorizacion_id):
     with obtener_motor().connect() as conexion:
         consulta = select(prioridades).where(prioridades.c.priorizacion_id == priorizacion_id)
         return pd.read_sql(consulta, conexion)
+
+
+def leer_gestiones(carga_id, credito_id=None):
+    """Gestiones de una carga (o de una cuenta), de la más reciente a la más antigua."""
+    consulta = select(gestiones).where(gestiones.c.carga_id == carga_id)
+    if credito_id is not None:
+        consulta = consulta.where(gestiones.c.credito_id == credito_id)
+    with obtener_motor().connect() as conexion:
+        return pd.read_sql(consulta.order_by(gestiones.c.id.desc()), conexion)
 
 
 def leer_auditoria(limite=500):

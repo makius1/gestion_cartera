@@ -139,6 +139,7 @@ NUMERO_GESTORES = 6             # gestores activos en la campaña
 # queda en un punto intermedio porque su contactabilidad es desconocida.
 CONTACTABILIDAD_RESULTADO = {
     "ACUERDO": 1.00,
+    "CONTACTO_TITULAR": 0.85,
     "REINTENTAR": 0.75,
     "CUELGA": 0.60,
     "CORREO_ENVIADO": 0.55,
@@ -225,6 +226,47 @@ FECHA_CENTINELA = "1999-01-01"
 
 
 # ---------------------------------------------------------------------------
+# REGISTRO DE GESTIONES
+# ---------------------------------------------------------------------------
+# Vocabulario del formulario de gestión. Los resultados usan las mismas
+# etiquetas que el cargador deriva del texto libre de la asignación, para que
+# el motor y la priorización lean igual una gestión registrada en el sistema
+# que una que llegó en el archivo.
+
+RESULTADOS_GESTION = {
+    "ACUERDO": "Contacto con el titular: acuerdo de pago",
+    "CONTACTO_TITULAR": "Contacto con el titular: sin acuerdo",
+    "REINTENTAR": "Contacto con el titular: pide otro momento",
+    "CUELGA": "Contacto con el titular: cuelga",
+    "MENSAJE_DEJADO": "Mensaje con un tercero",
+    "NO_CONTESTA": "No contesta",
+    "BUZON": "Buzón de voz",
+    "APAGADO": "Teléfono apagado",
+    "NUMERO_ERRADO": "Número errado o de otra persona",
+    "CORREO_ENVIADO": "Mensaje escrito enviado (correo, SMS o WhatsApp)",
+    "FALLECIDO": "Informan fallecimiento del titular",
+}
+
+# Resultados en los que se habló con el titular. Solo en ellos se puede
+# registrar un acuerdo, una negociación o una reclamación.
+RESULTADOS_CON_CONTACTO = {"ACUERDO", "CONTACTO_TITULAR", "REINTENTAR", "CUELGA"}
+
+CODIGOS_GESTION = [
+    "POSIBLE LOCALIZACION", "CONTACTO SIN ACUERDO", "POSIBLE NEGOCIACION", "DIFERIDO",
+    "PAGO TOTAL", "DEBITO", "RENUENTE", "DESEMPLEO", "RECLAMACION", "CANCELACION", "FALLECIDO",
+]
+
+MOTIVOS_NO_PAGO = [
+    "No aplica", "Desempleo", "Disminución de ingresos", "Enfermedad", "Sobreendeudamiento",
+    "Olvido", "Inconformidad con el producto", "No reconoce la obligación", "Otro",
+]
+
+# Plazo máximo para pactar la fecha de un compromiso de pago.
+DIAS_MAXIMOS_COMPROMISO = 30
+LONGITUD_MINIMA_OBSERVACION = 10
+
+
+# ---------------------------------------------------------------------------
 # SEGURIDAD DE ACCESO
 # ---------------------------------------------------------------------------
 # Controles de la aplicación web. Los valores siguen prácticas comunes de
@@ -240,13 +282,14 @@ LONGITUD_MINIMA_CLAVE = 10
 # bitácora; el administrador además administra los usuarios.
 PERMISOS = {
     "GESTOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-               "ver_priorizacion"},
+               "ver_priorizacion", "registrar_gestion"},
     "SUPERVISOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-                   "ver_priorizacion", "ejecutar_motor", "ejecutar_priorizacion",
-                   "gestionar_cargas", "ver_auditoria"},
+                   "ver_priorizacion", "registrar_gestion", "ejecutar_motor",
+                   "ejecutar_priorizacion", "gestionar_cargas", "ver_auditoria"},
     "ADMINISTRADOR": {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento",
-                      "ver_priorizacion", "ejecutar_motor", "ejecutar_priorizacion",
-                      "gestionar_cargas", "ver_auditoria", "gestionar_usuarios"},
+                      "ver_priorizacion", "registrar_gestion", "ejecutar_motor",
+                      "ejecutar_priorizacion", "gestionar_cargas", "ver_auditoria",
+                      "gestionar_usuarios"},
 }
 
 
