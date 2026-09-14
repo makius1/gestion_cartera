@@ -45,8 +45,8 @@ ASIGNACIÓN (Excel / base de datos)
 [2] NÚCLEO DETERMINISTA
     ├─ Motor de reglas de elegibilidad       (Ley 2300 de 2023)   ← implementado
     ├─ Propensión a compromiso de pago       (árboles de decisión)
-    ├─ Segmentación de la cartera            (K-Means)
-    ├─ Priorización                          (lógica difusa + TOPSIS)
+    ├─ Segmentación de la cartera            (K-Means)                  ← implementado
+    ├─ Priorización                          (lógica difusa + TOPSIS)   ← implementado
     ├─ Monto óptimo de negociación           (banda mínimo-máximo)
     └─ Asignación a gestores                 (optimización con capacidad)
         │
@@ -80,7 +80,7 @@ automáticos corren en los servidores de GitHub.
 
 | Pieza | Qué hace |
 |---|---|
-| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad y abre cada pantalla de la aplicación con cada rol. |
+| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad, segmenta y prioriza, y abre cada pantalla de la aplicación con cada rol. |
 | **Sembrar base en Supabase** | Botón manual en la pestaña Actions: simula una cartera en GitHub y la registra directamente en Supabase. |
 | **Mantener activa la base** | Consulta la base cada tres días para reducir el riesgo de que el plan gratuito de Supabase la pause por inactividad. |
 | **Codespaces** | Entorno de desarrollo en el navegador, con Python y las dependencias instaladas automáticamente. |
@@ -189,6 +189,44 @@ permitido el día en que se hizo y por qué.
 
 ---
 
+## Segmentación y priorización
+
+Ordena las cuentas contactables del día para que el equipo trabaje primero
+las que más aportan a la meta. En lugar de apostar por un solo método, el
+sistema **calcula tres y elige el óptimo para cada cartera con un puntaje
+explícito**.
+
+### Segmentación con K-Means
+
+Agrupa las cuentas por saldo, contactabilidad, mora, margen y meses en
+gestión (`analisis/segmentacion.py`). El número de segmentos no se fija a
+mano: se prueba K-Means con 2 a 6 segmentos y se elige por el **coeficiente de
+silueta**; si un número menor queda a menos de 0,01 del mejor, gana el menor,
+porque se opera y explica mejor. Cada segmento se nombra por sus dos rasgos
+más distintivos, por ejemplo *"Mora antigua · recién asignada"*.
+
+### Tres métodos de priorización
+
+| Método | Cómo decide | Dónde |
+|---|---|---|
+| **Lógica difusa (Mamdani)** | 14 reglas lingüísticas del experto (*"saldo alto y mora temprana → prioridad alta"*): fuzzificación, MIN, MAX y centro de gravedad, resuelto de forma vectorizada para toda la cartera | `decision/conocimiento_difuso.py` y `decision/priorizacion.py` |
+| **TOPSIS** | Cercanía de cada cuenta a una cuenta ideal y lejanía de la peor, con los pesos de cada criterio | `decision/priorizacion.py` |
+| **Ponderación simple** | Suma ponderada de criterios normalizados: la referencia de una hoja de cálculo | `decision/priorizacion.py` |
+
+### Cómo se elige el método óptimo
+
+| Métrica | Qué mide | Peso |
+|---|---|---|
+| Recaudo esperado | Lo que se espera recuperar trabajando, en el orden del método, las cuentas que caben en la capacidad del día (gestores × gestiones por gestor) | 0,60 |
+| Robustez | Cuánto de la cola del día se mantiene si los datos varían ±10 % (índice de Jaccard en 5 réplicas) | 0,25 |
+| Discriminación | Fracción de puntajes distintos en la cola: un método con muchos empates obliga a desempatar a ciegas | 0,15 |
+
+El resultado queda guardado con las métricas de los tres métodos, los
+segmentos y el puntaje de cada cuenta con cada método, de modo que siempre se
+puede revisar por qué se eligió uno y cómo habría quedado la cola con otro.
+
+---
+
 ## Aplicación web
 
 La operación se hace desde el navegador, con ingreso por usuario y contraseña.
@@ -200,7 +238,9 @@ Cada rol ve solo las pantallas que le corresponden:
 | Cartera: consulta con filtros y descarga | ✅ | ✅ | ✅ |
 | Motor: resultados y explicación por cuenta | ✅ | ✅ | ✅ |
 | Motor: ejecutar sobre una carga y una fecha | | ✅ | ✅ |
-| Base de conocimiento y simulador de consulta | ✅ | ✅ | ✅ |
+| Priorización: comparación de métodos, segmentos, cola del día y explicación por cuenta | ✅ | ✅ | ✅ |
+| Priorización: ejecutar sobre una carga | | ✅ | ✅ |
+| Base de conocimiento, reglas difusas y simulador de consulta | ✅ | ✅ | ✅ |
 | Cargas: registrar y simular carteras | | ✅ | ✅ |
 | Auditoría: bitácora de acciones | | ✅ | ✅ |
 | Usuarios: crear, cambiar rol, desactivar, restablecer | | | ✅ |
@@ -283,6 +323,8 @@ Los registros simulados nunca se confunden con los de una asignación:
 | `cartera` | Una fila por crédito y carga, con la cartera ya procesada |
 | `ejecuciones_motor` | Una fila por ejecución del motor: quién, cuándo, sobre qué carga y para qué fecha |
 | `evaluaciones` | El resultado de cada cuenta en cada ejecución, con sus reglas y su explicación |
+| `priorizaciones` | Una fila por priorización: método elegido, segmentos, silueta y métricas de los tres métodos |
+| `prioridades` | El segmento, los tres puntajes, la posición y si entra en la cola del día, por cuenta |
 | `usuarios` | Cuentas de acceso: rol, estado y derivación de la contraseña |
 | `auditoria` | Bitácora de acciones del sistema |
 
@@ -319,6 +361,12 @@ uso, sin tocar los datos existentes.
 ├── motor/
 │   ├── base_conocimiento.py    Reglas de elegibilidad con su fundamento
 │   └── elegibilidad.py         Motor de inferencia y módulo de explicación
+├── analisis/
+│   ├── criterios.py            Criterios de decisión comunes a todos los métodos
+│   └── segmentacion.py         K-Means con selección del número de segmentos
+├── decision/
+│   ├── conocimiento_difuso.py  Variables, conjuntos y reglas difusas
+│   └── priorizacion.py         Difuso, TOPSIS, ponderación y selección del óptimo
 ├── seguridad/
 │   └── autenticacion.py        Contraseñas, ingreso, bloqueo, usuarios y roles
 ├── app/
@@ -412,6 +460,12 @@ Ejecutar el motor de elegibilidad sobre la carga más reciente, para una fecha:
 python -m motor.elegibilidad --fecha 2026-09-15
 ```
 
+Segmentar y priorizar las cuentas contactables de una ejecución del motor:
+
+```bash
+python -m decision.priorizacion --ejecucion 1
+```
+
 ---
 
 ## Protección de datos
@@ -441,7 +495,7 @@ python -m motor.elegibilidad --fecha 2026-09-15
 | 1d | Base externa en Supabase y ejecución en GitHub | ✅ |
 | 2 | Motor de reglas de elegibilidad de contacto | ✅ |
 | 2b | Aplicación web con ingreso, roles y auditoría | ✅ |
-| 3 | Segmentación y priorización | Pendiente |
+| 3 | Segmentación (K-Means) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
 | 5 | Optimización de campañas y asignación | Pendiente |
 
