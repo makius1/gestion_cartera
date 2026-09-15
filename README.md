@@ -45,7 +45,7 @@ ASIGNACIÓN (Excel / base de datos)
 [2] NÚCLEO DETERMINISTA
     ├─ Motor de reglas de elegibilidad       (Ley 2300 de 2023)   ← implementado
     ├─ Propensión a compromiso de pago       (árboles de decisión)
-    ├─ Segmentación de la cartera            (K-Means)                  ← implementado
+    ├─ Segmentación de la cartera            (K-Means · Ward · GMM)     ← implementado
     ├─ Priorización                          (lógica difusa + TOPSIS)   ← implementado
     ├─ Monto óptimo de negociación           (banda mínimo-máximo)
     └─ Asignación a gestores                 (optimización con capacidad)
@@ -65,6 +65,14 @@ APLICACIÓN WEB CON INGRESO Y ROLES                                ← implement
 El núcleo es **determinista y auditable**: toda decisión sobre a quién se
 contacta, cuánto se ofrece y a quién se asigna se puede explicar regla por
 regla.
+
+**Ninguna decisión depende de un solo algoritmo.** Cada proceso automatizado
+compara varios y se queda con el mejor para la cartera del momento, según
+métricas explícitas. El documento [`docs/ALGORITMOS.md`](docs/ALGORITMOS.md)
+explica cada algoritmo (qué hace en el sistema, qué busca, qué método
+matemático aplica y qué decide o predice), revisa los modelos que usa el
+sector financiero y recomienda el modelo para el entrenamiento. La aplicación
+lo muestra en la pantalla **Metodología**.
 
 ---
 
@@ -199,14 +207,17 @@ las que más aportan a la meta. En lugar de apostar por un solo método, el
 sistema **calcula tres y elige el óptimo para cada cartera con un puntaje
 explícito**.
 
-### Segmentación con K-Means
+### Segmentación con tres algoritmos
 
 Agrupa las cuentas por saldo, contactabilidad, mora, margen y meses en
-gestión (`analisis/segmentacion.py`). El número de segmentos no se fija a
-mano: se prueba K-Means con 2 a 6 segmentos y se elige por el **coeficiente de
-silueta**; si un número menor queda a menos de 0,01 del mejor, gana el menor,
-porque se opera y explica mejor. Cada segmento se nombra por sus dos rasgos
-más distintivos, por ejemplo *"Mora antigua · recién asignada"*.
+gestión (`analisis/segmentacion.py`) con **K-Means**, **jerárquico de Ward** y
+**mezcla gaussiana**. En cada uno, el número de segmentos (2 a 6) se elige por
+el **coeficiente de silueta**, con preferencia por el menor si la diferencia es
+de menos de 0,01. Entre los tres gana el de mejor puntaje compuesto de
+silueta, Calinski-Harabasz y Davies-Bouldin, y se descarta el que deje un
+segmento con menos del 2 % de la cartera. El ganador cambia según la cartera:
+en unas gana K-Means y en otras Ward. Cada segmento se nombra por sus dos
+rasgos más distintivos, por ejemplo *"Mora antigua · recién asignada"*.
 
 ### Tres métodos de priorización
 
@@ -340,6 +351,7 @@ Cada rol ve solo las pantallas que le corresponden:
 | Priorización: comparación de métodos, segmentos, cola del día y explicación por cuenta | ✅ | ✅ | ✅ |
 | Priorización: ejecutar sobre una carga | | ✅ | ✅ |
 | Base de conocimiento, reglas difusas y simulador de consulta | ✅ | ✅ | ✅ |
+| Metodología: los algoritmos del sistema explicados | ✅ | ✅ | ✅ |
 | Cargas: registrar, simular y completar carteras | | ✅ | ✅ |
 | Auditoría: bitácora de acciones | | ✅ | ✅ |
 | Usuarios: crear, cambiar rol, desactivar, restablecer | | | ✅ |
@@ -465,9 +477,11 @@ uso, sin tocar los datos existentes.
 ├── motor/
 │   ├── base_conocimiento.py    Reglas de elegibilidad con su fundamento
 │   └── elegibilidad.py         Motor de inferencia y módulo de explicación
+├── docs/
+│   └── ALGORITMOS.md           Algoritmos, métodos matemáticos y modelos financieros
 ├── analisis/
 │   ├── criterios.py            Criterios de decisión comunes a todos los métodos
-│   └── segmentacion.py         K-Means con selección del número de segmentos
+│   └── segmentacion.py         K-Means, Ward y mezcla gaussiana con selección del óptimo
 ├── decision/
 │   ├── conocimiento_difuso.py  Variables, conjuntos y reglas difusas
 │   └── priorizacion.py         Difuso, TOPSIS, ponderación y selección del óptimo
@@ -603,7 +617,7 @@ python -m decision.priorizacion --ejecucion 1
 | 1d | Base externa en Supabase y ejecución en GitHub | ✅ |
 | 2 | Motor de reglas de elegibilidad de contacto | ✅ |
 | 2b | Aplicación web con ingreso, roles y auditoría | ✅ |
-| 3 | Segmentación (K-Means) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
+| 3 | Segmentación (K-Means, Ward, mezcla gaussiana) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
 | 3b | Gestión de cuentas con reglas de validación y actualización de la cartera | ✅ |
 | 3c | Directorio de titulares, plan de trabajo diario y traza de trabajo | ✅ |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
