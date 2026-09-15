@@ -462,7 +462,9 @@ uso, sin tocar los datos existentes.
 ├── .github/workflows/
 │   ├── pruebas.yml             Integración continua contra PostgreSQL
 │   ├── sembrar_supabase.yml    Registro manual de una cartera simulada en Supabase
-│   └── mantener_activa.yml     Consulta periódica para evitar la pausa
+│   ├── mantener_activa.yml     Consulta periódica para evitar la pausa
+│   └── crear_issues.yml        Creación de los issues de una lista de tareas por área
+├── .github/tareas/             Listas de tareas por área y el script que las publica
 ├── .devcontainer/              Entorno de GitHub Codespaces
 ├── .streamlit/config.toml      Configuración de la aplicación web (sin secretos)
 ├── config.py                   Parámetros del negocio, normativa, seguridad y roles
@@ -480,6 +482,7 @@ uso, sin tocar los datos existentes.
 ├── docs/
 │   ├── ALGORITMOS.md           Algoritmos, métodos matemáticos y modelos financieros
 │   ├── TRABAJO_EN_EQUIPO.md    Flujo de trabajo del equipo con ramas y pull requests
+│   ├── ESTADO_POR_AREA.md      Lo completo y lo pendiente de cada área, con su responsable
 │   └── PLAN_DE_PRUEBAS.md      Casos para las sesiones de pruebas conjuntas
 ├── analisis/
 │   ├── criterios.py            Criterios de decisión comunes a todos los métodos
@@ -640,6 +643,9 @@ request* que lo resuelve lo cierra al fusionarse.
 | 3c | Directorio de titulares, plan de trabajo diario y traza de trabajo | ✅ |
 | 4 | Modelo de propensión a compromiso de pago | Pendiente |
 | 5 | Optimización de campañas y asignación | Pendiente |
+
+El detalle de lo completo y lo pendiente en cada área, con su responsable, está
+en [`docs/ESTADO_POR_AREA.md`](docs/ESTADO_POR_AREA.md).
 
 ---
 
