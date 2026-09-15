@@ -1,0 +1,219 @@
+{
+  "documento": "docs/ESTADO_POR_AREA.md",
+  "areas": [
+    {
+      "numero": 1,
+      "nombre": "Datos, base de datos e infraestructura",
+      "responsable": "David",
+      "carpetas": "datos/, seguridad/, config.py, .github/, .devcontainer/",
+      "comandos": [
+        "python -m datos.base_datos probar",
+        "env -u DATABASE_URL python -m datos.base_datos sintetica --registros 2000"
+      ]
+    },
+    {
+      "numero": 2,
+      "nombre": "Motor de elegibilidad y base de conocimiento",
+      "responsable": "Juan Pablo",
+      "carpetas": "motor/, docs/ALGORITMOS.md seccion 2",
+      "comandos": [
+        "python -m motor.elegibilidad --validar",
+        "python -m motor.elegibilidad --fecha 2026-09-15 --no-guardar"
+      ]
+    },
+    {
+      "numero": 3,
+      "nombre": "Segmentación, priorización y modelos",
+      "responsable": "Francy",
+      "carpetas": "analisis/, decision/",
+      "comandos": [
+        "python -c \"from decision.conocimiento_difuso import validar; print(validar() or 'Sin errores')\"",
+        "python -m decision.priorizacion --no-guardar"
+      ]
+    },
+    {
+      "numero": 4,
+      "nombre": "Gestión, plan de trabajo, aplicación web y pruebas",
+      "responsable": "Sean",
+      "carpetas": "gestion/, app/, pruebas/",
+      "comandos": [
+        "env -u DATABASE_URL python -m pruebas.prueba_aplicacion",
+        "python -m streamlit run app/principal.py"
+      ]
+    }
+  ],
+  "tareas": [
+    {
+      "area": 1,
+      "prioridad": "Alta",
+      "titulo": "Mejora: publicar la aplicación en Streamlit Community Cloud",
+      "que": "Publicar la aplicación desde main en Streamlit Community Cloud, con los secretos DATABASE_URL y SEUDONIMO_CLAVE.",
+      "para_que": "Tener una sola dirección con la última versión aprobada, donde el equipo hace las pruebas conjuntas.",
+      "criterios": [
+        "La aplicación abre desde la dirección pública y muestra la pantalla de ingreso",
+        "Lee la base compartida de Supabase",
+        "Se actualiza sola al fusionar un pull request a main",
+        "La dirección queda en el README"
+      ]
+    },
+    {
+      "area": 1,
+      "prioridad": "Alta",
+      "titulo": "Mejora: crear en la aplicación el usuario de cada integrante",
+      "que": "Crear en la pantalla Usuarios un usuario por integrante: David como Administrador, Juan Pablo como Supervisor, Francy y Sean como Gestores.",
+      "para_que": "Que cada rol se pruebe con su propio usuario y que la auditoría y la traza muestren quién hizo cada cosa.",
+      "criterios": [
+        "Cada integrante ingresa con su usuario y ve el menú de su rol",
+        "Cada integrante cambia su contraseña inicial desde Mi cuenta",
+        "Las contraseñas se entregan en persona, nunca en issues ni chats"
+      ]
+    },
+    {
+      "area": 1,
+      "prioridad": "Alta",
+      "titulo": "Mejora: cambiar la contraseña de la base antes de publicar",
+      "que": "Generar una contraseña nueva para la base en Supabase y actualizarla en los secretos de Codespaces, de Actions y de Streamlit Cloud.",
+      "para_que": "Publicar la aplicación con credenciales nuevas, conocidas solo por los secretos del repositorio.",
+      "criterios": [
+        "La contraseña anterior deja de funcionar",
+        "python -m datos.base_datos probar funciona en un Codespace reconstruido",
+        "Las pruebas automáticas y la aplicación publicada siguen conectando"
+      ]
+    },
+    {
+      "area": 1,
+      "prioridad": "Media",
+      "titulo": "Mejora: preparar y dirigir la primera sesión de pruebas conjuntas",
+      "que": "Con la aplicación publicada y los usuarios creados, convocar a los cuatro y recorrer docs/PLAN_DE_PRUEBAS.md con la plantilla Sesión de pruebas.",
+      "para_que": "Validar el sistema completo con los cuatro roles trabajando a la vez.",
+      "criterios": [
+        "Existe el issue de la sesión con todos los casos marcados",
+        "Cada caso fallido tiene su issue de error asignado",
+        "Se hizo el escenario del día simulado"
+      ]
+    },
+    {
+      "area": 2,
+      "prioridad": "Media",
+      "titulo": "Mejora: pruebas unitarias de cada regla del motor",
+      "que": "Agregar una prueba por regla de la base de conocimiento, con un caso que la dispara y uno que no, y correrla en las pruebas automáticas.",
+      "para_que": "Detectar de inmediato si un cambio en una regla o en el motor altera el resultado de otra.",
+      "criterios": [
+        "Las 17 reglas tienen al menos un caso que dispara y uno que no",
+        "La prueba corre en el flujo Pruebas de GitHub",
+        "Un cambio que rompe una regla hace fallar la prueba"
+      ]
+    },
+    {
+      "area": 2,
+      "prioridad": "Media",
+      "titulo": "Observación: revisar el fundamento legal de cada regla",
+      "que": "Comparar el fundamento de cada regla legal y de frecuencia con el texto de la Ley 2300 de 2023 y la Ley 1581 de 2012.",
+      "para_que": "Que la explicación que muestra el motor cite correctamente la norma.",
+      "criterios": [
+        "Cada regla L y N tiene el artículo que la sustenta",
+        "Las diferencias encontradas quedan como issues de mejora o error"
+      ]
+    },
+    {
+      "area": 2,
+      "prioridad": "Baja",
+      "titulo": "Mejora: elegir el canal con muestreo de Thompson",
+      "que": "Reemplazar la elección fija de canal de las reglas E por muestreo de Thompson sobre la tasa de respuesta observada en las gestiones.",
+      "para_que": "Que el canal recomendado aprenda de los resultados reales en lugar de depender solo de la regla del experto.",
+      "criterios": [
+        "Se describe el método en docs/ALGORITMOS.md",
+        "El motor sigue respetando todas las reglas legales",
+        "Se compara contra las reglas actuales"
+      ],
+      "nota": "Depende de tener gestiones registradas; conviene después de la fase 4."
+    },
+    {
+      "area": 3,
+      "prioridad": "Alta",
+      "titulo": "Mejora: fase 4, simular un historial de pagos con causas conocidas",
+      "que": "Extender el simulador para generar gestiones y pagos donde la probabilidad de pagar dependa de variables conocidas (mora, saldo, contactabilidad, canal).",
+      "para_que": "Tener datos con resultado conocido para entrenar y validar los modelos de propensión.",
+      "criterios": [
+        "El historial se reconstruye igual con la misma semilla",
+        "Las relaciones simuladas quedan documentadas",
+        "Incluye varias fechas para permitir validación temporal"
+      ]
+    },
+    {
+      "area": 3,
+      "prioridad": "Alta",
+      "titulo": "Mejora: fase 4, entrenar y comparar los modelos de propensión a pagar",
+      "que": "Entrenar regresión logística, árbol CART, bosque aleatorio y HistGradientBoosting, validar por tiempo y elegir el mejor por AUC, KS, Brier y PSI.",
+      "para_que": "Predecir qué cuentas tienen más probabilidad de pagar, como pide la sección 9 de docs/ALGORITMOS.md.",
+      "criterios": [
+        "Los cuatro modelos se comparan con las mismas métricas",
+        "La validación usa fechas posteriores al entrenamiento",
+        "El modelo elegido y sus métricas se guardan en la base",
+        "La comparación se ve en la aplicación"
+      ],
+      "nota": "Depende del historial de pagos simulado."
+    },
+    {
+      "area": 3,
+      "prioridad": "Media",
+      "titulo": "Mejora: usar la probabilidad de pago en la priorización",
+      "que": "Agregar la probabilidad del modelo elegido como criterio de la priorización, en lugar de la contactabilidad heurística.",
+      "para_que": "Ordenar las cuentas por el recaudo esperado real y no solo por la regla del experto.",
+      "criterios": [
+        "La priorización compara los resultados con y sin la probabilidad",
+        "La explicación de cada cuenta muestra la probabilidad",
+        "docs/ALGORITMOS.md queda actualizado"
+      ],
+      "nota": "Depende del modelo de propensión."
+    },
+    {
+      "area": 3,
+      "prioridad": "Media",
+      "titulo": "Mejora: fase 5, asignar cuentas a gestores con programación lineal entera",
+      "que": "Reemplazar el reparto en serpentina del plan de trabajo por una asignación con scipy.optimize.milp que maximice el recaudo esperado con cupo por gestor.",
+      "para_que": "Repartir las cuentas de forma óptima y no solo equitativa.",
+      "criterios": [
+        "Se respeta el cupo de cada gestor",
+        "Se compara el valor asignado contra la serpentina",
+        "El plan de trabajo usa la nueva asignación"
+      ],
+      "nota": "Se hace con Sean, porque cambia gestion/plan.py."
+    },
+    {
+      "area": 4,
+      "prioridad": "Alta",
+      "titulo": "Mejora: reservar la cuenta entregada por Siguiente cuenta",
+      "que": "Cuando un gestor sin plan pide Siguiente cuenta, reservarla por un tiempo para que otro gestor no reciba la misma.",
+      "para_que": "Quitar la limitación conocida del plan de pruebas: dos gestores sin plan pueden recibir la misma cuenta.",
+      "criterios": [
+        "Dos gestores que piden a la vez reciben cuentas distintas",
+        "La reserva vence si la cuenta no se gestiona",
+        "Se quita la limitación de docs/PLAN_DE_PRUEBAS.md"
+      ]
+    },
+    {
+      "area": 4,
+      "prioridad": "Media",
+      "titulo": "Mejora: registrar obligaciones nuevas desde la aplicación",
+      "que": "Permitir al supervisor crear una obligación con su titular y contactos desde la aplicación, sin hacer una carga completa.",
+      "para_que": "Que la información se administre desde el sistema y no solo por cargas.",
+      "criterios": [
+        "Se validan los mismos tipos y formatos que en la carga",
+        "El identificador se seudonimiza igual que en la carga",
+        "El registro queda en la auditoría"
+      ]
+    },
+    {
+      "area": 4,
+      "prioridad": "Baja",
+      "titulo": "Mejora: cambiar el texto de la pantalla de ingreso",
+      "que": "Reemplazar el texto bajo el formulario de ingreso por uno que describa la administración de la información de la cartera.",
+      "para_que": "Que el texto coincida con la forma en que el README describe el sistema.",
+      "criterios": [
+        "El texto nuevo está en app/principal.py",
+        "La prueba automática de la aplicación sigue pasando"
+      ]
+    }
+  ]
+}

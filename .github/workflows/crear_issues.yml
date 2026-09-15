@@ -1,0 +1,60 @@
+# Crea los issues de una lista de tareas por área (por defecto, el estado
+# inicial del proyecto) y los asigna al responsable de cada área.
+#
+# Se ejecuta a mano desde la pestaña Actions. Usa el token temporal del propio
+# flujo, que solo puede escribir issues de este repositorio. Si un issue ya
+# existe con el mismo título, no lo repite. Con "simular" marcado solo muestra
+# en el registro lo que crearía.
+
+name: Crear issues desde una lista
+
+on:
+  workflow_dispatch:
+    inputs:
+      archivo:
+        description: "Lista de tareas"
+        required: true
+        default: ".github/tareas/estado_inicial.json"
+      area_1:
+        description: "Usuario de GitHub del área 1 (David)"
+        default: "makius1"
+      area_2:
+        description: "Usuario de GitHub del área 2 (Juan Pablo)"
+        default: "juanpabloavn-cmd"
+      area_3:
+        description: "Usuario de GitHub del área 3 (Francy)"
+        default: ""
+      area_4:
+        description: "Usuario de GitHub del área 4 (Sean)"
+        default: "seanpool65432"
+      simular:
+        description: "Solo mostrar lo que se crearía"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  crear:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Las entradas llegan como variables de entorno y no dentro del comando,
+      # para que un valor escrito en el formulario no se ejecute como código.
+      - name: Crear los issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+          ARCHIVO: ${{ inputs.archivo }}
+          RESPONSABLES: "1=${{ inputs.area_1 }},2=${{ inputs.area_2 }},3=${{ inputs.area_3 }},4=${{ inputs.area_4 }}"
+          SIMULAR: ${{ inputs.simular && '--simular' || '' }}
+        run: python .github/tareas/crear_issues.py --archivo "$ARCHIVO" --responsables "$RESPONSABLES" $SIMULAR
