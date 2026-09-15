@@ -478,7 +478,9 @@ uso, sin tocar los datos existentes.
 │   ├── base_conocimiento.py    Reglas de elegibilidad con su fundamento
 │   └── elegibilidad.py         Motor de inferencia y módulo de explicación
 ├── docs/
-│   └── ALGORITMOS.md           Algoritmos, métodos matemáticos y modelos financieros
+│   ├── ALGORITMOS.md           Algoritmos, métodos matemáticos y modelos financieros
+│   ├── TRABAJO_EN_EQUIPO.md    Flujo de trabajo del equipo con ramas y pull requests
+│   └── PLAN_DE_PRUEBAS.md      Casos para las sesiones de pruebas conjuntas
 ├── analisis/
 │   ├── criterios.py            Criterios de decisión comunes a todos los métodos
 │   └── segmentacion.py         K-Means, Ward y mezcla gaussiana con selección del óptimo
@@ -587,6 +589,17 @@ Segmentar y priorizar las cuentas contactables de una ejecución del motor:
 ```bash
 python -m decision.priorizacion --ejecucion 1
 ```
+
+---
+
+## Trabajo en equipo
+
+El equipo trabaja con ramas y *pull requests* sobre `main`, cada integrante en su
+propio Codespace con el mismo entorno y la misma conexión a la base compartida.
+La guía completa (configuración inicial, flujo diario, reparto por módulos, base
+compartida y personal) está en [`docs/TRABAJO_EN_EQUIPO.md`](docs/TRABAJO_EN_EQUIPO.md),
+y los casos de las sesiones de pruebas conjuntas en
+[`docs/PLAN_DE_PRUEBAS.md`](docs/PLAN_DE_PRUEBAS.md).
 
 ---
 
