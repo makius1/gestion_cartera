@@ -23,7 +23,7 @@ on:
         default: "juanpabloavn-cmd"
       area_3:
         description: "Usuario de GitHub del área 3 (Francy)"
-        default: ""
+        default: "francy683"
       area_4:
         description: "Usuario de GitHub del área 4 (Sean)"
         default: "seanpool65432"
