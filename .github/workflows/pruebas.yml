@@ -16,6 +16,8 @@ on:
 
 jobs:
   base-de-datos:
+    # El nombre del trabajo es el de la verificacion que exige la regla de main
+    name: Pruebas
     runs-on: ubuntu-latest
 
     services:
