@@ -601,6 +601,11 @@ compartida y personal) está en [`docs/TRABAJO_EN_EQUIPO.md`](docs/TRABAJO_EN_EQ
 y los casos de las sesiones de pruebas conjuntas en
 [`docs/PLAN_DE_PRUEBAS.md`](docs/PLAN_DE_PRUEBAS.md).
 
+Las observaciones, mejoras, cambios y errores se registran como *issues* de
+GitHub con una plantilla para cada tipo, y se siguen en el tablero del equipo.
+Cada commit que atiende uno lo menciona con su número (`#12`), y el *pull
+request* que lo resuelve lo cierra al fusionarse.
+
 ---
 
 ## Protección de datos
