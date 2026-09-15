@@ -2,8 +2,9 @@
 
 Casos que el equipo recorre en cada sesión de pruebas, sobre la aplicación
 publicada y con la base compartida. Cada caso indica con qué rol se prueba y
-qué resultado se espera. En el *issue* de la sesión se copia la tabla y se marca
-cada caso con ✅ o ❌; cada ❌ se registra además como un *issue* de error.
+qué resultado se espera. Cada sesión se registra en un *issue* con la plantilla
+**Sesión de pruebas**, que trae la lista de casos para marcar; cada caso que
+falle se registra además como un *issue* con la plantilla **Error**.
 
 Las gestiones **salientes** solo se aceptan en día hábil entre las 7:00 y las
 19:00, hora de Colombia (Ley 2300). Fuera de ese horario, los casos de gestión

@@ -13,7 +13,7 @@ conjuntas.
 | Conexión a la base | Secretos de Codespaces del repositorio | `DATABASE_URL` y `SEUDONIMO_CLAVE` llegan solos a cada Codespace; nadie los copia a mano |
 | Base de pruebas conjuntas | Supabase | Una sola base: todos ven las mismas cargas, gestiones, planes y usuarios |
 | Aplicación de pruebas | Streamlit Community Cloud | Se publica desde `main`: una sola dirección, siempre con la última versión aprobada |
-| Tareas y errores | *Issues* y *Projects* de GitHub | Cada tarea y cada error tiene responsable y estado |
+| Observaciones, mejoras, cambios y errores | *Issues* y tablero de *Projects* en GitHub | Todos los registran con la misma plantilla; cada uno tiene responsable, estado y los commits que lo resolvieron |
 
 La clave de seudónimos (`SEUDONIMO_CLAVE`) tiene que ser la misma para todos.
 Con una clave distinta, las cuentas registradas por esa persona tendrían
@@ -49,6 +49,13 @@ códigos que no coinciden con los de la base.
 
    Cada persona usa su propio usuario. Así la auditoría y la traza de trabajo
    muestran quién hizo cada cosa, igual que en una operación real.
+6. **Crear las etiquetas** en *Issues → Labels → New label*: `error`,
+   `mejora`, `observacion` y `pruebas`. Las plantillas las ponen solas, pero
+   solo si existen.
+7. **Crear el tablero del equipo:** pestaña *Projects → New project → Board*,
+   con las columnas *Pendiente*, *En curso*, *En revisión* y *Hecho*, y
+   vincularlo al repositorio. En la configuración del tablero, activar el
+   flujo que agrega solos los *issues* nuevos a *Pendiente*.
 
 ### Lo hace cada integrante
 
@@ -80,10 +87,11 @@ git checkout main
 git pull
 ```
 
-**Crear la rama de la tarea**, con un nombre que diga qué se hace:
+**Crear la rama de la tarea**, con el número del *issue* y un nombre que diga
+qué se hace:
 
 ```bash
-git checkout -b funcion/modelo-propension
+git checkout -b funcion/12-modelo-propension
 ```
 
 | Prefijo | Para qué |
@@ -101,13 +109,16 @@ git add motor/base_conocimiento.py
 ```
 
 ```bash
-git commit -m "Se agrega la regla de horario para los sabados"
+git commit -m "Se agrega la regla de horario para los sabados (#12)"
 ```
+
+El `(#12)` al final enlaza el commit con el *issue*: en GitHub, el *issue*
+muestra todos los commits que lo tocaron.
 
 **Subir la rama:**
 
 ```bash
-git push -u origin funcion/modelo-propension
+git push -u origin funcion/12-modelo-propension
 ```
 
 **Abrir el *pull request*** en GitHub (aparece un botón *Compare & pull
@@ -144,7 +155,49 @@ cambio antes de resolverlo.
 
 ---
 
-## 4. Reparto sugerido por módulos
+## 4. Observaciones, mejoras y cambios
+
+Todo lo que alguien quiera anotar sobre el sistema va en un *issue* de GitHub,
+no en chats ni en documentos sueltos. Así queda un solo lugar compartido, con
+historia, que cualquiera del equipo puede tomar y convertir en commits.
+
+**Registrar:** pestaña *Issues → New issue* y elegir la plantilla:
+
+| Plantilla | Cuándo |
+|---|---|
+| **Error** | Algo no funciona como debería |
+| **Mejora o cambio** | Una funcionalidad nueva o un cambio en una existente |
+| **Observación** | Un comentario de una revisión, de una sesión de pruebas o del docente |
+| **Sesión de pruebas** | El registro de cada sesión de pruebas conjuntas (sección 7) |
+
+Una observación que requiere trabajo se convierte en una mejora o en un error:
+se abre el nuevo *issue*, se enlaza desde la observación (`Ver #15`) y se
+cierra la observación.
+
+**Del *issue* al commit:**
+
+```mermaid
+flowchart LR
+    I["Issue #12<br/>Pendiente"] --> A["Se asigna<br/>En curso"]
+    A --> R["Rama<br/>funcion/12-..."]
+    R --> C["Commits<br/>... (#12)"]
+    C --> P["Pull request<br/>Cierra #12<br/>En revisión"]
+    P --> F["Fusión a main<br/>Hecho"]
+```
+
+1. Quien va a trabajar el *issue* se lo asigna (*Assignees*) y lo mueve a
+   *En curso* en el tablero. Así nadie trabaja dos veces lo mismo.
+2. Crea la rama con el número del *issue* y hace sus commits terminando en
+   `(#12)`.
+3. En el *pull request* escribe `Cierra #12`. Al fusionarlo, GitHub cierra el
+   *issue* solo y lo pasa a *Hecho*.
+
+**Discusión:** los comentarios sobre una propuesta se hacen dentro del mismo
+*issue*, no por fuera, para que la decisión quede escrita junto al cambio.
+
+---
+
+## 5. Reparto sugerido por módulos
 
 Cada persona es dueña de un área: la conoce a fondo, revisa los cambios que
 otros hagan en ella y es a quien se consulta. Trabajar en el área de otro está
@@ -162,7 +215,7 @@ revisa nadie con cuidado.
 
 ---
 
-## 5. Bases de datos: compartida y personal
+## 6. Bases de datos: compartida y personal
 
 | Base | Para qué | Cómo se usa |
 |---|---|---|
@@ -191,22 +244,24 @@ Reglas sobre la base compartida:
 
 ---
 
-## 6. Pruebas conjuntas
+## 7. Pruebas conjuntas
 
 Una sesión por semana, o antes de cada entrega, con los cuatro conectados a la
 **aplicación de pruebas** (Streamlit Cloud), cada uno con su usuario.
 
 1. Se fusiona a `main` lo que esté aprobado. Streamlit Cloud publica la versión
    nueva sola.
-2. Se abre un *issue* llamado *"Sesión de pruebas AAAA-MM-DD"*.
+2. Se abre un *issue* con la plantilla **Sesión de pruebas**, que ya trae la
+   lista de todos los casos para marcar.
 3. Se recorre el [plan de pruebas](PLAN_DE_PRUEBAS.md). Cada caso tiene un rol
    responsable, y el escenario del día simulado se hace con los cuatro a la vez.
 4. Cada resultado se marca en el *issue*. Cada falla se registra como un *issue*
-   aparte con la plantilla de error, y se asigna al dueño del área.
+   aparte con la plantilla **Error**, y cada idea que surja, con **Mejora o
+   cambio** u **Observación**. Todos se asignan al dueño del área.
 
 ---
 
-## 7. Seguridad del equipo
+## 8. Seguridad del equipo
 
 - El archivo `.env` y cualquier contraseña nunca se suben al repositorio ni se
   pegan en chats o *issues*. Los secretos viven solo en GitHub y en Streamlit
