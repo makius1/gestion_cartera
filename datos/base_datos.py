@@ -19,13 +19,15 @@ El código es el mismo en ambos casos gracias a SQLAlchemy.
 
 import argparse
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey,
                         Index, Integer, MetaData, Numeric, String, Table, Text,
-                        create_engine, func, insert, inspect, select, text, update)
+                        create_engine, event, exc, func, insert, inspect, select,
+                        text, update)
 
 import config
 
@@ -310,23 +312,50 @@ Index("ux_contactos_valor", contactos.c.cuenta_id, contactos.c.tipo, contactos.c
 
 _MOTORES = {}
 
+# Una conexión que estuvo quieta más de este tiempo se verifica antes de usarla.
+SEGUNDOS_SIN_VERIFICAR = 60
+
+
+def _verificar_si_estuvo_inactiva(motor):
+    """Verificación de conexión solo cuando hace falta.
+
+    Los servicios en la nube cierran las conexiones inactivas, y usar una
+    conexión cerrada produce un error. La solución habitual (pool_pre_ping)
+    manda una consulta de prueba antes de CADA uso: con una latencia de medio
+    segundo hasta el servidor, eso duplica el tiempo de todas las consultas.
+    Aquí la prueba solo se hace si la conexión lleva más de un minuto sin
+    usarse, que es cuando de verdad puede haberse cerrado. Si la prueba falla,
+    el grupo descarta esa conexión y entrega una nueva.
+    """
+    @event.listens_for(motor, "checkout")
+    def _al_tomar(conexion_dbapi, registro, _proxy):
+        ultimo = registro.info.get("ultimo_uso")
+        if ultimo is not None and time.monotonic() - ultimo > SEGUNDOS_SIN_VERIFICAR:
+            cursor = conexion_dbapi.cursor()
+            try:
+                cursor.execute("SELECT 1")
+            except Exception:
+                raise exc.DisconnectionError()
+            finally:
+                cursor.close()
+        registro.info["ultimo_uso"] = time.monotonic()
+
 
 def obtener_motor():
     """Devuelve la conexión definida en la configuración, reutilizándola.
 
     El motor se crea una sola vez por cadena de conexión y se reutiliza. No es
-    un detalle: abrir una conexión cifrada hasta el servidor tarda más de un
-    segundo, y en la aplicación web cada pantalla hace varias consultas. Con el
-    motor reutilizado, las conexiones quedan abiertas en un grupo y cada
+    un detalle: abrir una conexión cifrada hasta el servidor tarda varios
+    segundos, y en la aplicación web cada pantalla hace varias consultas. Con
+    el motor reutilizado, las conexiones quedan abiertas en un grupo y cada
     consulta tarda lo que tarda el viaje de ida y vuelta.
-
-    pool_pre_ping verifica que la conexión siga viva antes de usarla: los
-    servicios en la nube cierran las conexiones inactivas.
     """
     url = config.URL_BASE_DATOS
     if url not in _MOTORES:
-        _MOTORES[url] = create_engine(url, future=True, pool_pre_ping=True,
-                                      pool_recycle=1800)
+        motor = create_engine(url, future=True, pool_recycle=1800)
+        if motor.dialect.name != "sqlite":
+            _verificar_si_estuvo_inactiva(motor)
+        _MOTORES[url] = motor
     return _MOTORES[url]
 
 
@@ -347,27 +376,72 @@ def describir_motor():
     return "PostgreSQL remoto"
 
 
-def crear_esquema(motor=None):
-    """Crea las tablas si no existen. Es seguro ejecutarlo varias veces.
+# Cadenas de conexión cuyo esquema ya se verificó en este proceso.
+_ESQUEMA_VERIFICADO = {}
 
-    En PostgreSQL además activa Row Level Security. Supabase publica cada tabla
-    del esquema public en una API REST a la que se accede con la llave pública
-    del proyecto; con RLS activo y sin políticas definidas, esa API no devuelve
-    ninguna fila. El sistema no se ve afectado porque se conecta como dueño de
-    las tablas, y los dueños no quedan sujetos a RLS.
+
+def crear_esquema(motor=None, forzar=False):
+    """Crea las tablas que falten y agrega las columnas nuevas. Idempotente.
+
+    Se verifica una sola vez por proceso: la aplicación lo hace al arrancar y
+    las llamadas siguientes no cuestan nada. Antes se verificaba en cada
+    operación, y con la latencia de un servidor en la nube eso sumaba decenas
+    de segundos por pantalla.
+
+    La verificación usa tres consultas en total —tablas existentes, columnas
+    existentes y tablas sin RLS— en lugar de una por tabla.
+
+    En PostgreSQL además activa Row Level Security, pero solo en las tablas que
+    no lo tienen. Supabase publica cada tabla en una API REST accesible con la
+    llave pública del proyecto; con RLS activo y sin políticas, esa API no
+    devuelve ninguna fila, y el sistema no se ve afectado porque se conecta como
+    dueño de las tablas. Activarlo exige un bloqueo exclusivo de la tabla, que
+    espera a que terminen todas las lecturas en curso; repetirlo en tablas que
+    ya lo tienen congelaba la aplicación mientras alguien consultaba. Por
+    seguridad, cualquier cambio de estructura espera como máximo diez segundos
+    por un bloqueo en lugar de esperar indefinidamente.
     """
     motor = motor or obtener_motor()
-    metadatos.create_all(motor)
-    _migrar_columnas(motor)
-    if motor.dialect.name == "postgresql":
-        with motor.begin() as conexion:
-            for tabla in metadatos.sorted_tables:
-                conexion.execute(text(
-                    'ALTER TABLE "{}" ENABLE ROW LEVEL SECURITY'.format(tabla.name)))
-    return sorted(inspect(motor).get_table_names())
+    clave = str(motor.url)
+    if clave in _ESQUEMA_VERIFICADO and not forzar:
+        return _ESQUEMA_VERIFICADO[clave]
+
+    postgres = motor.dialect.name == "postgresql"
+    with motor.begin() as conexion:
+        if postgres:
+            conexion.execute(text("SET LOCAL lock_timeout = '10s'"))
+        existentes = set(inspect(conexion).get_table_names())
+        faltantes = [t for t in metadatos.sorted_tables if t.name not in existentes]
+        if faltantes:
+            metadatos.create_all(conexion, tables=faltantes, checkfirst=False)
+        _migrar_columnas(conexion, existentes)
+        if postgres:
+            sin_rls = conexion.execute(text(
+                "SELECT relname FROM pg_class WHERE relnamespace = current_schema()::regnamespace "
+                "AND relkind = 'r' AND NOT relrowsecurity")).scalars().all()
+            for nombre in sin_rls:
+                if nombre in metadatos.tables:
+                    conexion.execute(text('ALTER TABLE "{}" ENABLE ROW LEVEL SECURITY'.format(nombre)))
+
+    _ESQUEMA_VERIFICADO[clave] = sorted(metadatos.tables)
+    return _ESQUEMA_VERIFICADO[clave]
 
 
-def _migrar_columnas(motor):
+def _columnas_existentes(conexion, tablas):
+    """Columnas actuales de cada tabla. En PostgreSQL con una sola consulta."""
+    if conexion.dialect.name == "postgresql":
+        filas = conexion.execute(text(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema()"))
+        columnas = {}
+        for tabla, columna in filas:
+            columnas.setdefault(tabla, set()).add(columna)
+        return columnas
+    inspector = inspect(conexion)
+    return {t: {c["name"] for c in inspector.get_columns(t)} for t in tablas}
+
+
+def _migrar_columnas(conexion, existentes):
     """Agrega a las tablas existentes las columnas que el esquema tiene de más.
 
     create_all crea las tablas que faltan, pero no modifica las que ya existen.
@@ -379,21 +453,18 @@ def _migrar_columnas(motor):
     Solo agrega columnas que admiten nulos: las filas antiguas quedan con esos
     campos vacíos y el sistema los trata como desconocidos.
     """
-    inspector = inspect(motor)
-    existentes = set(inspector.get_table_names())
+    actuales = _columnas_existentes(conexion, [t for t in metadatos.tables if t in existentes])
     agregadas = []
-    with motor.begin() as conexion:
-        for tabla in metadatos.sorted_tables:
-            if tabla.name not in existentes:
+    for tabla in metadatos.sorted_tables:
+        if tabla.name not in existentes:
+            continue
+        for columna in tabla.columns:
+            if columna.name in actuales.get(tabla.name, set()) or not columna.nullable:
                 continue
-            actuales = {c["name"] for c in inspector.get_columns(tabla.name)}
-            for columna in tabla.columns:
-                if columna.name in actuales or not columna.nullable:
-                    continue
-                tipo = columna.type.compile(dialect=motor.dialect)
-                conexion.execute(text('ALTER TABLE "{}" ADD COLUMN "{}" {}'.format(
-                    tabla.name, columna.name, tipo)))
-                agregadas.append("{}.{}".format(tabla.name, columna.name))
+            tipo = columna.type.compile(dialect=conexion.dialect)
+            conexion.execute(text('ALTER TABLE "{}" ADD COLUMN "{}" {}'.format(
+                tabla.name, columna.name, tipo)))
+            agregadas.append("{}.{}".format(tabla.name, columna.name))
     return agregadas
 
 

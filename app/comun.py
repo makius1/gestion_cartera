@@ -109,15 +109,20 @@ def encabezado(titulo, descripcion=None):
 # 3. DATOS Y FORMATOS
 # ---------------------------------------------------------------------------
 # La caché se guarda por parámetros: la cartera de la carga 3 se consulta una
-# vez y se reutiliza hasta que vence o hasta que alguien registra una carga
-# nueva, momento en que se limpia.
+# vez y se reutiliza hasta que vence o hasta que alguien registra una carga,
+# una gestión o un cambio de contacto, momento en que se limpia. La caché es
+# del servidor, no de cada navegador: una sola lectura sirve a todos los
+# usuarios conectados.
+#
+# La cartera es la consulta más pesada (miles de filas por la red), y como
+# toda escritura limpia la caché, puede vivir una hora sin quedar desactualizada.
 
 @st.cache_data(ttl=600, show_spinner="Consultando cargas...")
 def cargas():
     return bd.listar_cargas()
 
 
-@st.cache_data(ttl=600, show_spinner="Consultando la cartera...")
+@st.cache_data(ttl=3600, show_spinner="Consultando la cartera...")
 def cartera(carga_id):
     return bd.leer_cartera(carga_id)
 
