@@ -52,10 +52,10 @@ códigos que no coinciden con los de la base.
 
    | Integrante | Rol en la aplicación |
    |---|---|
-   | 1 | Administrador |
-   | 2 | Supervisor |
-   | 3 | Gestor |
-   | 4 | Gestor |
+   | 1. David | Administrador |
+   | 2. Juan Pablo | Supervisor |
+   | 3. Francy | Gestor |
+   | 4. Sean | Gestor |
 
    Cada persona usa su propio usuario. Así la auditoría y la traza de trabajo
    muestran quién hizo cada cosa, igual que en una operación real.
@@ -233,7 +233,7 @@ flowchart LR
 
 ---
 
-## 5. Reparto sugerido por módulos
+## 5. Reparto por módulos
 
 Cada persona es dueña de un área: la conoce a fondo, revisa los cambios que
 otros hagan en ella y es a quien se consulta. Trabajar en el área de otro está
@@ -241,10 +241,16 @@ permitido, pero se avisa en el *issue* de la tarea.
 
 | Integrante | Área | Carpetas |
 |---|---|---|
-| 1 | Datos, base de datos e infraestructura | `datos/`, `.github/`, `.devcontainer/` |
-| 2 | Motor de elegibilidad y base de conocimiento | `motor/`, `docs/ALGORITMOS.md` sección 2 |
-| 3 | Segmentación, priorización y modelos (fase 4) | `analisis/`, `decision/` |
-| 4 | Gestión, plan de trabajo, aplicación web y pruebas | `gestion/`, `app/`, `pruebas/` |
+| 1. David | Datos, base de datos e infraestructura | `datos/`, `seguridad/`, `config.py`, `.github/`, `.devcontainer/` |
+| 2. Juan Pablo | Motor de elegibilidad y base de conocimiento | `motor/`, `docs/ALGORITMOS.md` sección 2 |
+| 3. Francy | Segmentación, priorización y modelos (fase 4) | `analisis/`, `decision/` |
+| 4. Sean | Gestión, plan de trabajo, aplicación web y pruebas | `gestion/`, `app/`, `pruebas/` |
+
+Lo que está completo y lo que falta en cada área está en
+[ESTADO_POR_AREA.md](ESTADO_POR_AREA.md). Para crear en GitHub los *issues* de
+esos pendientes y la revisión general de cada área: pestaña *Actions* → **Crear
+issues desde una lista** → **Run workflow**. Si un *issue* ya existe, no se
+repite.
 
 *Pull requests* pequeños, de una tarea cada uno. Uno de cuarenta archivos no lo
 revisa nadie con cuidado.
