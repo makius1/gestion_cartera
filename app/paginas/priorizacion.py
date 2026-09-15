@@ -140,16 +140,36 @@ with pestanas[0]:
 # ---------------------------------------------------------------------------
 
 with pestanas[1]:
-    siluetas = pd.DataFrame([(int(k), v) for k, v in resumen["siluetas"].items()],
-                            columns=["Segmentos (k)", "Silueta"])
+    segmentacion = resumen.get("segmentacion")
+    if segmentacion:
+        # Comparación de los tres algoritmos de segmentación.
+        from analisis.segmentacion import ALGORITMOS
+        comparacion = pd.DataFrame([{
+            "Algoritmo": ALGORITMOS[n], "Segmentos": v["k"], "Silueta": round(v["silueta"], 3),
+            "Calinski-Harabasz": round(v["calinski"], 1), "Davies-Bouldin": round(v["davies"], 3),
+            "Segmento más pequeño": comun.porcentaje(v["minimo"]), "Válido": v["valido"],
+            "Puntaje": round(v["puntaje"], 3), "Elegido": n == segmentacion["algoritmo"],
+        } for n, v in segmentacion["comparacion"].items()]).sort_values("Puntaje", ascending=False)
+        st.dataframe(comparacion, hide_index=True, use_container_width=True,
+                     column_config={"Válido": st.column_config.CheckboxColumn(),
+                                    "Elegido": st.column_config.CheckboxColumn()})
+        st.caption("Puntaje = 0,50 × silueta relativa + 0,25 × Calinski-Harabasz relativo + "
+                   "0,25 × Davies-Bouldin relativo (invertido: en él, menor es mejor). Se "
+                   "descarta el algoritmo que deja un segmento con menos del 2 % de la cartera.")
+        siluetas = pd.DataFrame([(ALGORITMOS[n], int(k), s) for n, v in segmentacion["comparacion"].items()
+                                 for k, s in v["siluetas"].items()],
+                                columns=["Algoritmo", "Segmentos (k)", "Silueta"])
+    else:
+        siluetas = pd.DataFrame([("K-Means", int(k), v) for k, v in resumen["siluetas"].items()],
+                                columns=["Algoritmo", "Segmentos (k)", "Silueta"])
     izquierda, derecha = st.columns([1, 2])
-    figura = px.line(siluetas, x="Segmentos (k)", y="Silueta", markers=True,
+    figura = px.line(siluetas, x="Segmentos (k)", y="Silueta", color="Algoritmo", markers=True,
                      title="Silueta según el número de segmentos")
     figura.add_vline(x=int(cabecera["k_segmentos"]), line_dash="dash")
     izquierda.plotly_chart(figura, use_container_width=True)
-    izquierda.caption("Se elige el menor k cuya silueta queda a menos de 0,01 de la mejor: "
-                      "entre segmentaciones casi igual de buenas, la de menos segmentos se "
-                      "opera y explica mejor.")
+    izquierda.caption("En cada algoritmo se elige el menor k cuya silueta queda a menos de 0,01 "
+                      "de la mejor: entre segmentaciones casi igual de buenas, la de menos "
+                      "segmentos se opera y explica mejor.")
 
     muestra = tabla.sample(min(3000, len(tabla)), random_state=1)
     derecha.plotly_chart(px.scatter(muestra, x="pca_x", y="pca_y", color="nombre_segmento",

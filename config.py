@@ -171,6 +171,16 @@ SEGMENTOS_MINIMO = 2
 SEGMENTOS_MAXIMO = 6
 TOLERANCIA_SILUETA = 0.01
 
+# La segmentación se resuelve con tres algoritmos y se queda con el de mejor
+# puntaje. Cada métrica mide la calidad de los grupos desde un ángulo distinto:
+# silueta (cohesión frente a separación, por cuenta), Calinski-Harabasz
+# (varianza entre grupos frente a dentro de ellos) y Davies-Bouldin (parecido
+# entre cada grupo y su vecino más cercano; menor es mejor).
+PESOS_SEGMENTACION = {"silueta": 0.50, "calinski": 0.25, "davies": 0.25}
+# Una segmentación con un grupo de menos del 2 % de la cartera se descarta: un
+# segmento de treinta cuentas no justifica una estrategia propia.
+PARTICIPACION_MINIMA_SEGMENTO = 0.02
+
 # Peso de cada métrica en el puntaje con el que se elige el método óptimo:
 # el recaudo esperado manda, pero un método que cambia su cola ante pequeñas
 # variaciones de los datos, o que no logra desempatar cuentas, no es confiable.

@@ -276,6 +276,7 @@ def priorizar(cartera, evaluacion=None, capacidad=None, semilla=config.SEMILLA):
         "detalle": {
             "metricas": metricas,
             "siluetas": {str(kk): v for kk, v in seg["siluetas"].items()},
+            "segmentacion": {"algoritmo": seg["algoritmo"], "comparacion": seg["comparacion"]},
             "perfiles": perfiles.reset_index().to_dict(orient="records"),
             "criterios": config.CRITERIOS,
             "pesos_evaluacion": config.PESOS_EVALUACION,
@@ -313,13 +314,17 @@ def ejecutar(carga_id=None, ejecucion_id=None, usuario="sistema", guardar=True):
     return resumen, tabla
 
 
-def explicar_cuenta(cartera, credito_id):
+def explicar_cuenta(cartera, credito_id, candidatos=None):
     """Detalle del razonamiento de los métodos para una cuenta.
 
-    Se recalcula sobre toda la cartera porque el saldo difuso es un percentil:
-    la posición de una cuenta depende de las demás.
+    Se recalcula sobre el mismo conjunto de candidatas con el que se guardó la
+    priorización: el saldo difuso es un percentil y TOPSIS compara contra la
+    mejor y la peor cuenta, así que el resultado de una cuenta depende de con
+    cuáles otras se compara.
     """
     criterios = crit.preparar(cartera)
+    if candidatos is not None:
+        criterios = criterios.loc[list(candidatos)]
     _, difuso = inferir_difuso(criterios, detalle=True)
     _, dist = topsis(criterios, detalle=True)
     i = criterios.index.get_loc(credito_id)
@@ -350,6 +355,13 @@ if __name__ == "__main__":
                               guardar=not args.no_guardar)
     print("Carga {} | candidatas {:,} | capacidad del día {:,}".format(
         resumen["carga_id"], resumen["candidatos"], resumen["capacidad"]))
+    seg = resumen["detalle"]["segmentacion"]
+    print("\n  {:<20} {:>3} {:>8} {:>10} {:>8} {:>7} {:>8}".format(
+        "Segmentación", "k", "Silueta", "Calinski", "Davies", "Mínimo", "Puntaje"))
+    for nombre, v in seg["comparacion"].items():
+        print("  {:<20} {:>3} {:>8.3f} {:>10.1f} {:>8.3f} {:>6.1%} {:>8.3f}{}".format(
+            segmentacion.ALGORITMOS[nombre], v["k"], v["silueta"], v["calinski"], v["davies"],
+            v["minimo"], v["puntaje"], "  ← elegido" if nombre == seg["algoritmo"] else ""))
     print("Segmentos: {} (silueta {:.3f})".format(resumen["k"], resumen["silueta"]))
     for fila in resumen["detalle"]["perfiles"]:
         print("  {:<55} {:>6,} cuentas".format(fila["nombre"], fila["cuentas"]))
