@@ -28,11 +28,21 @@ códigos que no coinciden con los de la base.
 1. **Invitar a los integrantes:** *Settings → Collaborators → Add people*, con
    permiso de escritura (*Write*). Los secretos de Codespaces solo llegan a
    cuentas con ese permiso.
-2. **Proteger la rama `main`:** *Settings → Branches → Add branch ruleset*,
-   sobre `main`:
-   - Exigir *pull request* antes de fusionar, con al menos 1 aprobación.
-   - Exigir que pase la verificación **Pruebas**.
-   - Impedir *force push* y borrado de la rama.
+2. **Proteger la rama `main`:** *Settings → Rules → Rulesets → New ruleset →
+   New branch ruleset*:
+   - *Ruleset name:* `Proteger main`. *Enforcement status:* **Active**.
+   - *Bypass list:* vacía. Si el dueño se agrega ahí, puede saltarse las
+     reglas y la protección pierde sentido.
+   - *Target branches → Add target → Include default branch*.
+   - **Restrict deletions** y **Block force pushes**.
+   - **Require a pull request before merging**, con *Required approvals* en 1
+     y **Dismiss stale pull request approvals when new commits are pushed**:
+     si el autor cambia algo después de la aprobación, hay que volver a
+     aprobar.
+   - **Require status checks to pass**, con **Require branches to be up to
+     date before merging**, y en *Add checks* agregar **Pruebas**. La
+     verificación aparece en la lista después de que las pruebas hayan corrido
+     al menos una vez.
 3. **Confirmar los secretos de Codespaces:** *Settings → Secrets and variables →
    Codespaces*, con `DATABASE_URL` y `SEUDONIMO_CLAVE`.
 4. **Publicar la aplicación de pruebas** en Streamlit Community Cloud (pasos en
@@ -76,6 +86,32 @@ códigos que no coinciden con los de la base.
 ## 3. Flujo de trabajo diario
 
 Nadie trabaja directamente sobre `main`. Cada tarea va en su propia rama.
+
+### Quién puede tocar `main`
+
+Nadie sube cambios directo a `main`, ni siquiera el dueño del repositorio.
+`main` solo cambia cuando se fusiona un *pull request* aprobado por otro
+integrante y con las pruebas en verde. Es la versión que publica Streamlit
+Cloud y la que todos prueban, así que siempre debe funcionar.
+
+| Acción | Dueño (*Admin*) | Integrantes (*Write*) |
+|---|---|---|
+| Subir commits directo a `main` | No | No |
+| Crear ramas y subirlas | Sí | Sí |
+| Abrir *pull requests* | Sí | Sí |
+| Aprobar un *pull request* | Solo los de otros | Solo los de otros |
+| Fusionar un *pull request* aprobado y en verde | Sí | Sí |
+| Borrar `main` o reescribir su historia | No | No |
+| Cambiar reglas, secretos y colaboradores | Sí | No |
+
+GitHub no deja que alguien apruebe su propio *pull request*: todo cambio, incluso
+los del dueño, lo revisa al menos otra persona. Por acuerdo del equipo, el
+**autor** fusiona su *pull request* una vez aprobado, porque es quien sabe
+cuándo está listo.
+
+Si algo fusionado daña `main`, no se corrige con *force push*: en el *pull
+request* fusionado se pulsa **Revert**, lo que abre otro *pull request* que
+deshace el cambio y pasa por las mismas reglas.
 
 **Antes de empezar**, traer lo último:
 
