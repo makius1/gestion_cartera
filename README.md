@@ -323,6 +323,15 @@ En la pantalla de gestión, *Siguiente cuenta* entrega primero la del plan del
 gestor y, cuando lo completa, la de la cola general. El avance no se guarda:
 se calcula cruzando las asignaciones con las gestiones del día.
 
+La cuenta tomada de la **cola general queda reservada** para ese gestor durante
+20 minutos, de modo que dos gestores sin plan que pidan al mismo tiempo reciban
+cuentas distintas. La reserva se libera al registrar la gestión, al pedir otra
+cuenta o al vencerse el tiempo. La exclusión la resuelve la base de datos con un
+solo `INSERT ... ON CONFLICT ... DO UPDATE` condicionado al vencimiento, no con
+una lectura seguida de una escritura, porque entre esas dos operaciones cabría
+el segundo gestor. La búsqueda por seudónimo no reserva: solo avisa si la cuenta
+está reservada por otra persona.
+
 **Traza de trabajo.**
 
 - *Por gestor*: gestiones por día con la primera y la última hora de la
