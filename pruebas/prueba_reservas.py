@@ -26,6 +26,14 @@ from sqlalchemy import update
 import config
 from datos import base_datos as bd
 
+# Esta prueba escribe: reserva cuentas, registra una gestión y, si la base está
+# vacía, crea una carga. Contra la base compartida dejaría datos de prueba
+# mezclados con los del equipo, así que se niega a correr ahí, igual que
+# prueba_aplicacion.py.
+if "supabase" in config.URL_BASE_DATOS:
+    print("Esta prueba registra gestiones de prueba: no se ejecuta contra Supabase.")
+    sys.exit(1)
+
 
 def _carga_de_prueba():
     """Una carga con al menos dos cuentas, reutilizando la más reciente si
