@@ -25,8 +25,24 @@ La hace cada responsable sobre su área, antes de empezar sus pendientes:
 5. Registrar cada hallazgo como *issue* (**Error**, **Mejora o cambio** u
    **Observación**) y enlazarlo desde su *issue* de revisión.
 
-Los comandos que escriben en la base se corren con `env -u DATABASE_URL`, sobre
-la base personal, para no alterar la compartida.
+Los comandos que escriben en la base se corren contra la base personal, para
+no alterar la compartida. La forma de hacerlo es **definir** `DATABASE_URL`
+apuntando a un archivo SQLite:
+
+```bash
+DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos probar
+```
+
+Debe responder *SQLite local*. No sirve quitar la variable con
+`env -u DATABASE_URL`: el sistema lee el archivo `.env` al arrancar y la
+variable vuelve a quedar definida, con lo que el comando escribiría en la base
+compartida sin avisar. En PowerShell, en Windows:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///salidas/personal.db"
+```
+
+y al terminar, `Remove-Item Env:DATABASE_URL`.
 
 ---
 
@@ -37,7 +53,7 @@ la base personal, para no alterar la compartida.
 - Carga, limpieza y seudonimización de identificadores con HMAC-SHA256.
 - Simulador determinista de carteras a partir de un perfil, que reconstruye
   cualquier carga con su semilla.
-- Esquema de 14 tablas con historial de cargas, migración automática de
+- Esquema de 13 tablas con historial de cargas, migración automática de
   columnas y Row Level Security en Supabase.
 - Directorio de titulares y contactos separado de la analítica, con datos
   enmascarados.
@@ -67,7 +83,7 @@ python -m datos.base_datos probar
 ```
 
 ```bash
-env -u DATABASE_URL python -m datos.base_datos sintetica --registros 2000
+DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos sintetica --registros 2000
 ```
 
 ---
@@ -166,7 +182,7 @@ python -m decision.priorizacion --no-guardar
 ### Comandos de revisión
 
 ```bash
-env -u DATABASE_URL python -m pruebas.prueba_aplicacion
+DATABASE_URL="sqlite:///salidas/personal.db" python -m pruebas.prueba_aplicacion
 ```
 
 ```bash
