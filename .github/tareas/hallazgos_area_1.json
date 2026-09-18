@@ -1,0 +1,58 @@
+{
+  "documento": "docs/ESTADO_POR_AREA.md",
+  "areas": [
+    {
+      "numero": 1,
+      "nombre": "Datos, base de datos e infraestructura",
+      "responsable": "David",
+      "carpetas": "datos/, seguridad/, config.py, .github/, .devcontainer/",
+      "comandos": [
+        "python -m datos.base_datos probar",
+        "DATABASE_URL=\"sqlite:///salidas/personal.db\" python -m datos.base_datos sintetica --registros 2000"
+      ]
+    }
+  ],
+  "tareas": [
+    {
+      "area": 1,
+      "prioridad": "Alta",
+      "titulo": "Mejora: pedir confirmación antes de escribir una carga en una base remota",
+      "que": "Que los comandos que registran cargas (sintetica y real) exijan una confirmación explícita cuando la base de destino no es local, por ejemplo una opción --confirmar-remota o una respuesta escrita en la terminal. El flujo Sembrar base en Supabase la pasaría siempre, porque ahí la escritura remota es la intención.",
+      "para_que": "Evitar que alguien escriba en la base compartida creyendo que trabaja en la suya. Ya ocurrió: durante la revisión general del área se registró una carga de 2.000 cuentas en Supabase por confiar en un comando de aislamiento que no aislaba nada.",
+      "criterios": [
+        "Un comando de carga contra una base remota no escribe nada sin confirmación",
+        "Contra una base local no pide nada y funciona igual que hoy",
+        "El flujo Sembrar base en Supabase sigue funcionando sin intervención",
+        "La primera línea de la salida sigue diciendo contra qué base se está trabajando"
+      ],
+      "nota": "Hallazgo de la revisión general del área 1 (#6). La documentación ya se corrigió; esto es la protección en el código."
+    },
+    {
+      "area": 1,
+      "prioridad": "Media",
+      "titulo": "Mejora: no escribir en una base remota sin la clave de seudónimos",
+      "que": "Si SEUDONIMO_CLAVE no está definida, el sistema genera una clave temporal y sigue escribiendo; solo avisa por consola. Se propone que ante una base remota se niegue a registrar cargas o directorios sin esa clave, como ya se hace con las asignaciones reales.",
+      "para_que": "Un entorno mal configurado (por ejemplo la aplicación publicada sin el secreto) escribiría cuentas con seudónimos que no coinciden con los de las demás cargas, y la cartera quedaría partida sin que nadie lo note.",
+      "criterios": [
+        "Sin SEUDONIMO_CLAVE y con base remota, la carga se rechaza con un mensaje claro",
+        "Con base local sigue permitido, con el aviso actual",
+        "La aplicación publicada muestra el problema en pantalla y no solo en el registro del servidor"
+      ],
+      "nota": "Hallazgo de la revisión general del área 1 (#6)."
+    },
+    {
+      "area": 1,
+      "prioridad": "Media",
+      "titulo": "Mejora: respaldo periódico de la base compartida",
+      "que": "Agregar un flujo de GitHub Actions que exporte la base de Supabase y guarde el resultado como artefacto del repositorio, con una frecuencia semanal y también a demanda.",
+      "para_que": "Hoy toda la historia del proyecto vive en una sola instancia gratuita, que puede pausarse o perderse. Sin respaldo, se perderían las cargas, las ejecuciones del motor, las gestiones y la auditoría.",
+      "criterios": [
+        "El respaldo corre solo una vez por semana y también con el botón Run workflow",
+        "El archivo no contiene la cadena de conexión ni secretos",
+        "Está documentado cómo restaurar el respaldo en una base nueva",
+        "Se verifica al menos una restauración"
+      ],
+      "nota": "Hallazgo de la revisión general del área 1 (#6)."
+    }
+  ]
+}
