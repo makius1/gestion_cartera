@@ -2,6 +2,9 @@
 
 [![Pruebas](https://github.com/makius1/gestion_cartera/actions/workflows/pruebas.yml/badge.svg)](https://github.com/makius1/gestion_cartera/actions/workflows/pruebas.yml)
 
+**Aplicación publicada:** https://gestion-cartera.streamlit.app — se despliega
+desde `main` en cada fusión y requiere usuario y contraseña del sistema.
+
 Sistema experto de apoyo a la decisión para casas de cobranza. Toma la
 asignación mensual de cartera y decide **qué cuentas trabajar, en qué orden,
 por qué canal, con qué gestor y con qué oferta**, para maximizar el recaudo
@@ -372,6 +375,10 @@ Cada rol ve solo las pantallas que le corresponden:
 | Errores de la aplicación | No muestran detalle técnico al usuario. |
 
 ### Publicar la aplicación en Streamlit Community Cloud
+
+La aplicación del equipo ya está publicada en
+**https://gestion-cartera.streamlit.app**, desplegada desde `main`. Estos son
+los pasos por si hay que volver a crearla o publicar una copia:
 
 1. En [share.streamlit.io](https://share.streamlit.io), ingresar con la cuenta
    de GitHub y crear una aplicación desde este repositorio.
