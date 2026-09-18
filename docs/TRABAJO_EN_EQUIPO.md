@@ -262,17 +262,39 @@ revisa nadie con cuidado.
 | Base | Para qué | Cómo se usa |
 |---|---|---|
 | **Supabase (compartida)** | Pruebas conjuntas y demostraciones | Es la que llega por defecto a cada Codespace |
-| **SQLite (personal)** | Experimentos propios que no deben afectar a los demás | Anteponer `env -u DATABASE_URL` al comando |
+| **SQLite (personal)** | Experimentos propios que no deben afectar a los demás | Definir `DATABASE_URL` apuntando a un archivo SQLite |
 
 Ejemplo, para correr la aplicación contra una base personal vacía:
 
 ```bash
-env -u DATABASE_URL python -m streamlit run app/principal.py
+DATABASE_URL="sqlite:///salidas/personal.db" python -m streamlit run app/principal.py
 ```
 
-Esto funciona mientras el Codespace no tenga un archivo `.env` con
-`DATABASE_URL`: si lo tiene, el sistema tomaría la cadena de ese archivo. Con
-los secretos de Codespaces ese archivo no hace falta.
+El archivo queda en `salidas/`, que está excluido del repositorio. Para
+comprobar contra cuál base se está trabajando, antes de cualquier comando que
+escriba:
+
+```bash
+DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos probar
+```
+
+La primera línea debe decir *SQLite local*.
+
+> **No use `env -u DATABASE_URL`.** Quitar la variable del entorno no aísla
+> nada: el sistema lee el archivo `.env` al arrancar y la variable vuelve a
+> quedar definida, de modo que el comando terminaría escribiendo en la base
+> compartida. Hay que **definirla** con el valor de la base personal, porque
+> una variable del entorno tiene prioridad sobre el `.env`.
+
+En PowerShell, en Windows, se define primero y se quita al terminar:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///salidas/personal.db"
+```
+
+```powershell
+Remove-Item Env:DATABASE_URL
+```
 
 Reglas sobre la base compartida:
 
@@ -282,7 +304,8 @@ Reglas sobre la base compartida:
   columnas nuevas solo, sin tocar las existentes.
 - La prueba automática `python -m pruebas.prueba_aplicacion` crea usuarios de
   prueba y por eso se niega a correr contra Supabase. Se corre con la base
-  personal (`env -u DATABASE_URL`) o la corre GitHub en cada *pull request*.
+  personal (definiendo `DATABASE_URL`) o la corre GitHub en cada *pull
+  request*.
 
 ---
 
