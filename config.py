@@ -127,6 +127,16 @@ GESTIONES_POR_GESTOR_DIA = 80
 DIAS_HABILES_MES = 22
 NUMERO_GESTORES = 6             # gestores activos en la campaña
 
+# Minutos que un gestor conserva en exclusiva una cuenta tomada con "Siguiente
+# cuenta" de la cola general (con plan de trabajo la cuenta ya es suya, sin
+# reserva). Vencido este tiempo sin registrar la gestión, otro gestor puede
+# tomarla.
+MINUTOS_RESERVA_CUENTA = 20
+
+# Tope de cuentas de la cola que se intentan reservar antes de rendirse. Evita
+# recorrer miles de filas si casi toda la cola quedó reservada por otros.
+INTENTOS_MAXIMOS_RESERVA = 20
+
 
 # ---------------------------------------------------------------------------
 # SEGMENTACIÓN Y PRIORIZACIÓN

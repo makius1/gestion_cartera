@@ -26,8 +26,10 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey,
                         Index, Integer, MetaData, Numeric, String, Table, Text,
-                        create_engine, event, exc, func, insert, inspect, select,
-                        text, update)
+                        create_engine, delete, event, exc, func, insert, inspect,
+                        select, text, update)
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
 import config
 
@@ -304,6 +306,27 @@ plan_asignaciones = Table(
 )
 Index("ix_plan_gestor", plan_asignaciones.c.plan_id, plan_asignaciones.c.gestor)
 Index("ux_contactos_valor", contactos.c.cuenta_id, contactos.c.tipo, contactos.c.valor, unique=True)
+
+
+# --- Reservas de cuenta --------------------------------------------------------------
+# Cuando un gestor pide "Siguiente cuenta" sin tener un plan de trabajo, la
+# cuenta se toma de la cola general. Dos gestores que la pidan al mismo tiempo
+# leerían la misma primera cuenta si no hubiera nada más: esta tabla es esa
+# exclusión, resuelta con un único INSERT ... ON CONFLICT ... DO UPDATE, no con
+# una lectura seguida de una escritura, para que el bloqueo lo dé la base y no
+# quede una ventana entre las dos operaciones. Una reserva vencida se cede en
+# el mismo statement: no hace falta un proceso aparte que las limpie.
+
+reservas = Table(
+    "reservas", metadatos,
+    Column("carga_id", Integer, ForeignKey("cargas.id"), primary_key=True),
+    Column("credito_id", String(13), primary_key=True),
+    # Sin gestor en la llave: si lo estuviera, dos gestores podrían tener cada
+    # uno "su" reserva de la misma cuenta al mismo tiempo.
+    Column("gestor", String(40), nullable=False),
+    Column("creado", DateTime, nullable=False),
+    Column("vence", DateTime, nullable=False),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -752,7 +775,112 @@ def registrar_gestion(gestion, cambios_cartera):
             # Lanzar dentro de la transacción la deshace completa.
             raise LookupError("La cuenta {} no existe en la carga {}.".format(
                 gestion["credito_id"], gestion["carga_id"]))
+        # La cuenta ya se gestionó: la reserva sobra. Va en la misma
+        # transacción que la gestión y la cartera, para no dejarla vencer por
+        # su cuenta mientras el resto ya quedó guardado.
+        liberar_reserva(gestion["carga_id"], gestion["credito_id"], conexion=conexion)
     return gestion_id
+
+
+def reservar_cuenta(carga_id, credito_id, gestor, minutos):
+    """Reserva una cuenta para un gestor por un tiempo, o falla si otro la
+    tiene reservada todavía.
+
+    Es un único INSERT ... ON CONFLICT ... DO UPDATE, no una lectura seguida
+    de una escritura: así el bloqueo de la fila lo da la propia base y no
+    queda una ventana en la que dos gestores puedan reservar la misma cuenta
+    a la vez. El WHERE del DO UPDATE solo deja ceder la reserva si ya venció;
+    si sigue vigente y es de otro gestor, la sentencia no toca la fila y
+    retorna False. La hora la pone el servidor (func.now()), nunca Python: la
+    app y la base pueden estar en relojes distintos.
+
+    Si `gestor` ya tenía la reserva vigente, retorna True sin extender
+    `vence`: el WHERE del DO UPDATE protege una reserva vigente incluso
+    contra su propio dueño, así una llamada con menos minutos nunca la
+    acorta por error. Para renovarla de verdad hay que liberarla primero
+    (ver `liberar_reservas_de`), que es lo que hace la pantalla antes de
+    pedir "Siguiente cuenta".
+
+    Retorna True si la cuenta quedó reservada para `gestor`.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    construir = insert_sqlite if motor.dialect.name == "sqlite" else insert_postgresql
+    ahora = func.now()
+    # Con signo explícito: "-1 minutes" (no "+-1 minutes") para poder forzar
+    # una reserva ya vencida, como hacen las pruebas.
+    desplazamiento = "{:+d} minutes".format(minutos)
+    vence = ahora + text("interval '{}'".format(desplazamiento)) if motor.dialect.name == "postgresql" \
+        else func.datetime(ahora, desplazamiento)
+    sentencia = construir(reservas).values(
+        carga_id=carga_id, credito_id=credito_id, gestor=gestor, creado=ahora, vence=vence)
+    sentencia = sentencia.on_conflict_do_update(
+        index_elements=["carga_id", "credito_id"],
+        set_=dict(gestor=gestor, creado=ahora, vence=vence),
+        where=reservas.c.vence < ahora,
+    )
+    with motor.begin() as conexion:
+        resultado = conexion.execute(sentencia)
+        if resultado.rowcount:
+            return True
+        # La fila ya existe y no venció: puede ser la propia reserva del
+        # mismo gestor (por ejemplo, si volvió a pedir la misma cuenta antes
+        # de que expirara) o la de otro. Se confirma cuál es sin volver a
+        # escribir.
+        fila = conexion.execute(select(reservas.c.gestor).where(
+            reservas.c.carga_id == carga_id, reservas.c.credito_id == credito_id)).first()
+        return bool(fila) and fila[0] == gestor
+
+
+def reserva_vigente_de(carga_id, credito_id):
+    """Gestor con una reserva vigente sobre la cuenta, o None.
+
+    Solo protege contra la carrera al botón "Siguiente cuenta". La búsqueda
+    por seudónimo no reserva nada, así que se usa para avisar en pantalla,
+    no para bloquear el acceso.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.connect() as conexion:
+        fila = conexion.execute(select(reservas.c.gestor).where(
+            reservas.c.carga_id == carga_id, reservas.c.credito_id == credito_id,
+            reservas.c.vence >= func.now())).first()
+    return fila[0] if fila else None
+
+
+def liberar_reservas_de(gestor, excepto_credito_id=None):
+    """Libera las reservas vigentes de un gestor.
+
+    Se llama al iniciar el flujo de "Siguiente cuenta", antes de pedir una
+    nueva: así una cuenta que el gestor abrió y abandonó no queda bloqueada
+    el tiempo completo de la reserva. `excepto_credito_id` evita que un
+    segundo tab del mismo gestor se quite la reserva a sí mismo.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    condiciones = [reservas.c.gestor == gestor]
+    if excepto_credito_id is not None:
+        condiciones.append(reservas.c.credito_id != excepto_credito_id)
+    with motor.begin() as conexion:
+        conexion.execute(delete(reservas).where(*condiciones))
+
+
+def liberar_reserva(carga_id, credito_id, conexion=None):
+    """Libera la reserva de una cuenta puntual.
+
+    Si se pasa `conexion`, la liberación va dentro de esa transacción (así se
+    usa desde `registrar_gestion`, junto con el guardado de la gestión y la
+    actualización de la cartera). Sin `conexion`, abre y cierra la suya.
+    """
+    sentencia = delete(reservas).where(
+        reservas.c.carga_id == carga_id, reservas.c.credito_id == credito_id)
+    if conexion is not None:
+        conexion.execute(sentencia)
+        return
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.begin() as conexion_propia:
+        conexion_propia.execute(sentencia)
 
 
 def guardar_plan(plan, asignaciones):

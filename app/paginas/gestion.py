@@ -56,6 +56,10 @@ with st.container(border=True):
                              placeholder="Seudónimo del crédito (K…) o del titular (C…)")
     c2.write("")
     if c2.button("Siguiente cuenta", icon=":material/skip_next:", use_container_width=True):
+        # Libera antes de pedir una nueva: si el gestor abandonó la cuenta
+        # anterior sin gestionarla, que no siga bloqueada el resto del tiempo
+        # de la reserva.
+        bd.liberar_reservas_de(usuario)
         # Primero el plan de trabajo del gestor; si no tiene plan hoy o ya lo
         # completó, la cola general de la última priorización.
         credito, orden, total = plan.siguiente_del_plan(carga_id, usuario)
@@ -65,10 +69,14 @@ with st.container(border=True):
             st.session_state["gestion_origen"] = "Cuenta {} de {} de su plan de trabajo de hoy.".format(
                 orden, total)
         else:
-            credito, posicion = op.siguiente_de_la_cola(carga_id)
+            # Sin plan: la cuenta sale de la cola general y queda reservada
+            # para este gestor, para que otro que pida al mismo tiempo no
+            # reciba la misma (ver docs/PLAN_DE_PRUEBAS.md).
+            credito, posicion = op.siguiente_de_la_cola(carga_id, usuario)
             if credito is None:
-                st.info("No hay cuentas pendientes: no existe una priorización para esta carga o "
-                        "todas las cuentas de la cola ya se gestionaron hoy.")
+                st.info("No hay cuentas pendientes: no existe una priorización para esta carga, "
+                        "todas las cuentas de la cola ya se gestionaron hoy o están reservadas por "
+                        "otros gestores en este momento.")
             else:
                 st.session_state["gestion_credito"] = credito
                 st.session_state["gestion_posicion"] = posicion
@@ -90,6 +98,16 @@ with st.container(border=True):
             elegido = st.selectbox("Créditos encontrados", encontradas["credito_id"].head(50).tolist())
             st.session_state["gestion_credito"] = elegido
             st.session_state.pop("gestion_posicion", None)
+
+        # La búsqueda por seudónimo no pasa por la reserva de "Siguiente
+        # cuenta": se avisa, pero no se bloquea, porque puede ser el propio
+        # gestor volviendo a una cuenta que ya tenía abierta.
+        credito_buscado = st.session_state.get("gestion_credito")
+        if credito_buscado:
+            reservada_por = bd.reserva_vigente_de(carga_id, credito_buscado)
+            if reservada_por and reservada_por != usuario:
+                st.warning("Esta cuenta está reservada por otro gestor en este momento; "
+                           "puede estar trabajándola ahora mismo.")
 
 credito = st.session_state.get("gestion_credito")
 if not credito or credito not in set(cartera["credito_id"]):

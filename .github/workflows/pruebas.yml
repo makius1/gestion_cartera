@@ -150,5 +150,8 @@ jobs:
       - name: Probar la aplicación web por rol
         run: python -m pruebas.prueba_aplicacion
 
+      - name: Probar la reserva de cuentas (issue #16)
+        run: python -m pruebas.prueba_reservas
+
       - name: Estado final de la base
         run: python -m datos.base_datos probar
