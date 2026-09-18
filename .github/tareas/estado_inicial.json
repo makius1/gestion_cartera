@@ -8,7 +8,7 @@
       "carpetas": "datos/, seguridad/, config.py, .github/, .devcontainer/",
       "comandos": [
         "python -m datos.base_datos probar",
-        "env -u DATABASE_URL python -m datos.base_datos sintetica --registros 2000"
+        "DATABASE_URL=\"sqlite:///salidas/personal.db\" python -m datos.base_datos sintetica --registros 2000"
       ]
     },
     {
@@ -37,7 +37,7 @@
       "responsable": "Sean",
       "carpetas": "gestion/, app/, pruebas/",
       "comandos": [
-        "env -u DATABASE_URL python -m pruebas.prueba_aplicacion",
+        "DATABASE_URL=\"sqlite:///salidas/personal.db\" python -m pruebas.prueba_aplicacion",
         "python -m streamlit run app/principal.py"
       ]
     }
