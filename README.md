@@ -356,6 +356,7 @@ Cada rol ve solo las pantallas que le corresponden:
 | Base de conocimiento, reglas difusas y simulador de consulta | ✅ | ✅ | ✅ |
 | Metodología: los algoritmos del sistema explicados | ✅ | ✅ | ✅ |
 | Cargas: registrar, simular y completar carteras | | ✅ | ✅ |
+   | Obligaciones: registrar un crédito puntual sin una carga completa | | ✅ | ✅ |
 | Auditoría: bitácora de acciones | | ✅ | ✅ |
 | Usuarios: crear, cambiar rol, desactivar, restablecer | | | ✅ |
 | Mi cuenta: cambio de contraseña | ✅ | ✅ | ✅ |
