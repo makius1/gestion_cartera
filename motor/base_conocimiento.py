@@ -262,6 +262,7 @@ REGLAS = [
 OPERADORES = {"<", "<=", ">", ">=", "en", "entre"}
 EFECTOS = {"estado", "canales_preferidos", "quitar_canales", "canal"}
 ESTADOS = {"BLOQUEADA", "EN_ESPERA", "RECORDATORIO"}
+HECHOS_VALIDOS = {"dia_habil", "datos_completos", "dias_desde_contacto", "dias_para_compromiso", "codigo", "resultado_gestion", "tiene_celular", "tiene_fijo", "tiene_email", "canales_permitidos"}
 
 
 def reglas_de_fase(fase):
@@ -298,6 +299,8 @@ def validar():
             errores.append("{}: las reglas de estrategia necesitan prioridad".format(rid))
 
         for hecho, valor in regla.get("condicion", {}).items():
+            if hecho not in HECHOS_VALIDOS:
+                errores.append("{}: hecho desconocido {}".format(rid, repr(hecho)))
             if isinstance(valor, tuple) and valor[0] not in OPERADORES:
                 errores.append("{}: operador desconocido '{}' en {}".format(rid, valor[0], hecho))
 
