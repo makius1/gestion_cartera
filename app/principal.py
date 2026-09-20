@@ -61,7 +61,9 @@ def pantalla_ingreso():
     _, centro, _ = st.columns([1, 1.2, 1])
     with centro:
         st.title("Gestión de Cartera")
-        st.caption("Sistema experto de apoyo a la decisión en cobranza · "
+        st.caption("El sistema administra la información de la cartera asignada: la carga, "
+                   "la depura, protege la identidad de los titulares con seudónimos, la "
+                   "guarda con historial por mes y la convierte en decisiones auditables. · "
                    "Proyecto académico: todos los datos del sistema son ficticios.")
 
         aviso = st.session_state.pop("aviso_salida", None)
