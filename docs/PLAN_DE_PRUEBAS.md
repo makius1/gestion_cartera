@@ -80,3 +80,15 @@ toma de la cola general, y dos gestores que la pidan al mismo tiempo pueden
 recibir la misma cuenta. Con plan de trabajo esto no ocurre, porque cada cuenta
 está asignada a un solo gestor. En el escenario conjunto siempre se trabaja con
 plan.
+
+## 8. Obligación nueva (registro individual, sin carga completa)
+
+| Id | Rol | Pasos | Resultado esperado |
+|---|---|---|---|
+| O1 | Supervisor | **Obligación nueva** con un dato mal formado (cédula con letras, cobranza máxima menor que la mínima, código fuera del catálogo) | El formulario marca el error puntual y no registra nada |
+| O2 | Supervisor | Registra una obligación completa, con un celular | Aparece en **Cartera** de esa carga, con franja y rango de mora coherentes con el saldo y los días de mora ingresados |
+| O3 | Supervisor | Intenta registrar el mismo documento y número de obligación otra vez | Se rechaza: "Esta obligación ya está registrada en esta carga" |
+| O4 | Supervisor o Administrador | **Auditoría**, filtrada por `OBLIGACION_NUEVA` | Aparece el registro de O2, con usuario y hora |
+| O5 | Supervisor | Ejecuta el motor sobre la carga después de O2 | La obligación nueva aparece evaluada (contactable o bloqueada por una regla de negocio), nunca bloqueada por L3 |
+| O6 | Supervisor | Registra una segunda obligación del mismo titular de O2, con el mismo celular | No se rechaza por "contacto duplicado"; la nueva cuenta queda con el canal disponible |
+

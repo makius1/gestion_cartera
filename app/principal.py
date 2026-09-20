@@ -119,6 +119,7 @@ PAGINAS = {
     ],
     "Administración": [
         ("paginas/cargas.py", "Cargas", ":material/upload_file:", "gestionar_cargas"),
+        ("paginas/obligaciones.py", "Obligación nueva", ":material/note_add:", "gestionar_obligaciones"),
         ("paginas/usuarios.py", "Usuarios", ":material/group:", "gestionar_usuarios"),
         ("paginas/auditoria.py", "Auditoría", ":material/history:", "ver_auditoria"),
     ],

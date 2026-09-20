@@ -150,5 +150,8 @@ jobs:
       - name: Probar la aplicación web por rol
         run: python -m pruebas.prueba_aplicacion
 
+      - name: Probar el registro de obligaciones nuevas (issue #17)
+        run: python -m pruebas.prueba_obligaciones
+
       - name: Estado final de la base
         run: python -m datos.base_datos probar

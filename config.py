@@ -295,7 +295,7 @@ LONGITUD_MINIMA_CLAVE = 10
 _CONSULTA = {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento", "ver_priorizacion",
              "registrar_gestion", "gestionar_contactos", "ver_plan", "ver_traza"}
 _OPERACION = {"ejecutar_motor", "ejecutar_priorizacion", "gestionar_cargas", "gestionar_plan",
-              "ver_auditoria", "ver_traza_equipo"}
+              "gestionar_obligaciones", "ver_auditoria", "ver_traza_equipo"}
 PERMISOS = {
     "GESTOR": _CONSULTA,
     "SUPERVISOR": _CONSULTA | _OPERACION,
