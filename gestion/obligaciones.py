@@ -43,6 +43,7 @@ LONGITUD_CREDITO = (4, 20)       # número de obligación del originador
 
 
 def validar_documento(valor):
+    """None si es válido, o el mensaje de error para mostrar en el formulario."""
     valor = (valor or "").strip()
     minimo, maximo = LONGITUD_DOCUMENTO
     if not re.fullmatch(r"\d{%d,%d}" % (minimo, maximo), valor):
@@ -51,6 +52,7 @@ def validar_documento(valor):
 
 
 def validar_credito(valor):
+    """None si es válido, o el mensaje de error para mostrar en el formulario."""
     valor = (valor or "").strip()
     minimo, maximo = LONGITUD_CREDITO
     if not re.fullmatch(r"[A-Za-z0-9\-]{%d,%d}" % (minimo, maximo), valor):
@@ -60,12 +62,16 @@ def validar_credito(valor):
 
 
 def validar_monto(valor, campo):
+    """None si es válido, o el mensaje de error para mostrar en el formulario.
+    `campo` es el nombre del campo tal como lo ve el usuario (por ejemplo
+    "El saldo"), para que el error señale cuál de los tres montos falló."""
     if valor is None or valor < 0:
         return "{} debe ser un valor numérico mayor o igual a cero.".format(campo)
     return None
 
 
 def validar_dias_mora(valor):
+    """None si es válido, o el mensaje de error para mostrar en el formulario."""
     if valor is None or valor < 0:
         return "Los días de mora deben ser un número entero mayor o igual a cero."
     return None
@@ -105,6 +111,10 @@ def validar(datos):
 
 
 def existe_credito(carga_id, credito_id):
+    """True si ya hay una cuenta con este credito_id en esta carga. Se usa
+    antes de insertar, para dar el error "ya está registrada" en vez de
+    dejar que la llave primaria compuesta (carga_id, credito_id) de cartera
+    lo rechace con un error de base de datos menos claro."""
     with bd.obtener_motor().connect() as conexion:
         fila = conexion.execute(select(bd.cartera.c.credito_id).where(
             bd.cartera.c.carga_id == carga_id, bd.cartera.c.credito_id == credito_id)).first()
@@ -127,6 +137,15 @@ def registrar_obligacion(carga_id, datos, contactos, usuario):
     errores = validar(datos)
     if errores:
         raise ValueError(" ".join(errores))
+
+    # Se valida CADA contacto antes de escribir nada: si se validara uno por
+    # uno dentro del bucle de más abajo, un contacto inválido a mitad de la
+    # lista dejaría el crédito y el titular ya guardados, sin forma de
+    # reintentar el registro completo (el crédito ya "existe", ver más abajo).
+    errores_contacto = [error for tipo, valor in contactos
+                        for error in [tit.validar_contacto(tipo, valor)] if error]
+    if errores_contacto:
+        raise ValueError(" ".join(errores_contacto))
 
     cuenta_id = _seudonimo(datos["documento"], "C")
     credito_id = _seudonimo(datos["credito"], "K")

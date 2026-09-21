@@ -63,8 +63,7 @@ def pantalla_ingreso():
         st.title("Gestión de Cartera")
         st.caption("El sistema administra la información de la cartera asignada: la carga, "
                    "la depura, protege la identidad de los titulares con seudónimos, la "
-                   "guarda con historial por mes y la convierte en decisiones auditables. · "
-                   "Proyecto académico: todos los datos del sistema son ficticios.")
+                   "guarda con historial por mes y la convierte en decisiones auditables.")
 
         aviso = st.session_state.pop("aviso_salida", None)
         if aviso:

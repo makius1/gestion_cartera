@@ -7,6 +7,9 @@ seudonimización que la carga, registro en auditoría— más los puntos donde
 este registro podría dejar una cuenta en un estado que el resto del sistema
 no sabe interpretar: sin eso, "no revienta nada" es una promesa sin probar.
 
+Registra obligaciones y titulares de prueba: nunca corre contra la base del
+proyecto en Supabase.
+
 Uso:
     python -m pruebas.prueba_obligaciones
 """
@@ -20,6 +23,10 @@ import config
 from datos import base_datos as bd
 from datos.cargador import _seudonimo
 from gestion import obligaciones as ob
+
+if "supabase" in config.URL_BASE_DATOS:
+    print("Esta prueba crea obligaciones y titulares ficticios: no se ejecuta contra Supabase.")
+    sys.exit(1)
 
 
 def _carga_de_prueba():
@@ -143,6 +150,31 @@ def prueba_titular_con_otro_credito_comparte_contacto():
     print("  Titular repetido: dos créditos con el mismo contacto no chocan entre sí")
 
 
+def prueba_contacto_invalido_no_deja_nada_a_medias():
+    """Un contacto mal formado, aunque venga después de uno válido en la
+    lista, rechaza el registro completo: no debe quedar ni la cuenta ni el
+    titular guardados a medias (antes se guardaban primero y se agregaban
+    los contactos después, en pasos separados)."""
+    carga_id = _carga_de_prueba()
+    datos = _datos(documento="1015900007", credito="PRUEBA-0007")
+    try:
+        ob.registrar_obligacion(carga_id, datos, [("CELULAR", "3001112233"), ("EMAIL", "no-es-un-correo")],
+                                "prueba.obligaciones")
+        raise AssertionError("dejó registrar con un contacto inválido en la lista")
+    except ValueError:
+        pass
+
+    credito_id = _seudonimo("PRUEBA-0007", "K")
+    cuenta_id = _seudonimo("1015900007", "C")
+    assert credito_id not in bd.leer_cartera(carga_id)["credito_id"].values, \
+        "la cuenta quedó registrada a pesar del contacto inválido"
+    with bd.obtener_motor().connect() as conexion:
+        titular = conexion.execute(select(bd.titulares).where(
+            bd.titulares.c.cuenta_id == cuenta_id)).first()
+    assert titular is None, "el titular quedó registrado a pesar del contacto inválido"
+    print("  Atomicidad: un contacto inválido no deja la cuenta ni el titular a medias")
+
+
 if __name__ == "__main__":
     bd.crear_esquema()
     prueba_validaciones_rechazan_datos_malos()
@@ -151,4 +183,5 @@ if __name__ == "__main__":
     prueba_no_permite_duplicar_credito()
     prueba_motor_no_bloquea_por_datos_incompletos()
     prueba_titular_con_otro_credito_comparte_contacto()
+    prueba_contacto_invalido_no_deja_nada_a_medias()
     print("Obligaciones nuevas verificadas.")

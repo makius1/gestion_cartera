@@ -8,10 +8,14 @@ eso lanza dos hilos con una barrera que los suelta al mismo tiempo, cada uno
 con su propia conexión a la base — una prueba llamada una vez tras otra no
 ejercita la condición de carrera que el issue describe.
 
-Corre contra la base configurada en DATABASE_URL. Contra SQLite local puede
-fallar por "database is locked" si el archivo no tiene un tiempo de espera
-generoso: la integración continua la corre contra PostgreSQL real (ver
-.github/workflows/pruebas.yml), que es donde esta prueba importa.
+Corre contra la base configurada en DATABASE_URL. Nunca contra la base del
+proyecto en Supabase: crea y borra reservas de prueba, y no hay forma de que
+esas escrituras se confundan con actividad real de un gestor, pero tampoco
+hace falta correr ese riesgo. Contra SQLite local puede fallar por "database
+is locked" si el archivo no tiene un tiempo de espera generoso: la
+integración continua la corre contra el PostgreSQL efímero del propio flujo
+de trabajo (ver .github/workflows/pruebas.yml), que es donde esta prueba
+importa.
 
 Uso:
     python -m pruebas.prueba_reservas
@@ -25,6 +29,10 @@ from sqlalchemy import update
 
 import config
 from datos import base_datos as bd
+
+if "supabase" in config.URL_BASE_DATOS:
+    print("Esta prueba crea y borra reservas de cuentas: no se ejecuta contra Supabase.")
+    sys.exit(1)
 
 
 def _carga_de_prueba():
