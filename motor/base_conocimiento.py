@@ -94,12 +94,16 @@ REGLAS = [
         "id": "L2",
         "nombre": "Frecuencia de contacto",
         "fase": "bloqueos",
-        # La ley limita cuántas veces se puede contactar a un deudor por día y
-        # por semana. El sistema aplica una lectura conservadora —un contacto
-        # real por periodo— y el periodo se ajusta en config.py.
-        "fundamento": "Ley 2300 de 2023: limita la frecuencia del contacto de "
-                      "cobranza. Política conservadora: un contacto real por "
-                      "periodo de {} días.".format(config.DIAS_MINIMOS_ENTRE_CONTACTOS),
+        # El artículo 3 de la Ley 2300 de 2023 limita la periodicidad del
+        # contacto: una vez existe contacto directo, no deben usarse varios
+        # canales dentro de una misma semana ni contactarse más de una vez
+        # durante el mismo día. El periodo fijo configurado es una política
+        # interna conservadora y no una transcripción literal de la norma.
+        "fundamento": "Ley 2300 de 2023, artículo 3: una vez establecido contacto "
+                      "directo, no se debe contactar mediante varios canales dentro "
+                      "de una misma semana ni más de una vez durante el mismo día. "
+                      "Política interna conservadora: se exige un mínimo de {} días "
+                      "entre contactos reales.".format(config.DIAS_MINIMOS_ENTRE_CONTACTOS),
         "descripcion": "SI hubo un contacto real hace menos de {} días ENTONCES no se "
                        "contacta".format(config.DIAS_MINIMOS_ENTRE_CONTACTOS),
         "condicion": {"dias_desde_contacto": ("<", config.DIAS_MINIMOS_ENTRE_CONTACTOS)},
@@ -111,9 +115,10 @@ REGLAS = [
         "id": "N3",
         "nombre": "Recordatorio de compromiso",
         "fase": "compromisos",
-        "fundamento": "Estrategia: un compromiso incumplido es recaudo que ya "
-                      "estaba contado. Un recordatorio corto antes de la fecha "
-                      "cuesta casi nada y lo protege.",
+        "fundamento": "Estrategia: un compromiso de pago próximo requiere un "
+                      "recordatorio oportuno antes de la fecha pactada para "
+                      "favorecer su cumplimiento sin realizar una gestión de "
+                      "cobro adicional.",
         "descripcion": "SI hay compromiso de pago en los próximos {} días ENTONCES "
                        "enviar recordatorio".format(config.DIAS_AVISO_COMPROMISO),
         "condicion": {"dias_para_compromiso": ("entre", (0, config.DIAS_AVISO_COMPROMISO))},
