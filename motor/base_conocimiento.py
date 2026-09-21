@@ -94,12 +94,16 @@ REGLAS = [
         "id": "L2",
         "nombre": "Frecuencia de contacto",
         "fase": "bloqueos",
-        # La ley limita cuántas veces se puede contactar a un deudor por día y
-        # por semana. El sistema aplica una lectura conservadora —un contacto
-        # real por periodo— y el periodo se ajusta en config.py.
-        "fundamento": "Ley 2300 de 2023: limita la frecuencia del contacto de "
-                      "cobranza. Política conservadora: un contacto real por "
-                      "periodo de {} días.".format(config.DIAS_MINIMOS_ENTRE_CONTACTOS),
+        # El artículo 3 de la Ley 2300 de 2023 limita la periodicidad del
+        # contacto: una vez existe contacto directo, no deben usarse varios
+        # canales dentro de una misma semana ni contactarse más de una vez
+        # durante el mismo día. El periodo fijo configurado es una política
+        # interna conservadora y no una transcripción literal de la norma.
+        "fundamento": "Ley 2300 de 2023, artículo 3: una vez establecido contacto "
+                      "directo, no se debe contactar mediante varios canales dentro "
+                      "de una misma semana ni más de una vez durante el mismo día. "
+                      "Política interna conservadora: se exige un mínimo de {} días "
+                      "entre contactos reales.".format(config.DIAS_MINIMOS_ENTRE_CONTACTOS),
         "descripcion": "SI hubo un contacto real hace menos de {} días ENTONCES no se "
                        "contacta".format(config.DIAS_MINIMOS_ENTRE_CONTACTOS),
         "condicion": {"dias_desde_contacto": ("<", config.DIAS_MINIMOS_ENTRE_CONTACTOS)},
@@ -263,6 +267,7 @@ REGLAS = [
 OPERADORES = {"<", "<=", ">", ">=", "en", "entre"}
 EFECTOS = {"estado", "canales_preferidos", "quitar_canales", "canal"}
 ESTADOS = {"BLOQUEADA", "EN_ESPERA", "RECORDATORIO"}
+HECHOS_VALIDOS = {"dia_habil", "datos_completos", "dias_desde_contacto", "dias_para_compromiso", "codigo", "resultado_gestion", "tiene_celular", "tiene_fijo", "tiene_email", "canales_permitidos"}
 
 
 def reglas_de_fase(fase):
@@ -299,6 +304,8 @@ def validar():
             errores.append("{}: las reglas de estrategia necesitan prioridad".format(rid))
 
         for hecho, valor in regla.get("condicion", {}).items():
+            if hecho not in HECHOS_VALIDOS:
+                errores.append("{}: hecho desconocido {}".format(rid, repr(hecho)))
             if isinstance(valor, tuple) and valor[0] not in OPERADORES:
                 errores.append("{}: operador desconocido '{}' en {}".format(rid, valor[0], hecho))
 
