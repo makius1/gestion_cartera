@@ -19,6 +19,7 @@ El código es el mismo en ambos casos gracias a SQLAlchemy.
 
 import argparse
 import json
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -411,6 +412,42 @@ def describir_motor():
     if "supabase" in url:
         return "PostgreSQL en Supabase (conexión directa)"
     return "PostgreSQL remoto"
+
+
+def confirmar_escritura_remota(accion, confirmada=False):
+    """Pide confirmación antes de que un comando escriba en una base que no es
+    la local. Retorna True si se puede seguir.
+
+    Existe porque ya pasó: durante la revisión del área 1 se registró una carga
+    de 2.000 cuentas en la base compartida creyendo que iba a la personal. El
+    comando avisaba en la primera línea contra qué base trabajaba, pero un aviso
+    se lee y se sigue de largo. Una confirmación obliga a detenerse.
+
+    Sobre SQLite no pregunta nada. Contra una base remota sigue solo si se pasó
+    --confirmar-remota o, en una terminal, si se escribe CONFIRMAR. Un proceso
+    sin terminal y sin la opción —por ejemplo, un script olvidado— se detiene
+    sin escribir: lo seguro es no adivinar.
+    """
+    if es_local() or confirmada:
+        return True
+    print("  Este comando va a {} en {}, que es una base compartida.".format(
+        accion, describir_motor()))
+    if not sys.stdin.isatty():
+        print("  No se escribió nada. Si es lo que quiere, repita el comando con "
+              "--confirmar-remota.")
+        return False
+    # En Windows, algunas terminales dicen ser interactivas aunque no haya nadie
+    # para responder, y la lectura termina en fin de archivo. Eso cuenta como
+    # una cancelación, no como un error.
+    try:
+        respuesta = input("  Escriba CONFIRMAR para continuar, o Enter para cancelar: ")
+    except (EOFError, KeyboardInterrupt):
+        respuesta = ""
+        print()
+    if respuesta.strip() != "CONFIRMAR":
+        print("  Cancelado: no se escribió nada.")
+        return False
+    return True
 
 
 # Cadenas de conexión cuyo esquema ya se verificó en este proceso.
@@ -995,11 +1032,18 @@ if __name__ == "__main__":
     p_sint = sub.add_parser("sintetica", help="genera una cartera ficticia y la carga")
     p_sint.add_argument("--registros", type=int, default=None)
     p_sint.add_argument("--semilla", type=int, default=config.SEMILLA)
-    sub.add_parser("real", help="carga la asignación real (solo en base local)")
+    p_real = sub.add_parser("real", help="carga la asignación real (solo en base local)")
+    for p in (p_sint, p_real):
+        p.add_argument("--confirmar-remota", action="store_true",
+                       help="confirma que se quiere escribir en una base que no es la local")
     sub.add_parser("cargas", help="lista las cargas registradas")
     args = parser.parse_args()
 
     print("Base de datos: {}".format(describir_motor()))
+
+    if args.accion in ("sintetica", "real") and not confirmar_escritura_remota(
+            "registrar una carga", args.confirmar_remota):
+        sys.exit(2)
 
     if args.accion == "probar":
         print("\n".join(formatear_estado(probar_conexion())))
