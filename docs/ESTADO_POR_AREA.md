@@ -53,7 +53,7 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
 - Carga, limpieza y seudonimización de identificadores con HMAC-SHA256.
 - Simulador determinista de carteras a partir de un perfil, que reconstruye
   cualquier carga con su semilla.
-- Esquema de 13 tablas con historial de cargas, migración automática de
+- Esquema de 15 tablas con historial de cargas, migración automática de
   columnas y Row Level Security en Supabase.
 - Directorio de titulares y contactos separado de la analítica, con datos
   enmascarados.
@@ -174,12 +174,13 @@ python -m decision.priorizacion --no-guardar
 - Aplicación web con 13 pantallas y menú por rol.
 - Prueba automática de las 13 pantallas con los tres roles, y plan de pruebas
   conjuntas.
+- Reserva de la cuenta entregada por *Siguiente cuenta*, para que dos gestores
+  sin plan no reciban la misma, con prueba de concurrencia real.
 
 ### Pendiente
 
 | Prioridad | Tarea |
 |---|---|
-| Alta | Reservar la cuenta entregada por *Siguiente cuenta* para que dos gestores no reciban la misma |
 | Media | Registrar obligaciones nuevas desde la aplicación, sin una carga |
 | Baja | Cambiar el texto de la pantalla de ingreso por uno sobre la administración de la información |
 

@@ -234,9 +234,17 @@ def registrar(carga_id, credito_id, datos, usuario, momento=None):
     return gestion_id, avisos
 
 
-def siguiente_de_la_cola(carga_id, hoy=None):
+def siguiente_de_la_cola(carga_id, usuario, hoy=None):
     """Siguiente cuenta de la última priorización de la carga que aún no se
-    gestionó hoy. Retorna (credito_id, posicion) o (None, None)."""
+    gestionó hoy, reservada para `usuario`. Retorna (credito_id, posicion) o
+    (None, None).
+
+    Dos gestores sin plan de trabajo pueden pedir la cola al mismo tiempo y
+    ver la misma primera cuenta: por eso no basta con leer y devolver la
+    primera pendiente, hay que reservarla. Si la reserva falla (otro gestor
+    la tiene vigente), se prueba con la siguiente, hasta un tope de intentos
+    para no recorrer la cola completa si está casi toda reservada.
+    """
     hoy = hoy or config.hoy()
     priorizaciones = bd.listar_priorizaciones(200)
     priorizaciones = priorizaciones[priorizaciones["carga_id"] == carga_id]
@@ -247,7 +255,7 @@ def siguiente_de_la_cola(carga_id, hoy=None):
     gestiones = bd.leer_gestiones(carga_id)
     hechas_hoy = set(gestiones.loc[pd.to_datetime(gestiones["fecha"]).dt.date == hoy, "credito_id"])
     pendientes = cola[~cola["credito_id"].isin(hechas_hoy)]
-    if pendientes.empty:
-        return None, None
-    primera = pendientes.iloc[0]
-    return primera["credito_id"], int(primera["posicion"])
+    for _, fila in pendientes.head(config.INTENTOS_MAXIMOS_RESERVA).iterrows():
+        if bd.reservar_cuenta(carga_id, fila["credito_id"], usuario, config.MINUTOS_RESERVA_CUENTA):
+            return fila["credito_id"], int(fila["posicion"])
+    return None, None
