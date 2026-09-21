@@ -76,6 +76,9 @@ jobs:
               len(cartera), "{:,.0f}".format(float(cartera["saldo"].sum()))))
           PY
 
+      - name: "Probar la autorizacion por canal (issue #25)"
+        run: python -m pruebas.prueba_autorizaciones
+
       - name: Validar la base de conocimiento
         run: python -m motor.elegibilidad --validar
 
