@@ -75,11 +75,13 @@ se prueban como **entrantes**, salvo los que prueban justamente ese rechazo.
    cuentas con acuerdo aparecen en espera o bloqueadas en una nueva ejecución
    del motor.
 
-**Limitación conocida:** cuando un gestor no tiene plan, *Siguiente cuenta*
-toma de la cola general, y dos gestores que la pidan al mismo tiempo pueden
-recibir la misma cuenta. Con plan de trabajo esto no ocurre, porque cada cuenta
-está asignada a un solo gestor. En el escenario conjunto siempre se trabaja con
-plan.
+## 7. Cola general sin plan (dos gestores a la vez)
+
+| Id | Rol | Pasos | Resultado esperado |
+|---|---|---|---|
+| G9 | Dos gestores, al mismo tiempo | Ninguno tiene plan hoy; ambos pulsan **Siguiente cuenta** en el mismo instante | Cada uno recibe una cuenta distinta de la cola general; ninguna se repite |
+| G10 | Gestor | Pide **Siguiente cuenta**, no la gestiona y sale de la pantalla; otro gestor pide **Siguiente cuenta** antes de que pase el tiempo de reserva | El segundo gestor recibe una cuenta distinta |
+| G11 | Gestor | Pide **Siguiente cuenta**, espera más del tiempo de reserva sin gestionarla, y otro gestor pide **Siguiente cuenta** | El segundo gestor puede recibir esa misma cuenta: la reserva ya venció |
 
 ## 8. Obligación nueva (registro individual, sin carga completa)
 
@@ -91,4 +93,3 @@ plan.
 | O4 | Supervisor o Administrador | **Auditoría**, filtrada por `OBLIGACION_NUEVA` | Aparece el registro de O2, con usuario y hora |
 | O5 | Supervisor | Ejecuta el motor sobre la carga después de O2 | La obligación nueva aparece evaluada (contactable o bloqueada por una regla de negocio), nunca bloqueada por L3 |
 | O6 | Supervisor | Registra una segunda obligación del mismo titular de O2, con el mismo celular | No se rechaza por "contacto duplicado"; la nueva cuenta queda con el canal disponible |
-

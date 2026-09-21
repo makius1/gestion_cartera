@@ -119,6 +119,32 @@ CANALES = {
 PRESUPUESTO_CAMPANA = 2_000_000     # COP disponibles para campañas del mes
 
 
+# --- Autorización del titular por canal (Ley 2300 de 2023, artículo 2) ---------
+# Solo se puede gestionar cobranza por los canales que el consumidor autorizó
+# previamente. Tener el teléfono no es tener permiso para llamarlo.
+
+ESTADOS_AUTORIZACION = ("AUTORIZADO", "NO_AUTORIZADO", "DESCONOCIDO")
+
+# El motor exige la autorización solo cuando este parámetro está encendido. Se
+# deja apagado hasta que las cargas en uso tengan autorizaciones registradas:
+# encenderlo con la base sin ese dato dejaría toda la cartera sin canales y el
+# motor la bloquearía completa, que no es lo que la norma busca.
+EXIGIR_AUTORIZACION_CANAL = False
+
+# Proporción de titulares que autoriza cada canal en una cartera SIMULADA. Son
+# supuestos de trabajo: la llamada es el canal que más se autoriza porque suele
+# venir firmado en el pagaré, y el correo el que menos porque se pide aparte.
+AUTORIZACION_SIMULADA = {"LLAMADA": 0.90, "WHATSAPP": 0.80, "SMS": 0.70, "EMAIL": 0.55}
+
+# Qué dato de contacto necesita cada canal para poder usarse.
+REQUISITO_CANAL = {"LLAMADA": ("CELULAR", "FIJO"), "WHATSAPP": ("CELULAR",),
+                   "SMS": ("CELULAR",), "EMAIL": ("EMAIL",)}
+
+# Columna derivada de cartera en la que el motor lee cada autorización.
+COLUMNA_AUTORIZACION = {"LLAMADA": "autoriza_llamada", "WHATSAPP": "autoriza_whatsapp",
+                        "SMS": "autoriza_sms", "EMAIL": "autoriza_email"}
+
+
 # ---------------------------------------------------------------------------
 # CAPACIDAD DE GESTIÓN
 # ---------------------------------------------------------------------------
@@ -126,6 +152,16 @@ PRESUPUESTO_CAMPANA = 2_000_000     # COP disponibles para campañas del mes
 GESTIONES_POR_GESTOR_DIA = 80
 DIAS_HABILES_MES = 22
 NUMERO_GESTORES = 6             # gestores activos en la campaña
+
+# Minutos que un gestor conserva en exclusiva una cuenta tomada con "Siguiente
+# cuenta" de la cola general (con plan de trabajo la cuenta ya es suya, sin
+# reserva). Vencido este tiempo sin registrar la gestión, otro gestor puede
+# tomarla.
+MINUTOS_RESERVA_CUENTA = 20
+
+# Tope de cuentas de la cola que se intentan reservar antes de rendirse. Evita
+# recorrer miles de filas si casi toda la cola quedó reservada por otros.
+INTENTOS_MAXIMOS_RESERVA = 20
 
 
 # ---------------------------------------------------------------------------

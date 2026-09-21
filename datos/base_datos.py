@@ -19,6 +19,7 @@ El código es el mismo en ambos casos gracias a SQLAlchemy.
 
 import argparse
 import json
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -26,8 +27,10 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey,
                         Index, Integer, MetaData, Numeric, String, Table, Text,
-                        create_engine, event, exc, func, insert, inspect, select,
-                        text, update)
+                        create_engine, delete, event, exc, func, insert, inspect,
+                        select, text, update)
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
 import config
 
@@ -94,6 +97,17 @@ cartera = Table(
     Column("tiene_fijo", Boolean),
     Column("tiene_email", Boolean),
     Column("fecha_ultima_gestion", Date),
+
+    # Autorización del titular por canal (Ley 2300 de 2023, artículo 2). Son
+    # columnas DERIVADAS de la tabla autorizaciones_canal, igual que
+    # tiene_celular se deriva de contactos: el motor lee los hechos de esta
+    # fila y no consulta el directorio. Un canal sin autorización registrada
+    # queda en False: la ley exige autorización previa, y lo que no consta no
+    # autoriza.
+    Column("autoriza_llamada", Boolean),
+    Column("autoriza_whatsapp", Boolean),
+    Column("autoriza_sms", Boolean),
+    Column("autoriza_email", Boolean),
 )
 
 # Índices para las consultas que más va a hacer el sistema: seguir a un titular
@@ -306,6 +320,53 @@ Index("ix_plan_gestor", plan_asignaciones.c.plan_id, plan_asignaciones.c.gestor)
 Index("ux_contactos_valor", contactos.c.cuenta_id, contactos.c.tipo, contactos.c.valor, unique=True)
 
 
+# --- Reservas de cuenta --------------------------------------------------------------
+# Cuando un gestor pide "Siguiente cuenta" sin tener un plan de trabajo, la
+# cuenta se toma de la cola general. Dos gestores que la pidan al mismo tiempo
+# leerían la misma primera cuenta si no hubiera nada más: esta tabla es esa
+# exclusión, resuelta con un único INSERT ... ON CONFLICT ... DO UPDATE, no con
+# una lectura seguida de una escritura, para que el bloqueo lo dé la base y no
+# quede una ventana entre las dos operaciones. Una reserva vencida se cede en
+# el mismo statement: no hace falta un proceso aparte que las limpie.
+
+reservas = Table(
+    "reservas", metadatos,
+    Column("carga_id", Integer, ForeignKey("cargas.id"), primary_key=True),
+    Column("credito_id", String(13), primary_key=True),
+    # Sin gestor en la llave: si lo estuviera, dos gestores podrían tener cada
+    # uno "su" reserva de la misma cuenta al mismo tiempo.
+    Column("gestor", String(40), nullable=False),
+    Column("creado", DateTime, nullable=False),
+    Column("vence", DateTime, nullable=False),
+)
+
+
+# --- Autorización de canales ---------------------------------------------------------
+# El artículo 2 de la Ley 2300 de 2023 permite gestionar cobranza únicamente por
+# los canales que el consumidor autorizó antes para ese fin. Tener el dato de
+# contacto y tener permiso para usarlo son dos cosas distintas, y hasta ahora el
+# sistema solo sabía la primera.
+#
+# La autorización es del TITULAR y del CANAL, no del número: quien tiene dos
+# celulares autoriza "llamada", no una línea puntual, y puede autorizar un canal
+# del que todavía no se tiene dato. Por eso es una tabla aparte y no una columna
+# en contactos.
+#
+# Una cuenta sin fila para un canal se interpreta como DESCONOCIDO, que para el
+# motor pesa igual que NO_AUTORIZADO. Es la misma precaución de la regla L3: lo
+# que no consta, no habilita.
+
+autorizaciones_canal = Table(
+    "autorizaciones_canal", metadatos,
+    Column("cuenta_id", String(13), primary_key=True),
+    Column("canal", String(10), primary_key=True),
+    Column("estado", String(15), nullable=False),
+    Column("origen", String(10), nullable=False),      # CARGA, GESTOR o TITULAR
+    Column("actualizado", DateTime, nullable=False),
+    Column("actualizado_por", String(40), nullable=False),
+)
+
+
 # ---------------------------------------------------------------------------
 # 2. CONEXIÓN Y CREACIÓN
 # ---------------------------------------------------------------------------
@@ -374,6 +435,42 @@ def describir_motor():
     if "supabase" in url:
         return "PostgreSQL en Supabase (conexión directa)"
     return "PostgreSQL remoto"
+
+
+def confirmar_escritura_remota(accion, confirmada=False):
+    """Pide confirmación antes de que un comando escriba en una base que no es
+    la local. Retorna True si se puede seguir.
+
+    Existe porque ya pasó: durante la revisión del área 1 se registró una carga
+    de 2.000 cuentas en la base compartida creyendo que iba a la personal. El
+    comando avisaba en la primera línea contra qué base trabajaba, pero un aviso
+    se lee y se sigue de largo. Una confirmación obliga a detenerse.
+
+    Sobre SQLite no pregunta nada. Contra una base remota sigue solo si se pasó
+    --confirmar-remota o, en una terminal, si se escribe CONFIRMAR. Un proceso
+    sin terminal y sin la opción —por ejemplo, un script olvidado— se detiene
+    sin escribir: lo seguro es no adivinar.
+    """
+    if es_local() or confirmada:
+        return True
+    print("  Este comando va a {} en {}, que es una base compartida.".format(
+        accion, describir_motor()))
+    if not sys.stdin.isatty():
+        print("  No se escribió nada. Si es lo que quiere, repita el comando con "
+              "--confirmar-remota.")
+        return False
+    # En Windows, algunas terminales dicen ser interactivas aunque no haya nadie
+    # para responder, y la lectura termina en fin de archivo. Eso cuenta como
+    # una cancelación, no como un error.
+    try:
+        respuesta = input("  Escriba CONFIRMAR para continuar, o Enter para cancelar: ")
+    except (EOFError, KeyboardInterrupt):
+        respuesta = ""
+        print()
+    if respuesta.strip() != "CONFIRMAR":
+        print("  Cancelado: no se escribió nada.")
+        return False
+    return True
 
 
 # Cadenas de conexión cuyo esquema ya se verificó en este proceso.
@@ -563,6 +660,10 @@ def registrar_carga(df, origen, archivo=None, semilla=None, permitir_real_en_nub
     crear_esquema(motor)
 
     columnas = [c.name for c in cartera.columns if c.name != "carga_id"]
+    # Una carga no trae las columnas que el sistema deriva después, como la
+    # autorización por canal: entran vacías y las completa su propio módulo.
+    faltantes = [c for c in columnas if c not in df.columns]
+    df = df.assign(**{c: None for c in faltantes}) if faltantes else df
     tabla = df[columnas].copy()
     for booleana in ["gestionada", "gestionable", "tiene_compromiso",
                      "tiene_celular", "tiene_fijo", "tiene_email"]:
@@ -752,7 +853,112 @@ def registrar_gestion(gestion, cambios_cartera):
             # Lanzar dentro de la transacción la deshace completa.
             raise LookupError("La cuenta {} no existe en la carga {}.".format(
                 gestion["credito_id"], gestion["carga_id"]))
+        # La cuenta ya se gestionó: la reserva sobra. Va en la misma
+        # transacción que la gestión y la cartera, para no dejarla vencer por
+        # su cuenta mientras el resto ya quedó guardado.
+        liberar_reserva(gestion["carga_id"], gestion["credito_id"], conexion=conexion)
     return gestion_id
+
+
+def reservar_cuenta(carga_id, credito_id, gestor, minutos):
+    """Reserva una cuenta para un gestor por un tiempo, o falla si otro la
+    tiene reservada todavía.
+
+    Es un único INSERT ... ON CONFLICT ... DO UPDATE, no una lectura seguida
+    de una escritura: así el bloqueo de la fila lo da la propia base y no
+    queda una ventana en la que dos gestores puedan reservar la misma cuenta
+    a la vez. El WHERE del DO UPDATE solo deja ceder la reserva si ya venció;
+    si sigue vigente y es de otro gestor, la sentencia no toca la fila y
+    retorna False. La hora la pone el servidor (func.now()), nunca Python: la
+    app y la base pueden estar en relojes distintos.
+
+    Si `gestor` ya tenía la reserva vigente, retorna True sin extender
+    `vence`: el WHERE del DO UPDATE protege una reserva vigente incluso
+    contra su propio dueño, así una llamada con menos minutos nunca la
+    acorta por error. Para renovarla de verdad hay que liberarla primero
+    (ver `liberar_reservas_de`), que es lo que hace la pantalla antes de
+    pedir "Siguiente cuenta".
+
+    Retorna True si la cuenta quedó reservada para `gestor`.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    construir = insert_sqlite if motor.dialect.name == "sqlite" else insert_postgresql
+    ahora = func.now()
+    # Con signo explícito: "-1 minutes" (no "+-1 minutes") para poder forzar
+    # una reserva ya vencida, como hacen las pruebas.
+    desplazamiento = "{:+d} minutes".format(minutos)
+    vence = ahora + text("interval '{}'".format(desplazamiento)) if motor.dialect.name == "postgresql" \
+        else func.datetime(ahora, desplazamiento)
+    sentencia = construir(reservas).values(
+        carga_id=carga_id, credito_id=credito_id, gestor=gestor, creado=ahora, vence=vence)
+    sentencia = sentencia.on_conflict_do_update(
+        index_elements=["carga_id", "credito_id"],
+        set_=dict(gestor=gestor, creado=ahora, vence=vence),
+        where=reservas.c.vence < ahora,
+    )
+    with motor.begin() as conexion:
+        resultado = conexion.execute(sentencia)
+        if resultado.rowcount:
+            return True
+        # La fila ya existe y no venció: puede ser la propia reserva del
+        # mismo gestor (por ejemplo, si volvió a pedir la misma cuenta antes
+        # de que expirara) o la de otro. Se confirma cuál es sin volver a
+        # escribir.
+        fila = conexion.execute(select(reservas.c.gestor).where(
+            reservas.c.carga_id == carga_id, reservas.c.credito_id == credito_id)).first()
+        return bool(fila) and fila[0] == gestor
+
+
+def reserva_vigente_de(carga_id, credito_id):
+    """Gestor con una reserva vigente sobre la cuenta, o None.
+
+    Solo protege contra la carrera al botón "Siguiente cuenta". La búsqueda
+    por seudónimo no reserva nada, así que se usa para avisar en pantalla,
+    no para bloquear el acceso.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.connect() as conexion:
+        fila = conexion.execute(select(reservas.c.gestor).where(
+            reservas.c.carga_id == carga_id, reservas.c.credito_id == credito_id,
+            reservas.c.vence >= func.now())).first()
+    return fila[0] if fila else None
+
+
+def liberar_reservas_de(gestor, excepto_credito_id=None):
+    """Libera las reservas vigentes de un gestor.
+
+    Se llama al iniciar el flujo de "Siguiente cuenta", antes de pedir una
+    nueva: así una cuenta que el gestor abrió y abandonó no queda bloqueada
+    el tiempo completo de la reserva. `excepto_credito_id` evita que un
+    segundo tab del mismo gestor se quite la reserva a sí mismo.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    condiciones = [reservas.c.gestor == gestor]
+    if excepto_credito_id is not None:
+        condiciones.append(reservas.c.credito_id != excepto_credito_id)
+    with motor.begin() as conexion:
+        conexion.execute(delete(reservas).where(*condiciones))
+
+
+def liberar_reserva(carga_id, credito_id, conexion=None):
+    """Libera la reserva de una cuenta puntual.
+
+    Si se pasa `conexion`, la liberación va dentro de esa transacción (así se
+    usa desde `registrar_gestion`, junto con el guardado de la gestión y la
+    actualización de la cartera). Sin `conexion`, abre y cierra la suya.
+    """
+    sentencia = delete(reservas).where(
+        reservas.c.carga_id == carga_id, reservas.c.credito_id == credito_id)
+    if conexion is not None:
+        conexion.execute(sentencia)
+        return
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.begin() as conexion_propia:
+        conexion_propia.execute(sentencia)
 
 
 def guardar_plan(plan, asignaciones):
@@ -954,11 +1160,18 @@ if __name__ == "__main__":
     p_sint = sub.add_parser("sintetica", help="genera una cartera ficticia y la carga")
     p_sint.add_argument("--registros", type=int, default=None)
     p_sint.add_argument("--semilla", type=int, default=config.SEMILLA)
-    sub.add_parser("real", help="carga la asignación real (solo en base local)")
+    p_real = sub.add_parser("real", help="carga la asignación real (solo en base local)")
+    for p in (p_sint, p_real):
+        p.add_argument("--confirmar-remota", action="store_true",
+                       help="confirma que se quiere escribir en una base que no es la local")
     sub.add_parser("cargas", help="lista las cargas registradas")
     args = parser.parse_args()
 
     print("Base de datos: {}".format(describir_motor()))
+
+    if args.accion in ("sintetica", "real") and not confirmar_escritura_remota(
+            "registrar una carga", args.confirmar_remota):
+        sys.exit(2)
 
     if args.accion == "probar":
         print("\n".join(formatear_estado(probar_conexion())))
@@ -977,6 +1190,14 @@ if __name__ == "__main__":
         titulares_n, contactos_n = registrar_directorio(*extraer_directorio(bruto), "SINTETICO", "terminal")
         print("  Carga {} registrada: {:,} cuentas simuladas, {:,} titulares y {:,} contactos nuevos"
               .format(carga_id, len(bruto), titulares_n, contactos_n))
+        # Una cartera simulada trae también sus autorizaciones por canal: sin
+        # ellas, el día que se exija la autorización el motor bloquearía todo.
+        # La importación va aquí adentro porque el módulo de autorizaciones usa
+        # este archivo, y arriba serían importaciones circulares.
+        from datos.autorizaciones import simular
+        autorizadas, titulares_carga = simular(carga_id, usuario="terminal")
+        print("  Autorizaciones de canal simuladas: {:,} sobre {:,} titulares"
+              .format(autorizadas, titulares_carga))
 
     elif args.accion == "real":
         from datos.cargador import cargar, extraer_directorio, leer_bruto

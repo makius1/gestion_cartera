@@ -146,9 +146,29 @@ def prueba_gestion():
     print("  Gestión: toma la cuenta de la cola, graba y actualiza la cartera")
 
 
+def prueba_sintaxis():
+    """Comprueba que todas las pantallas compilan.
+
+    AppTest no delata un error de sintaxis: la pantalla no se dibuja, pero
+    tampoco queda ninguna excepción que revisar, así que el recorrido por rol
+    la daba por buena mientras en la aplicación publicada no se veía nada.
+    Compilar cada archivo sí lo detecta.
+    """
+    archivos = sorted((APP / "paginas").glob("*.py")) + [APP / "principal.py"]
+    rotos = []
+    for archivo in archivos:
+        try:
+            compile(archivo.read_text(encoding="utf-8"), str(archivo), "exec")
+        except SyntaxError as error:
+            rotos.append("{} línea {}: {}".format(archivo.name, error.lineno, error.msg))
+    assert not rotos, "pantallas que no compilan: " + "; ".join(rotos)
+    print("  Sintaxis: {} archivos de la aplicación compilan".format(len(archivos)))
+
+
 if __name__ == "__main__":
     bd.crear_esquema()
     asegurar_datos()
+    prueba_sintaxis()
     prueba_ingreso()
     prueba_plan()
     prueba_gestion()
@@ -161,7 +181,11 @@ if __name__ == "__main__":
             resultado = abrir(pagina, sesion)
             permitido = permiso is None or auth.puede(rol, permiso)
             denegado = any("No tiene permiso" in e.value for e in resultado.error)
-            ok = not resultado.exception and denegado != permitido
+            # Una pantalla permitida tiene que DIBUJAR algo: todas empiezan con
+            # comun.encabezado(), que pone un título. Sin esta comprobación, una
+            # pantalla que se queda en blanco pasaba como buena.
+            dibujo = bool(resultado.title) if permitido else True
+            ok = not resultado.exception and denegado != permitido and dibujo
             fallas += not ok
             print("  {:<13} {:<13} {:<9} {}".format(
                 rol, pagina, "permitida" if permitido else "denegada",

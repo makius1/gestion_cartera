@@ -323,6 +323,15 @@ En la pantalla de gestión, *Siguiente cuenta* entrega primero la del plan del
 gestor y, cuando lo completa, la de la cola general. El avance no se guarda:
 se calcula cruzando las asignaciones con las gestiones del día.
 
+La cuenta tomada de la **cola general queda reservada** para ese gestor durante
+20 minutos, de modo que dos gestores sin plan que pidan al mismo tiempo reciban
+cuentas distintas. La reserva se libera al registrar la gestión, al pedir otra
+cuenta o al vencerse el tiempo. La exclusión la resuelve la base de datos con un
+solo `INSERT ... ON CONFLICT ... DO UPDATE` condicionado al vencimiento, no con
+una lectura seguida de una escritura, porque entre esas dos operaciones cabría
+el segundo gestor. La búsqueda por seudónimo no reserva: solo avisa si la cuenta
+está reservada por otra persona.
+
 **Traza de trabajo.**
 
 - *Por gestor*: gestiones por día con la primera y la última hora de la
@@ -447,6 +456,7 @@ Los registros simulados nunca se confunden con los de una asignación:
 | `gestiones` | Cada contacto registrado por un gestor, con el estado que el motor asignaba a la cuenta en ese momento |
 | `titulares` | Directorio: nombre, documento enmascarado y ciudad de cada titular |
 | `contactos` | Teléfonos y correos de cada titular, con su estado (sin verificar, válido o errado) |
+| `autorizaciones_canal` | Qué canales autorizó el titular para gestión de cobranza, con su origen y quién lo registró |
 | `planes` y `plan_asignaciones` | Plan de trabajo del día y la cuenta asignada a cada gestor |
 | `usuarios` | Cuentas de acceso: rol, estado y derivación de la contraseña |
 | `auditoria` | Bitácora de acciones del sistema |
@@ -575,6 +585,12 @@ Con otro tamaño o semilla:
 ```bash
 python -m datos.base_datos sintetica --registros 10000 --semilla 7
 ```
+
+Los comandos que escriben —registrar una carga, completarla o simular sus
+autorizaciones— piden confirmación cuando la base no es la SQLite local: hay
+que escribir `CONFIRMAR` o agregar `--confirmar-remota`. Sin eso se detienen
+sin escribir nada. Existe porque ya ocurrió que una carga terminara en la base
+compartida creyendo que iba a la personal.
 
 Listar las cargas registradas:
 
