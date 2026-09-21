@@ -4,7 +4,9 @@
 
 ## Por qué
 
-<!-- El problema que resuelve o el requerimiento que atiende (enlazar el issue: Cierra #N). -->
+<!-- El problema que resuelve o el requerimiento que atiende. Para que el issue se
+     cierre solo al fusionar, escriba Closes #N (en inglés: GitHub no reconoce
+     "Cierra"). Si el pull request resuelve solo una parte, use Relacionado con #N. -->
 
 ## Cómo se probó
 

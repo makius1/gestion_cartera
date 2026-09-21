@@ -217,7 +217,7 @@ flowchart LR
     I["Issue #12<br/>Pendiente"] --> A["Se asigna<br/>En curso"]
     A --> R["Rama<br/>funcion/12-..."]
     R --> C["Commits<br/>... (#12)"]
-    C --> P["Pull request<br/>Cierra #12<br/>En revisión"]
+    C --> P["Pull request<br/>Closes #12<br/>En revisión"]
     P --> F["Fusión a main<br/>Hecho"]
 ```
 
@@ -225,8 +225,13 @@ flowchart LR
    *En curso* en el tablero. Así nadie trabaja dos veces lo mismo.
 2. Crea la rama con el número del *issue* y hace sus commits terminando en
    `(#12)`.
-3. En el *pull request* escribe `Cierra #12`. Al fusionarlo, GitHub cierra el
+3. En el *pull request* escribe `Closes #12`. Al fusionarlo, GitHub cierra el
    *issue* solo y lo pasa a *Hecho*.
+
+   La palabra tiene que ir **en inglés**: GitHub solo reconoce `Closes`,
+   `Fixes` o `Resolves`. Con "Cierra #12" el *issue* queda abierto después de
+   fusionar, y ya pasó con los #16 y #36. Si el *pull request* resuelve solo una
+   parte del *issue*, se escribe `Relacionado con #12`, que enlaza sin cerrar.
 
 **Discusión:** los comentarios sobre una propuesta se hacen dentro del mismo
 *issue*, no por fuera, para que la decisión quede escrita junto al cambio.
