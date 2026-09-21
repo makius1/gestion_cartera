@@ -166,11 +166,8 @@ with pestana_parametros:
 with pestana_difusa:
     errores_difusos = kd.validar()
     if errores_difusos:
-        st.error("La base difusa tiene inconsistencias:
-
-" +
-                 "
-".join("- " + e for e in errores_difusos))
+        st.error("La base difusa tiene inconsistencias:\n\n" +
+                 "\n".join("- " + e for e in errores_difusos))
     else:
         st.success("{} reglas difusas sobre {} variables, sin inconsistencias y con cobertura "
                    "completa de saldo y mora.".format(len(kd.REGLAS_DIFUSAS), len(kd.VARIABLES)))
