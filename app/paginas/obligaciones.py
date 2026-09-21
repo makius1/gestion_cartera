@@ -24,7 +24,7 @@ from gestion import operacion as op
 from gestion import plan
 from gestion import titulares as tit
 
-comun.exigir("registrar_gestion")
+comun.exigir("gestionar_obligaciones")
 comun.encabezado("Gestión de cuentas", "Registro del resultado de cada contacto con el titular")
 usuario = comun.usuario_actual()["usuario"]
 
