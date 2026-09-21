@@ -115,9 +115,10 @@ REGLAS = [
         "id": "N3",
         "nombre": "Recordatorio de compromiso",
         "fase": "compromisos",
-        "fundamento": "Estrategia: un compromiso incumplido es recaudo que ya "
-                      "estaba contado. Un recordatorio corto antes de la fecha "
-                      "cuesta casi nada y lo protege.",
+        "fundamento": "Estrategia: un compromiso de pago próximo requiere un "
+                      "recordatorio oportuno antes de la fecha pactada para "
+                      "favorecer su cumplimiento sin realizar una gestión de "
+                      "cobro adicional.",
         "descripcion": "SI hay compromiso de pago en los próximos {} días ENTONCES "
                        "enviar recordatorio".format(config.DIAS_AVISO_COMPROMISO),
         "condicion": {"dias_para_compromiso": ("entre", (0, config.DIAS_AVISO_COMPROMISO))},

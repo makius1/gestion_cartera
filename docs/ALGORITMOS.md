@@ -21,7 +21,7 @@ determinista y auditable.
 | Priorización de cuentas | Lógica difusa Mamdani · TOPSIS · Ponderación simple | Recaudo esperado, robustez y discriminación | ✅ |
 | Reparto del plan de trabajo | Serpentina (fase 5: voraz por valor · programación lineal entera) | Valor asignado y equidad entre gestores | Parcial |
 | Propensión a pagar | Regresión logística · Árbol CART · Bosque aleatorio · Gradient Boosting | AUC, KS, Brier y estabilidad | Fase 4 |
-| Canal de contacto | Reglas E1 a E9 (fase 4: muestreo de Thompson) | Tasa de respuesta observada | Parcial |
+| Canal de contacto | Reglas E1 a E5 y E9 (fase 4: muestreo de Thompson) | Tasa de respuesta observada | Parcial |
 
 ---
 
@@ -117,7 +117,7 @@ $$
   | 2. Compromisos | N3, N4 | Mutuamente excluyentes por rango de días |
   | 3. Canales | C1 a C4 | Cada regla resta canales al conjunto disponible |
   | 4. Cierre | N2 | Razona sobre el hecho que dejó la fase 3 (canales restantes) |
-  | 5. Estrategia | E1 a E9 | Conjunto de conflicto; gana la de mayor prioridad |
+  | 5. Estrategia | E1 a E5 y E9 | Conjunto de conflicto; gana la de mayor prioridad |
 
 - **Hechos desconocidos:** un dato vacío nunca cumple una premisa, como en una
   lógica de tres valores. Para que eso no termine en un contacto sin verificar
@@ -375,7 +375,7 @@ tipo, evaluados frente a los datos y la arquitectura del proyecto.
 | **Gradient Boosting** | Mejor desempeño en datos tabulares financieros | Probabilidad de pago | Igual | Sí (`HistGradientBoostingClassifier`) | Fase 4 |
 | **Cadenas de Markov (roll rates)** | Proyección de cartera entre tramos de mora | Probabilidad de pasar de un tramo a otro | Al menos tres cargas mensuales de la misma cartera | Sí: la llave (carga, crédito) guarda la historia | Tablero de proyección |
 | **Análisis de supervivencia (Kaplan-Meier, Cox)** | Tiempo hasta el pago o la cura | Cuántos días faltan para el pago | Fechas de gestión y de pago | Sí, con la librería `lifelines` | Después de la fase 4 |
-| **Muestreo de Thompson (bandido multibrazo)** | Elegir el canal o el mensaje que más responde, aprendiendo en operación | Canal óptimo por segmento | Resultado de cada contacto | Sí: las gestiones registran canal y resultado | Reemplazo de E1 a E9 |
+| **Muestreo de Thompson (bandido multibrazo)** | Elegir el canal o el mensaje que más responde, aprendiendo en operación | Canal óptimo por segmento | Resultado de cada contacto | Sí: las gestiones registran canal y resultado | Reemplazo de E1 a E5 y E9 |
 | **Programación lineal entera** | Asignación de cuentas a gestores y de presupuesto a canales | Asignación que maximiza el recaudo esperado | Valor esperado y capacidades | Sí (`scipy.optimize.milp`) | Fase 5 |
 | **Pérdida dado el incumplimiento (LGD)** | Provisiones y precio de venta de cartera | Porcentaje del saldo que se recupera | Pagos históricos por cuenta | Parcial: faltan pagos reales | Futuro |
 
