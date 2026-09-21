@@ -58,6 +58,7 @@ jobs:
           python -m datos.base_datos sintetica
           --registros ${{ inputs.registros }}
           --semilla ${{ inputs.semilla }}
+          --confirmar-remota
 
       - name: Cargas registradas
         run: python -m datos.base_datos cargas
