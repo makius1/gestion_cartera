@@ -53,11 +53,14 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
 - Carga, limpieza y seudonimización de identificadores con HMAC-SHA256.
 - Simulador determinista de carteras a partir de un perfil, que reconstruye
   cualquier carga con su semilla.
-- Esquema de 13 tablas con historial de cargas, migración automática de
+- Esquema de 15 tablas con historial de cargas, migración automática de
   columnas y Row Level Security en Supabase.
 - Directorio de titulares y contactos separado de la analítica, con datos
   enmascarados.
 - Completado de cargas anteriores al esquema actual (`datos/completar.py`).
+- Autorización del titular por canal (Ley 2300, artículo 2): tabla propia,
+  columnas derivadas en la cartera para el motor y autorizaciones simuladas en
+  las cargas sintéticas (`datos/autorizaciones.py`).
 - Conexión optimizada: el esquema se verifica una vez por proceso y la conexión
   se comprueba solo tras un minuto de inactividad.
 - Seguridad de acceso: claves con scrypt, bloqueo por intentos fallidos, cierre

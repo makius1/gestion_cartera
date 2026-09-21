@@ -96,6 +96,17 @@ cartera = Table(
     Column("tiene_fijo", Boolean),
     Column("tiene_email", Boolean),
     Column("fecha_ultima_gestion", Date),
+
+    # Autorización del titular por canal (Ley 2300 de 2023, artículo 2). Son
+    # columnas DERIVADAS de la tabla autorizaciones_canal, igual que
+    # tiene_celular se deriva de contactos: el motor lee los hechos de esta
+    # fila y no consulta el directorio. Un canal sin autorización registrada
+    # queda en False: la ley exige autorización previa, y lo que no consta no
+    # autoriza.
+    Column("autoriza_llamada", Boolean),
+    Column("autoriza_whatsapp", Boolean),
+    Column("autoriza_sms", Boolean),
+    Column("autoriza_email", Boolean),
 )
 
 # Índices para las consultas que más va a hacer el sistema: seguir a un titular
@@ -326,6 +337,32 @@ reservas = Table(
     Column("gestor", String(40), nullable=False),
     Column("creado", DateTime, nullable=False),
     Column("vence", DateTime, nullable=False),
+)
+
+
+# --- Autorización de canales ---------------------------------------------------------
+# El artículo 2 de la Ley 2300 de 2023 permite gestionar cobranza únicamente por
+# los canales que el consumidor autorizó antes para ese fin. Tener el dato de
+# contacto y tener permiso para usarlo son dos cosas distintas, y hasta ahora el
+# sistema solo sabía la primera.
+#
+# La autorización es del TITULAR y del CANAL, no del número: quien tiene dos
+# celulares autoriza "llamada", no una línea puntual, y puede autorizar un canal
+# del que todavía no se tiene dato. Por eso es una tabla aparte y no una columna
+# en contactos.
+#
+# Una cuenta sin fila para un canal se interpreta como DESCONOCIDO, que para el
+# motor pesa igual que NO_AUTORIZADO. Es la misma precaución de la regla L3: lo
+# que no consta, no habilita.
+
+autorizaciones_canal = Table(
+    "autorizaciones_canal", metadatos,
+    Column("cuenta_id", String(13), primary_key=True),
+    Column("canal", String(10), primary_key=True),
+    Column("estado", String(15), nullable=False),
+    Column("origen", String(10), nullable=False),      # CARGA, GESTOR o TITULAR
+    Column("actualizado", DateTime, nullable=False),
+    Column("actualizado_por", String(40), nullable=False),
 )
 
 
@@ -586,6 +623,10 @@ def registrar_carga(df, origen, archivo=None, semilla=None, permitir_real_en_nub
     crear_esquema(motor)
 
     columnas = [c.name for c in cartera.columns if c.name != "carga_id"]
+    # Una carga no trae las columnas que el sistema deriva después, como la
+    # autorización por canal: entran vacías y las completa su propio módulo.
+    faltantes = [c for c in columnas if c not in df.columns]
+    df = df.assign(**{c: None for c in faltantes}) if faltantes else df
     tabla = df[columnas].copy()
     for booleana in ["gestionada", "gestionable", "tiene_compromiso",
                      "tiene_celular", "tiene_fijo", "tiene_email"]:
@@ -1105,6 +1146,14 @@ if __name__ == "__main__":
         titulares_n, contactos_n = registrar_directorio(*extraer_directorio(bruto), "SINTETICO", "terminal")
         print("  Carga {} registrada: {:,} cuentas simuladas, {:,} titulares y {:,} contactos nuevos"
               .format(carga_id, len(bruto), titulares_n, contactos_n))
+        # Una cartera simulada trae también sus autorizaciones por canal: sin
+        # ellas, el día que se exija la autorización el motor bloquearía todo.
+        # La importación va aquí adentro porque el módulo de autorizaciones usa
+        # este archivo, y arriba serían importaciones circulares.
+        from datos.autorizaciones import simular
+        autorizadas, titulares_carga = simular(carga_id, usuario="terminal")
+        print("  Autorizaciones de canal simuladas: {:,} sobre {:,} titulares"
+              .format(autorizadas, titulares_carga))
 
     elif args.accion == "real":
         from datos.cargador import cargar, extraer_directorio, leer_bruto

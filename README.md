@@ -455,6 +455,7 @@ Los registros simulados nunca se confunden con los de una asignación:
 | `gestiones` | Cada contacto registrado por un gestor, con el estado que el motor asignaba a la cuenta en ese momento |
 | `titulares` | Directorio: nombre, documento enmascarado y ciudad de cada titular |
 | `contactos` | Teléfonos y correos de cada titular, con su estado (sin verificar, válido o errado) |
+| `autorizaciones_canal` | Qué canales autorizó el titular para gestión de cobranza, con su origen y quién lo registró |
 | `planes` y `plan_asignaciones` | Plan de trabajo del día y la cuenta asignada a cada gestor |
 | `usuarios` | Cuentas de acceso: rol, estado y derivación de la contraseña |
 | `auditoria` | Bitácora de acciones del sistema |
