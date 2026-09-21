@@ -585,6 +585,12 @@ Con otro tamaño o semilla:
 python -m datos.base_datos sintetica --registros 10000 --semilla 7
 ```
 
+Los comandos que escriben —registrar una carga, completarla o simular sus
+autorizaciones— piden confirmación cuando la base no es la SQLite local: hay
+que escribir `CONFIRMAR` o agregar `--confirmar-remota`. Sin eso se detienen
+sin escribir nada. Existe porque ya ocurrió que una carga terminara en la base
+compartida creyendo que iba a la personal.
+
 Listar las cargas registradas:
 
 ```bash

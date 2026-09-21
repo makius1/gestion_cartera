@@ -56,11 +56,16 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      - name: "Probar la confirmacion de escritura remota (issue #36)"
+        run: python -m pruebas.prueba_confirmacion
+
       - name: Verificar la conexión
         run: python -m datos.base_datos probar
 
       - name: Generar y cargar una cartera ficticia
-        run: python -m datos.base_datos sintetica --registros 2000
+        # El PostgreSQL de esta prueba es temporal, pero para el sistema no es
+        # SQLite: sin la confirmación, el comando se negaría a escribir.
+        run: python -m datos.base_datos sintetica --registros 2000 --confirmar-remota
 
       - name: Comprobar que la carga quedó completa
         run: |

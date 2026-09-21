@@ -261,7 +261,15 @@ if __name__ == "__main__":
     parser.add_argument("--recalcular", action="store_true",
                         help="vuelve a calcular las columnas derivadas de la cartera")
     parser.add_argument("--resumen", action="store_true")
+    parser.add_argument("--confirmar-remota", action="store_true",
+                        help="confirma que se quiere escribir en una base que no es la local")
     args = parser.parse_args()
+
+    print("Base de datos: {}".format(bd.describir_motor()))
+    # Consultar el resumen no escribe nada; simular y recalcular sí.
+    if (args.simular or args.recalcular) and not bd.confirmar_escritura_remota(
+            "modificar las autorizaciones de la carga {}".format(args.carga), args.confirmar_remota):
+        raise SystemExit(2)
 
     if args.simular:
         nuevas, titulares = simular(args.carga, usuario="terminal")

@@ -78,8 +78,13 @@ def completar_carga(carga_id, usuario="sistema"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Completa una carga simulada a la que le faltan datos.")
     parser.add_argument("--carga", type=int, required=True)
+    parser.add_argument("--confirmar-remota", action="store_true",
+                        help="confirma que se quiere escribir en una base que no es la local")
     args = parser.parse_args()
     print("Base de datos: {}".format(bd.describir_motor()))
+    if not bd.confirmar_escritura_remota("completar la carga {}".format(args.carga),
+                                         args.confirmar_remota):
+        raise SystemExit(2)
     resultado = completar_carga(args.carga, usuario="terminal")
     print("  Carga {carga_id}: {cuentas_completadas:,} cuentas completadas, {titulares_nuevos:,} "
           "titulares y {contactos_nuevos:,} contactos nuevos en el directorio".format(**resultado))
