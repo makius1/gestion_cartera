@@ -58,6 +58,9 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
 - Directorio de titulares y contactos separado de la analítica, con datos
   enmascarados.
 - Completado de cargas anteriores al esquema actual (`datos/completar.py`).
+- Autorización del titular por canal (Ley 2300, artículo 2): tabla propia,
+  columnas derivadas en la cartera para el motor y autorizaciones simuladas en
+  las cargas sintéticas (`datos/autorizaciones.py`).
 - Conexión optimizada: el esquema se verifica una vez por proceso y la conexión
   se comprueba solo tras un minuto de inactividad.
 - Seguridad de acceso: claves con scrypt, bloqueo por intentos fallidos, cierre
