@@ -1,0 +1,57 @@
+{
+  "documento": "docs/ESTADO_POR_AREA.md",
+  "areas": [
+    {
+      "numero": 1,
+      "nombre": "Datos, base de datos e infraestructura",
+      "responsable": "David",
+      "carpetas": "datos/, seguridad/, config.py, .github/, .devcontainer/",
+      "comandos": [
+        "python -m datos.autorizaciones --carga 1 --resumen",
+        "DATABASE_URL=\"sqlite:///salidas/personal.db\" python -m pruebas.prueba_autorizaciones"
+      ]
+    },
+    {
+      "numero": 4,
+      "nombre": "Gestión, plan de trabajo, aplicación web y pruebas",
+      "responsable": "Sean",
+      "carpetas": "gestion/, app/, pruebas/",
+      "comandos": [
+        "DATABASE_URL=\"sqlite:///salidas/personal.db\" python -m pruebas.prueba_aplicacion",
+        "python -m streamlit run app/principal.py"
+      ]
+    }
+  ],
+  "tareas": [
+    {
+      "area": 1,
+      "prioridad": "Alta",
+      "titulo": "Mejora: guardar la autorización del titular por canal",
+      "que": "Tabla autorizaciones_canal (cuenta_id, canal, estado, origen, actualizado, actualizado_por) con estados AUTORIZADO, NO_AUTORIZADO y DESCONOCIDO; cuatro columnas derivadas en cartera (autoriza_llamada, autoriza_whatsapp, autoriza_sms, autoriza_email) que el motor lee como hoy lee tiene_celular; módulo datos/autorizaciones.py para registrar, revocar, recalcular y consultar; y autorizaciones simuladas en las cargas sintéticas.",
+      "para_que": "Es la base que necesitan el motor (#25) y la pantalla del titular para cumplir el artículo 2 de la Ley 2300: solo se puede gestionar por los canales que el consumidor autorizó antes.",
+      "criterios": [
+        "La tabla y las columnas se crean solas en una base ya en uso",
+        "Las columnas derivadas coinciden siempre con la tabla",
+        "Una carga sintética queda con autorizaciones, solo en los canales con dato de contacto",
+        "Registrar o revocar queda en la auditoría",
+        "La prueba automática corre en la integración continua"
+      ],
+      "nota": "Parte del área 1 acordada en #25. Es lo primero, porque desbloquea al motor y a la aplicación."
+    },
+    {
+      "area": 4,
+      "prioridad": "Alta",
+      "titulo": "Mejora: registrar y revocar la autorización de canales desde la aplicación",
+      "que": "En la pantalla de gestión, sección Titular y datos de contacto, mostrar el estado de los cuatro canales y permitir cambiarlo llamando a datos.autorizaciones.registrar(cuenta_id, canal, estado, usuario, origen). Mostrar también en el panel del motor cuáles canales están autorizados, para que el gestor entienda por qué un canal no aparece.",
+      "para_que": "El titular autoriza o revoca por teléfono con el gestor, y ese cambio tiene que quedar registrado en el momento. Sin pantalla, la autorización solo existiría para las cargas simuladas.",
+      "criterios": [
+        "Se ve el estado de los cuatro canales, incluido DESCONOCIDO",
+        "Cambiar un canal actualiza la cartera y se refleja en el panel del motor",
+        "El cambio queda en la auditoría con el gestor que lo hizo",
+        "La pantalla distingue entre no autorizado y sin preguntar",
+        "La prueba de la aplicación cubre la pantalla"
+      ],
+      "nota": "Parte del área 4 acordada en #25. Depende del módulo del área 1, que ya expone registrar() y leer()."
+    }
+  ]
+}
