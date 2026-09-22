@@ -63,6 +63,8 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
   las cargas sintéticas (`datos/autorizaciones.py`).
 - Confirmación obligatoria antes de que un comando escriba en una base
   remota (`--confirmar-remota`).
+- Rechazo a seudonimizar contra una base remota sin `SEUDONIMO_CLAVE`
+  definida: evita cuentas con seudónimos que no coinciden entre cargas.
 - Respaldo semanal de la base compartida, con restauración verificada en cada
   ejecución (`.github/workflows/respaldar_base.yml`).
 - Conexión optimizada: el esquema se verifica una vez por proceso y la conexión
