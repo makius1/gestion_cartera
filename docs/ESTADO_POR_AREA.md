@@ -25,8 +25,24 @@ La hace cada responsable sobre su área, antes de empezar sus pendientes:
 5. Registrar cada hallazgo como *issue* (**Error**, **Mejora o cambio** u
    **Observación**) y enlazarlo desde su *issue* de revisión.
 
-Los comandos que escriben en la base se corren con `env -u DATABASE_URL`, sobre
-la base personal, para no alterar la compartida.
+Los comandos que escriben en la base se corren contra la base personal, para
+no alterar la compartida. La forma de hacerlo es **definir** `DATABASE_URL`
+apuntando a un archivo SQLite:
+
+```bash
+DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos probar
+```
+
+Debe responder *SQLite local*. No sirve quitar la variable con
+`env -u DATABASE_URL`: el sistema lee el archivo `.env` al arrancar y la
+variable vuelve a quedar definida, con lo que el comando escribiría en la base
+compartida sin avisar. En PowerShell, en Windows:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///salidas/personal.db"
+```
+
+y al terminar, `Remove-Item Env:DATABASE_URL`.
 
 ---
 
@@ -72,7 +88,7 @@ python -m datos.base_datos probar
 ```
 
 ```bash
-env -u DATABASE_URL python -m datos.base_datos sintetica --registros 2000
+DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos sintetica --registros 2000
 ```
 
 ---
@@ -159,16 +175,14 @@ python -m decision.priorizacion --no-guardar
 - Prueba automática de las 14 pantallas con los tres roles, y plan de pruebas
   conjuntas.
 - Reserva de la cuenta entregada por *Siguiente cuenta*, para que dos gestores
-  sin plan no reciban la misma (#16).
-- Registro de obligaciones nuevas desde la aplicación, sin una carga completa
-  (#17).
-- Texto de la pantalla de ingreso, alineado con la forma en que el README
-  describe el sistema (#18).
+  sin plan no reciban la misma, con prueba de concurrencia real.
+- Registrar obligaciones nuevas desde la aplicación, sin una carga completa.
+- Cambiar el texto de la pantalla de ingreso por uno sobre la administración de la información.
 
 ### Comandos de revisión
 
 ```bash
-env -u DATABASE_URL python -m pruebas.prueba_aplicacion
+DATABASE_URL="sqlite:///salidas/personal.db" python -m pruebas.prueba_aplicacion
 ```
 
 ```bash
