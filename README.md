@@ -542,7 +542,8 @@ uso, sin tocar los datos existentes.
 │   ├── ALGORITMOS.md           Algoritmos, métodos matemáticos y modelos financieros
 │   ├── TRABAJO_EN_EQUIPO.md    Flujo de trabajo del equipo con ramas y pull requests
 │   ├── ESTADO_POR_AREA.md      Lo completo y lo pendiente de cada área, con su responsable
-│   └── PLAN_DE_PRUEBAS.md      Casos para las sesiones de pruebas conjuntas
+│   ├── PLAN_DE_PRUEBAS.md      Casos para las sesiones de pruebas conjuntas
+│   └── MANUAL_USUARIO.md       Cómo usar la aplicación, pantalla por pantalla, según el rol
 ├── analisis/
 │   ├── criterios.py            Criterios de decisión comunes a todos los métodos
 │   └── segmentacion.py         K-Means, Ward y mezcla gaussiana con selección del óptimo
@@ -666,8 +667,10 @@ El equipo trabaja con ramas y *pull requests* sobre `main`, cada integrante en s
 propio Codespace con el mismo entorno y la misma conexión a la base compartida.
 La guía completa (configuración inicial, flujo diario, reparto por módulos, base
 compartida y personal) está en [`docs/TRABAJO_EN_EQUIPO.md`](docs/TRABAJO_EN_EQUIPO.md),
-y los casos de las sesiones de pruebas conjuntas en
-[`docs/PLAN_DE_PRUEBAS.md`](docs/PLAN_DE_PRUEBAS.md).
+los casos de las sesiones de pruebas conjuntas en
+[`docs/PLAN_DE_PRUEBAS.md`](docs/PLAN_DE_PRUEBAS.md), y cómo usar la
+aplicación según el rol de cada quien en
+[`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
 
 Las observaciones, mejoras, cambios y errores se registran como *issues* de
 GitHub con una plantilla para cada tipo, y se siguen en el tablero del equipo.
