@@ -63,6 +63,8 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
   las cargas sintéticas (`datos/autorizaciones.py`).
 - Confirmación obligatoria antes de que un comando escriba en una base
   remota (`--confirmar-remota`).
+- Respaldo semanal de la base compartida, con restauración verificada en cada
+  ejecución (`.github/workflows/respaldar_base.yml`).
 - Conexión optimizada: el esquema se verifica una vez por proceso y la conexión
   se comprueba solo tras un minuto de inactividad.
 - Seguridad de acceso: claves con scrypt, bloqueo por intentos fallidos, cierre
