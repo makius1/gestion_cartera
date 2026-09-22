@@ -64,11 +64,24 @@ def _clave_seudonimos():
     La clave vive en el archivo .env. Si no está definida, se genera una
     aleatoria para esta ejecución: los seudónimos siguen siendo irreversibles,
     pero dejan de ser comparables con los de otras cargas.
+
+    Contra una base remota esa clave temporal no se acepta: se rechaza la
+    carga en lugar de escribir cuentas con seudónimos que no coinciden con
+    los de las demás cargas, sin que nadie lo note (issue #37). Contra una
+    base local se permite, con el aviso de siempre.
     """
     global _CLAVE_EFIMERA
     clave = os.getenv("SEUDONIMO_CLAVE")
     if clave:
         return clave.encode("utf-8")
+
+    from datos.base_datos import describir_motor, es_local
+    if not es_local():
+        raise PermissionError(
+            "Falta SEUDONIMO_CLAVE y la base configurada es remota ({}). Defina la clave "
+            "en el entorno antes de cargar o completar cuentas contra una base remota, o "
+            "use una base local.".format(describir_motor()))
+
     if _CLAVE_EFIMERA is None:
         print("  AVISO: SEUDONIMO_CLAVE no está definida en .env; se usa una clave")
         print("         temporal y los seudónimos no serán comparables entre cargas.")
