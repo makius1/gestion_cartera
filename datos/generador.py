@@ -543,20 +543,23 @@ _CODIGOS_SIN_ACUERDO = {
     "OTRO": 0.02,
 }
 
+_HORA_HABIL_MIN = 7
+_HORA_HABIL_MAX = 20
 
-def _probabilidad_pago(mora_efectiva, saldo, contactabilidad, canal):
-    """Probabilidad de que una gestión termine en acuerdo de pago.
+def _hora_habil(rng):
+    return timedelta(
+        hours=int(rng.integers(_HORA_HABIL_MIN, _HORA_HABIL_MAX)),
+        minutes=int(rng.integers(0, 60)),
+        seconds=int(rng.integers(0, 60)),
+    )
 
-    A mayor mora, menor probabilidad: una cuenta más envejecida es más difícil
-    de recuperar. A mayor contactabilidad (más canales disponibles según el
-    motor de elegibilidad), mayor probabilidad: el cuello de botella real es la
-    falta de contacto efectivo, no la falta de datos. El canal usado desplaza
-    el resultado según su efectividad relativa.
-    """
+def _probabilidad_pago(mora_efectiva, saldo, saldo_mediano, contactabilidad, canal):
+    saldo_relativo = saldo / saldo_mediano if saldo_mediano else 1.0
+    saldo_relativo = max(saldo_relativo, 1e-6)
     score = (
         -1.0
         - 0.004 * mora_efectiva
-        - 0.00001 * saldo
+        - 0.15 * np.log(saldo_relativo)
         + 0.80 * contactabilidad
         + _EFECTO_CANAL_PAGO.get(canal, -0.60)
     )
@@ -595,6 +598,7 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
     Retorna la cantidad de gestiones simuladas.
     """
     from datos import base_datos as bd
+    from gestion import operacion
     from motor.elegibilidad import construir_hechos, diagnostico_fecha, evaluar_cuenta
 
     origen = bd.listar_cargas().set_index("id").loc[carga_id, "origen"]
@@ -607,6 +611,8 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
     fecha_carga = bd.listar_cargas().set_index("id").loc[carga_id, "fecha_carga"].date()
     rng = np.random.default_rng(semilla)
     total_gestiones = 0
+
+    saldo_mediano = bd.leer_cartera(carga_id)["saldo"].median()
 
     for fecha in sorted(fechas):
         dia = diagnostico_fecha(fecha)
@@ -629,7 +635,7 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
             mora_efectiva = int(fila["dias_mora"]) + (fecha - fecha_carga).days
 
             probabilidad = _probabilidad_pago(mora_efectiva, float(fila["saldo"]),
-                                              contactabilidad, canal)
+                                  saldo_mediano, contactabilidad, canal)
             hay_acuerdo = rng.uniform() < probabilidad
 
             if hay_acuerdo:
@@ -643,7 +649,7 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
                 fecha_compromiso = None
 
             gestion = {
-                "fecha": datetime.combine(fecha, datetime.min.time()),
+                "fecha": datetime.combine(fecha, datetime.min.time()) + _hora_habil(rng),
                 "usuario": usuario,
                 "carga_id": carga_id,
                 "credito_id": fila["credito_id"],
@@ -658,17 +664,7 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
                 "observacion": "Gestión simulada (historial sintético, semilla {}).".format(semilla),
                 "estado_motor": resultado_motor["estado"],
             }
-            cambios_cartera = {
-                "gestionada": True,
-                "fecha_ultima_gestion": fecha,
-                "codigo": codigo,
-                "resultado_gestion": codigo,
-                "tiene_compromiso": hay_acuerdo,
-                "fecha_compromiso": fecha_compromiso,
-                # TODO: confirmar contra gestion/operacion.py si además hay que
-                # actualizar aquí "estado", "tipo_acuerdo", "canales_disponibles"
-                # o "meses_en_gestion" cuando una gestión real termina en acuerdo.
-            }
+            cambios_cartera = operacion.cambios_en_cartera(gestion, fila)
 
             bd.registrar_gestion(gestion, cambios_cartera)
             total_gestiones += 1
