@@ -1,0 +1,145 @@
+# Respaldo periódico de la base compartida (issue #38).
+#
+# Toda la historia del proyecto vive en una sola instancia gratuita de
+# Supabase, que puede pausarse o perderse. Este flujo exporta la base entera
+# —esquema y datos— y la guarda como artefacto del repositorio: una vez por
+# semana y también a demanda, desde la pestaña Actions.
+#
+# El volcado se hace con la imagen oficial de PostgreSQL 17, la misma versión
+# que usa Supabase (ver `python -m datos.base_datos probar`): un pg_dump más
+# viejo que el servidor puede fallar o volcar mal el esquema.
+#
+# Verificación automática en cada ejecución: el respaldo se restaura en una
+# base PostgreSQL temporal (el mismo tipo de servicio que usa el flujo
+# "Pruebas") y se comparan los conteos de filas contra el origen. Si algo no
+# cuadra, la ejecución falla y queda visible en Actions, en vez de confiar en
+# que el respaldo sirve sin haberlo probado.
+#
+# Requiere el secreto DATABASE_URL (Settings -> Secrets and variables ->
+# Actions), la cadena del pooler de Supabase. No requiere SEUDONIMO_CLAVE: no
+# se genera ni se descifra ningún dato, solo se copia la base tal cual está.
+
+name: Respaldar la base compartida
+
+on:
+  schedule:
+    - cron: "0 11 * * 1"   # lunes, 6:00 a. m. hora de Colombia
+  workflow_dispatch:
+
+jobs:
+  respaldar:
+    runs-on: ubuntu-latest
+
+    # Base temporal solo para probar la restauración. No tiene relación con
+    # Supabase: vive y muere con esta ejecución.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: verificacion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      URL_VERIFICACION: postgresql://postgres:postgres@localhost:5432/verificacion
+
+    steps:
+      - name: Omitir si no hay base configurada
+        id: verificar
+        run: echo "configurada=$([ -n "$DATABASE_URL" ] && echo si || echo no)" >> "$GITHUB_OUTPUT"
+
+      - name: Generar el respaldo
+        if: steps.verificar.outputs.configurada == 'si'
+        run: |
+          set -euo pipefail
+          nombre="respaldo_gestion_cartera_$(date -u +%Y-%m-%d).sql"
+
+          # --no-owner y --no-privileges: los roles de Supabase no existen en
+          # una base nueva, y arrastrar GRANT/OWNER haría fallar la
+          # restauración en cualquier otro proyecto de Postgres.
+          docker run --rm -e DATABASE_URL -e PGSSLMODE=require postgres:17 \
+            sh -c 'pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=plain' \
+            > "$nombre"
+
+          echo "  Volcado: $(wc -l < "$nombre") líneas, $(du -h "$nombre" | cut -f1)"
+          echo "NOMBRE=$nombre" >> "$GITHUB_ENV"
+
+      - name: Comprobar que el archivo no contiene la cadena de conexión
+        if: steps.verificar.outputs.configurada == 'si'
+        run: |
+          set -euo pipefail
+          # Defensa adicional, no solo confianza en que pg_dump no la incluye:
+          # se busca el propio secreto y cualquier URI de conexión en el
+          # archivo, y la ejecución falla si aparece alguna.
+          if grep -qF "$DATABASE_URL" "$NOMBRE"; then
+            echo "El respaldo contiene la cadena de conexión. No se publica." >&2
+            exit 1
+          fi
+          if grep -Eq "postgres(ql)?://[^[:space:]]*:[^[:space:]]*@" "$NOMBRE"; then
+            echo "El respaldo contiene una URI de conexión con credenciales. No se publica." >&2
+            exit 1
+          fi
+          echo "  Verificado: sin cadenas de conexión ni credenciales."
+
+      - name: Restaurar el respaldo en una base de prueba
+        if: steps.verificar.outputs.configurada == 'si'
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            -e PGPASSWORD=postgres -v "$PWD:/respaldo" postgres:17 \
+            psql "$URL_VERIFICACION" -v ON_ERROR_STOP=1 -f "/respaldo/$NOMBRE"
+          echo "  Restauración completada sin errores."
+
+      - name: Verificar que los datos restaurados coinciden con el origen
+        if: steps.verificar.outputs.configurada == 'si'
+        run: |
+          set -euo pipefail
+          # Una sola consulta por lado (no una por tabla): siete conteos en
+          # una conexión, no siete conexiones. Se ordena por nombre de tabla
+          # para que las dos salidas se puedan comparar línea por línea.
+          consulta="
+            select 'auditoria', count(*) from auditoria
+            union all select 'cargas', count(*) from cargas
+            union all select 'cartera', count(*) from cartera
+            union all select 'contactos', count(*) from contactos
+            union all select 'gestiones', count(*) from gestiones
+            union all select 'titulares', count(*) from titulares
+            union all select 'usuarios', count(*) from usuarios
+            order by 1;
+          "
+          docker run --rm -e DATABASE_URL postgres:17 \
+            sh -c 'psql "$DATABASE_URL" -tAF, -c "$0"' "$consulta" > origen.txt
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:17 \
+            psql "$URL_VERIFICACION" -tAF, -c "$consulta" > restaurado.txt
+
+          echo "  Tabla,origen,restaurado"
+          paste -d, origen.txt restaurado.txt | awk -F, '{print "  "$1","$2","$4}'
+
+          if ! diff -q origen.txt restaurado.txt > /dev/null; then
+            echo "Los conteos no coinciden entre el origen y la restauración:" >&2
+            diff -u origen.txt restaurado.txt >&2 || true
+            exit 1
+          fi
+          echo "  Verificado: las siete tablas tienen el mismo número de filas."
+
+      - name: Comprimir
+        if: steps.verificar.outputs.configurada == 'si'
+        run: gzip "$NOMBRE"
+
+      - name: Publicar el respaldo como artefacto
+        if: steps.verificar.outputs.configurada == 'si'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NOMBRE }}.gz
+          path: ${{ env.NOMBRE }}.gz
+          # Máximo permitido en un repositorio público. Alcanza para
+          # conservar más de tres meses de respaldos semanales a la vez.
+          retention-days: 90
