@@ -20,8 +20,8 @@ determinista y auditable.
 | Número de segmentos | k = 2 a 6 en cada algoritmo | Silueta con principio de parsimonia | ✅ |
 | Priorización de cuentas | Lógica difusa Mamdani · TOPSIS · Ponderación simple | Recaudo esperado, robustez y discriminación | ✅ |
 | Reparto del plan de trabajo | Serpentina (fase 5: voraz por valor · programación lineal entera) | Valor asignado y equidad entre gestores | Parcial |
-| Propensión a pagar | Regresión logística · Árbol CART · Bosque aleatorio · Gradient Boosting | AUC, KS, Brier y estabilidad | Fase 4 |
-| Canal de contacto | Reglas E1 a E5 y E9 (fase 4: muestreo de Thompson) | Tasa de respuesta observada | Parcial |
+| Propensión a pagar | Regresión logística · Árbol CART · Bosque aleatorio · Gradient Boosting | AUC, KS, Brier y estabilidad | ✅ |
+| Canal de contacto | Reglas E1 a E5 y E9 · muestreo de Thompson sobre el historial de respuestas | Tasa de respuesta observada | ✅ |
 
 ---
 

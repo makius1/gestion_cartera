@@ -222,6 +222,38 @@ prioridades = Table(
     Column("pca_y", Float),
 )
 
+# --- Modelos de propensión a pago -------------------------------------------
+# Cada entrenamiento guarda el modelo elegido y las métricas de los cuatro
+# candidatos, igual que priorizaciones guarda el método elegido y las
+# métricas de los tres suyos: así se puede revisar después por qué se
+# eligió un modelo y cómo se compara con los otros tres.
+
+modelos_propension = Table(
+    "modelos_propension", metadatos,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fecha", DateTime, nullable=False),
+    Column("usuario", String(40), nullable=False),
+    Column("carga_id", Integer, ForeignKey("cargas.id"), nullable=False),
+    # Fecha de corte de la validación temporal: se entrena con gestiones
+    # anteriores a esta fecha y se valida con las posteriores, como pide
+    # el criterio de aceptación del issue #12 y la sección 9 de
+    # docs/ALGORITMOS.md.
+    Column("fecha_corte", Date, nullable=False),
+    Column("modelo_elegido", String(30), nullable=False),
+    Column("auc", Float, nullable=False),
+    Column("ks", Float, nullable=False),
+    Column("brier", Float, nullable=False),
+    Column("psi", Float, nullable=False),
+    Column("captura_20pct", Float),
+    # Métricas de los cuatro modelos (no solo el ganador) y el detalle de
+    # la comparación, en JSON: mismo patrón que priorizaciones.resumen.
+    Column("metricas_todos", Text, nullable=False),
+    # El modelo entrenado, serializado (joblib + base64) para poder usarlo
+    # en la priorización (issue #13) sin reentrenar.
+    Column("modelo_serializado", Text),
+)
+Index("ix_modelos_propension_carga", modelos_propension.c.carga_id)
+
 
 # --- Gestiones ---------------------------------------------------------------------
 # Cada intento de contacto que registra un gestor. Es la historia completa de la
@@ -834,6 +866,31 @@ def guardar_priorizacion(resumen, tabla, usuario):
             conexion.execute(insert(prioridades), filas[inicio:inicio + 1000])
     return priorizacion_id
 
+def guardar_modelo_propension(resumen, usuario):
+    """Guarda un entrenamiento de propensión a pago y retorna su id.
+
+    Sigue el mismo patrón que guardar_priorizacion(): un encabezado con el
+    modelo elegido y sus métricas principales, más un campo JSON con el
+    detalle completo de los cuatro modelos comparados.
+    """
+    motor = obtener_motor()
+    crear_esquema(motor)
+    with motor.begin() as conexion:
+        modelo_id = conexion.execute(insert(modelos_propension).values(
+            fecha=config.ahora(),
+            usuario=usuario,
+            carga_id=int(resumen["carga_id"]),
+            fecha_corte=resumen["fecha_corte"],
+            modelo_elegido=resumen["modelo_elegido"],
+            auc=float(resumen["auc"]),
+            ks=float(resumen["ks"]),
+            brier=float(resumen["brier"]),
+            psi=float(resumen["psi"]),
+            captura_20pct=resumen.get("captura_20pct"),
+            metricas_todos=json.dumps(resumen["metricas_todos"], ensure_ascii=False, default=float),
+            modelo_serializado=resumen.get("modelo_serializado"),
+        )).inserted_primary_key[0]
+    return modelo_id
 
 def registrar_gestion(gestion, cambios_cartera):
     """Guarda una gestión y actualiza el estado de la cuenta en la cartera.
@@ -1044,6 +1101,19 @@ def listar_priorizaciones(limite=50):
     with obtener_motor().connect() as conexion:
         consulta = select(*columnas).order_by(priorizaciones.c.id.desc()).limit(limite)
         return pd.read_sql(consulta, conexion)
+
+def listar_modelos_propension(limite=50):
+    columnas = [c for c in modelos_propension.columns if c.name not in ("metricas_todos", "modelo_serializado")]
+    with obtener_motor().connect() as conexion:
+        consulta = select(*columnas).order_by(modelos_propension.c.id.desc()).limit(limite)
+        return pd.read_sql(consulta, conexion)
+
+
+def leer_metricas_modelo(modelo_id):
+    with obtener_motor().connect() as conexion:
+        texto = conexion.execute(select(modelos_propension.c.metricas_todos).where(
+            modelos_propension.c.id == modelo_id)).scalar()
+    return json.loads(texto) if texto else {}
 
 
 def leer_resumen_priorizacion(priorizacion_id):

@@ -63,6 +63,8 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
   las cargas sintéticas (`datos/autorizaciones.py`).
 - Confirmación obligatoria antes de que un comando escriba en una base
   remota (`--confirmar-remota`).
+- Rechazo a seudonimizar contra una base remota sin `SEUDONIMO_CLAVE`
+  definida: evita cuentas con seudónimos que no coinciden entre cargas.
 - Respaldo semanal de la base compartida, con restauración verificada en cada
   ejecución (`.github/workflows/respaldar_base.yml`).
 - Conexión optimizada: el esquema se verifica una vez por proceso y la conexión
@@ -73,13 +75,14 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
   repositorio, flujos para sembrar y mantener activa la base.
 - Reglas de protección de `main`, plantillas de *issues* y de *pull requests*,
   guía de trabajo en equipo.
+- Aplicación publicada en Streamlit Community Cloud.
+- Manual de usuario por rol (`docs/MANUAL_USUARIO.md`).
 
 ### Pendiente
 
 | Prioridad | Tarea |
 |---|---|
-| Alta | Publicar la aplicación en Streamlit Community Cloud |
-| Alta | Crear en la aplicación el usuario de cada integrante con su rol |
+| Alta | Crear en la aplicación el usuario de cada integrante con su rol (la pantalla **Usuarios** ya existe) |
 | Alta | Cambiar la contraseña de la base y actualizar los secretos antes de publicar |
 | Media | Preparar la base compartida y dirigir la primera sesión de pruebas conjuntas |
 
@@ -99,7 +102,7 @@ DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos sintetic
 
 ### Completo
 
-- Base de conocimiento de 17 reglas en fases (legales L, de negocio N, de
+- Base de conocimiento de 21 reglas en fases (legales L, de negocio N, de
   contactabilidad C y de estrategia E), separada del motor y con validación.
 - Encadenamiento hacia adelante con Modus Ponens, resolución de conflictos por
   prioridad y regla de precaución: un hecho desconocido nunca habilita un
@@ -108,14 +111,15 @@ DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos sintetic
 - Módulo de explicación ("¿Por qué?") con la cadena de reglas y su fundamento.
 - Simulador de hechos en la pantalla *Base de conocimiento*.
 - Registro de cada ejecución y de la evaluación de cada cuenta.
+- Pruebas unitarias de las 21 reglas, con un caso que dispara y uno que no
+  cada una, y comprobación de cobertura si se agrega una regla nueva.
+- Fundamento legal de cada regla revisado contra la Ley 2300 y la Ley 1581.
+- Canal de contacto elegido con muestreo de Thompson sobre la respuesta
+  observada, con reglas E1 a E5 y E9 como referencia cuando no hay historial.
 
 ### Pendiente
 
-| Prioridad | Tarea |
-|---|---|
-| Media | Pruebas unitarias de cada regla: un caso que la dispara y uno que no |
-| Media | Revisar el fundamento legal de cada regla contra el texto de la Ley 2300 y la Ley 1581 |
-| Baja | Elegir el canal con muestreo de Thompson según la respuesta observada (después de la fase 4) |
+Sin pendientes por ahora.
 
 ### Comandos de revisión
 
@@ -141,13 +145,15 @@ python -m motor.elegibilidad --fecha 2026-09-15 --no-guardar
   simple, con selección del método por recaudo, robustez y discriminación.
 - Explicación de la prioridad de cada cuenta.
 - Documentación matemática de todos los algoritmos en `docs/ALGORITMOS.md`.
+- Fase 4: modelos de propensión a pagar (regresión logística, CART, bosque
+  aleatorio y Gradient Boosting), validados por fecha y elegidos por AUC, KS,
+  Brier y PSI.
 
 ### Pendiente
 
 | Prioridad | Tarea |
 |---|---|
-| Alta | Fase 4: simular un historial de pagos con causas conocidas para entrenar |
-| Alta | Fase 4: entrenar y comparar regresión logística, CART, bosque aleatorio y Gradient Boosting |
+| Alta | Fase 4: simular un historial de pagos con causas conocidas para entrenar (en revisión, PR #42) |
 | Media | Usar la probabilidad de pago como criterio de la priorización |
 | Media | Fase 5: asignar cuentas a gestores con programación lineal entera (con Sean) |
 
