@@ -61,8 +61,9 @@ def pantalla_ingreso():
     _, centro, _ = st.columns([1, 1.2, 1])
     with centro:
         st.title("Gestión de Cartera")
-        st.caption("Sistema experto de apoyo a la decisión en cobranza · "
-                   "Proyecto académico: todos los datos del sistema son ficticios.")
+        st.caption("El sistema administra la información de la cartera asignada: la carga, "
+                   "la depura, protege la identidad de los titulares con seudónimos, la "
+                   "guarda con historial por mes y la convierte en decisiones auditables.")
 
         aviso = st.session_state.pop("aviso_salida", None)
         if aviso:
@@ -119,6 +120,7 @@ PAGINAS = {
     ],
     "Administración": [
         ("paginas/cargas.py", "Cargas", ":material/upload_file:", "gestionar_cargas"),
+        ("paginas/obligaciones.py", "Obligación nueva", ":material/note_add:", "gestionar_obligaciones"),
         ("paginas/usuarios.py", "Usuarios", ":material/group:", "gestionar_usuarios"),
         ("paginas/auditoria.py", "Auditoría", ":material/history:", "ver_auditoria"),
     ],

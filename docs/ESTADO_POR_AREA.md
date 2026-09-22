@@ -171,18 +171,13 @@ python -m decision.priorizacion --no-guardar
   auditada del dato completo.
 - Plan de trabajo diario repartido en serpentina y avance por gestor.
 - Traza de trabajo por gestor y por cuenta.
-- Aplicación web con 13 pantallas y menú por rol.
-- Prueba automática de las 13 pantallas con los tres roles, y plan de pruebas
+- Aplicación web con 14 pantallas y menú por rol.
+- Prueba automática de las 14 pantallas con los tres roles, y plan de pruebas
   conjuntas.
 - Reserva de la cuenta entregada por *Siguiente cuenta*, para que dos gestores
   sin plan no reciban la misma, con prueba de concurrencia real.
-
-### Pendiente
-
-| Prioridad | Tarea |
-|---|---|
-| Media | Registrar obligaciones nuevas desde la aplicación, sin una carga |
-| Baja | Cambiar el texto de la pantalla de ingreso por uno sobre la administración de la información |
+- Registrar obligaciones nuevas desde la aplicación, sin una carga completa.
+- Cambiar el texto de la pantalla de ingreso por uno sobre la administración de la información.
 
 ### Comandos de revisión
 
