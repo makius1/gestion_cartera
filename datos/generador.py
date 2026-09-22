@@ -664,7 +664,7 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
                 "observacion": "Gestión simulada (historial sintético, semilla {}).".format(semilla),
                 "estado_motor": resultado_motor["estado"],
             }
-            cambios_cartera = operacion.cambios_en_cartera(gestion, fila)
+            cambios_cartera = operacion.cambios_en_cartera(gestion, usuario, fecha)
 
             bd.registrar_gestion(gestion, cambios_cartera)
             total_gestiones += 1
