@@ -58,22 +58,27 @@ $$
   coincide. Es determinista y no requiere entrenamiento, porque el vocabulario
   de las gestiones es pequeño y repetitivo.
 
-### 1.3 Contactabilidad
+### 1.3 Contactabilidad (o probabilidad de pago, si hay modelo entrenado)
 
-- **Dónde:** `analisis/criterios.py` → `contactabilidad()`
-- **Qué hace:** estima, entre 0 y 1, la probabilidad relativa de lograr
-  contacto efectivo con el titular.
-- **Método:** combinación lineal de conocimiento experto y datos:
+- **Dónde:** `analisis/criterios.py` → `preparar()`, `analisis/propension.py` → `predecir()`
+- **Qué hace:** estima, entre 0 y 1, la probabilidad de que la cuenta pague si
+  se gestiona. Usada como criterio de priorización con el mismo peso (0,25)
+  y la misma variable difusa que antes.
+- **Con modelo entrenado (fase 4, issue #12):** la probabilidad sale del
+  modelo elegido (regresión logística, CART, bosque aleatorio o
+  HistGradientBoosting según el que ganó la comparación), calculada con la
+  mora actual, el saldo y el canal que el motor recomienda hoy.
+- **Sin modelo entrenado:** heurística del experto, sin cambios:
 
 $$
 \mathit{contactabilidad} = 0{,}7 \cdot r(\mathit{resultado}) + 0{,}3 \cdot \frac{\mathit{canales}}{4}
 $$
 
-  donde $r$ viene de `config.CONTACTABILIDAD_RESULTADO` (acuerdo 1,00;
-  contacto sin acuerdo 0,85; buzón 0,30; número errado 0,05…).
-- **Qué predice:** es una heurística del experto. La fase 4 la reemplaza por una
-  probabilidad aprendida de las gestiones (sección 8).
-
+- **Comparación:** cada priorización guarda las métricas (recaudo esperado,
+  robustez, discriminación) con y sin el modelo, para poder ver cuánto
+  cambia el recaudo esperado al usar la probabilidad real en vez de la
+  regla del experto.
+  
 ### 1.4 Perfil estadístico y simulación de carteras
 
 - **Dónde:** `datos/perfilador.py` y `datos/generador.py`

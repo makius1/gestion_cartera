@@ -219,3 +219,57 @@ def ejecutar(carga_id, fecha_corte=None, usuario="sistema"):
     resumen, _, _ = entrenar_y_comparar(carga_id, fecha_corte)
     resumen["modelo_id"] = bd.guardar_modelo_propension(resumen, usuario)
     return resumen
+
+def predecir(cartera, canales=None, modelo_id=None):
+    """Probabilidad de acuerdo de pago para cada cuenta de una cartera actual,
+    usando el modelo de propensión guardado (issue #12).
+
+    A diferencia de preparar_dataset() (que arma el historial de gestiones
+    pasadas para entrenar), esto calcula la probabilidad de HOY para cada
+    cuenta de la carga: usa la mora actual (sin desfase temporal, porque no
+    hay una fecha de gestión futura todavía) y el canal que el motor
+    recomienda ahora mismo.
+
+    Sin modelo_id usa el más reciente entrenado sobre esta carga. Si no hay
+    ningún modelo entrenado, retorna None: quien llama debe usar la
+    heurística como respaldo.
+    """
+    import base64
+    import io
+
+    import joblib
+
+    from datos import base_datos as bd
+
+    carga_id = int(cartera["carga_id"].iloc[0])
+    if modelo_id is None:
+        historial = bd.listar_modelos_propension()
+        historial = historial[historial["carga_id"] == carga_id]
+        if historial.empty:
+            return None
+        modelo_id = int(historial.iloc[0]["id"])
+
+    with bd.obtener_motor().connect() as conexion:
+        from sqlalchemy import select
+        serializado = conexion.execute(select(bd.modelos_propension.c.modelo_serializado).where(
+            bd.modelos_propension.c.id == modelo_id)).scalar()
+    if not serializado:
+        return None
+    modelo = joblib.load(io.BytesIO(base64.b64decode(serializado)))
+
+    contactabilidad_canales = (cartera[["tiene_celular", "tiene_fijo", "tiene_email"]]
+                               .fillna(False).sum(axis=1))
+    canales = canales if canales is not None else pd.Series("LLAMADA", index=cartera["credito_id"])
+    canales = canales.reindex(cartera["credito_id"]).fillna("LLAMADA")
+
+    x = pd.DataFrame({
+        "mora_efectiva": pd.to_numeric(cartera["dias_mora"], errors="coerce").fillna(0).values,
+        "saldo": pd.to_numeric(cartera["saldo"], errors="coerce").fillna(0).values,
+        "contactabilidad": contactabilidad_canales.values,
+    }, index=cartera["credito_id"].values)
+    for c in CANALES:
+        x["canal_" + c.lower()] = (canales.values == c).astype(int)
+    x.columns = [str(col) for col in x.columns]
+
+    probabilidad = modelo.predict_proba(x)[:, 1]
+    return pd.Series(probabilidad, index=x.index)

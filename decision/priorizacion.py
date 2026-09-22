@@ -225,17 +225,30 @@ def priorizar(cartera, evaluacion=None, capacidad=None, semilla=config.SEMILLA):
     canal de referencia es la llamada. Con evaluación, solo las CONTACTABLES,
     cada una con el canal que recomendó el motor.
     """
-    criterios = crit.preparar(cartera)
     capacidad = capacidad or config.NUMERO_GESTORES * config.GESTIONES_POR_GESTOR_DIA
 
     if evaluacion is not None:
-        estados = evaluacion.set_index("credito_id")["estado"].reindex(criterios.index)
-        canales = evaluacion.set_index("credito_id")["canal_recomendado"].reindex(criterios.index)
+        indice = cartera["credito_id"].values
+        estados = evaluacion.set_index("credito_id")["estado"].reindex(indice)
+        canales = evaluacion.set_index("credito_id")["canal_recomendado"].reindex(indice)
+    else:
+        indice = cartera["credito_id"].values
+        estados = pd.Series(None, index=indice, dtype=object)
+        canales = pd.Series("LLAMADA", index=indice)
+
+    # Criterios con el modelo de propensión (issue #13) y, para comparar,
+    # también con la heurística que reemplaza (criterio de aceptación: la
+    # priorización compara los resultados con y sin la probabilidad).
+    criterios_modelo = crit.preparar(cartera, canales=canales, usar_modelo=True)
+    criterios_heuristica = crit.preparar(cartera, canales=canales, usar_modelo=False)
+    usa_modelo = not criterios_modelo["contactabilidad"].equals(criterios_heuristica["contactabilidad"])
+    criterios = criterios_modelo if usa_modelo else criterios_heuristica
+
+    if evaluacion is not None:
         candidatos = estados.index[estados == "CONTACTABLE"]
     else:
-        estados = pd.Series(None, index=criterios.index, dtype=object)
-        canales = pd.Series("LLAMADA", index=criterios.index)
         candidatos = criterios.index[cartera["gestionable"].astype(bool).values]
+
     if len(candidatos) == 0:
         raise LookupError("No hay cuentas candidatas para priorizar: la ejecución del motor no "
                           "dejó ninguna cuenta contactable.")
@@ -243,6 +256,20 @@ def priorizar(cartera, evaluacion=None, capacidad=None, semilla=config.SEMILLA):
     seg = segmentacion.segmentar(criterios, semilla)
     valor = _valor_esperado(cartera, criterios, canales.fillna("LLAMADA"))
     elegido, metricas, k = evaluar(criterios, candidatos, valor, capacidad, semilla)
+
+    # Comparación con/sin el modelo de propensión (issue #13): mismas
+    # métricas del método ya elegido, calculadas sobre la heurística, para
+    # ver cuánto cambia el recaudo esperado al usar la probabilidad real.
+    comparacion_modelo = None
+    if usa_modelo:
+        valor_heuristica = _valor_esperado(cartera, criterios_heuristica, canales.fillna("LLAMADA"))
+        _, metricas_heuristica, _ = evaluar(criterios_heuristica, candidatos, valor_heuristica,
+                                            capacidad, semilla)
+        comparacion_modelo = {
+            "con_modelo": metricas[elegido],
+            "sin_modelo": metricas_heuristica[elegido],
+            "mejora_recaudo": (metricas[elegido]["recaudo"] - metricas_heuristica[elegido]["recaudo"]),
+        }
 
     # Puntajes finales sobre las candidatas (los mismos que se evaluaron) y, como
     # referencia, sobre toda la cartera para las que no entran hoy.
@@ -280,6 +307,8 @@ def priorizar(cartera, evaluacion=None, capacidad=None, semilla=config.SEMILLA):
             "perfiles": perfiles.reset_index().to_dict(orient="records"),
             "criterios": config.CRITERIOS,
             "pesos_evaluacion": config.PESOS_EVALUACION,
+            "usa_modelo_propension": usa_modelo,
+            "comparacion_modelo": comparacion_modelo,
         },
     }
     return resumen, tabla
@@ -336,7 +365,8 @@ def explicar_cuenta(cartera, credito_id, candidatos=None):
             "entradas": difuso["entradas"].loc[credito_id].to_dict(),
             "grados": grados, "reglas": reglas,
             "d_ideal": float(dist["d_ideal"].loc[credito_id]),
-            "d_anti": float(dist["d_anti"].loc[credito_id])}
+            "d_anti": float(dist["d_anti"].loc[credito_id]),
+                        "probabilidad_pago": float(criterios.loc[credito_id, "contactabilidad"])}
 
 
 # ---------------------------------------------------------------------------
