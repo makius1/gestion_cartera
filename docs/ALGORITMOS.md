@@ -115,13 +115,20 @@ $$
   |---|---|---|
   | 1. Bloqueos | L1, N1, L3, L2 | Si alguna se dispara, se detiene el razonamiento |
   | 2. Compromisos | N3, N4 | Mutuamente excluyentes por rango de días |
-  | 3. Canales | C1 a C4 | Cada regla resta canales al conjunto disponible |
+  | 3. Canales | C1 a C8 | Cada regla resta canales no disponibles o no autorizados |
   | 4. Cierre | N2 | Razona sobre el hecho que dejó la fase 3 (canales restantes) |
   | 5. Estrategia | E1 a E5 y E9 | Conjunto de conflicto; gana la de mayor prioridad |
 
 - **Hechos desconocidos:** un dato vacío nunca cumple una premisa, como en una
   lógica de tres valores. Para que eso no termine en un contacto sin verificar
   la ley, la regla L3 bloquea toda cuenta con datos incompletos.
+- **Autorización por canal:** las reglas C5 a C8 aplican el artículo 2 de la
+  Ley 2300 de 2023 y eliminan LLAMADA, WHATSAPP, SMS o EMAIL cuando el
+  consumidor no autorizó ese canal. Solo se aplican cuando
+  `EXIGIR_AUTORIZACION_CANAL` está habilitado. El motor lee las columnas
+  `autoriza_llamada`, `autoriza_whatsapp`, `autoriza_sms` y `autoriza_email`.
+  Si la exigencia está activa y falta información de autorización, la cuenta
+  se trata como incompleta y L3 impide el contacto por precaución.
 - **Festivos:** calendario de Colombia con los traslados al lunes de la Ley
   Emiliani (librería `holidays`).
 - **Qué decide:** el estado de la cuenta y el canal. No predice: aplica

@@ -116,6 +116,19 @@ with pestana_simulador:
         celular = c3.checkbox("Tiene celular", value=True)
         fijo = c3.checkbox("Tiene fijo", value=True)
         correo = c3.checkbox("Tiene correo", value=True)
+
+        st.markdown("**Autorización del titular por canal**")
+        exigir_autorizacion = st.checkbox(
+            "Exigir autorización por canal en esta simulación",
+            value=config.EXIGIR_AUTORIZACION_CANAL,
+            help="Solo afecta esta consulta del simulador; no modifica config.py.",
+        )
+        a1, a2, a3, a4 = st.columns(4)
+        autoriza_llamada = a1.checkbox("Autoriza llamada", value=True)
+        autoriza_whatsapp = a2.checkbox("Autoriza WhatsApp", value=True)
+        autoriza_sms = a3.checkbox("Autoriza SMS", value=True)
+        autoriza_email = a4.checkbox("Autoriza email", value=True)
+
         consultar = st.form_submit_button("Consultar al motor", type="primary")
 
     if consultar:
@@ -127,6 +140,11 @@ with pestana_simulador:
             "codigo": codigo,
             "resultado_gestion": "SIN_GESTION_REAL" if not con_contacto else resultado,
             "tiene_celular": celular, "tiene_fijo": fijo, "tiene_email": correo,
+            "exigir_autorizacion_canal": exigir_autorizacion,
+            "autoriza_llamada": autoriza_llamada,
+            "autoriza_whatsapp": autoriza_whatsapp,
+            "autoriza_sms": autoriza_sms,
+            "autoriza_email": autoriza_email,
         }
         decision = motor.evaluar_cuenta(hechos)
         color = {"CONTACTABLE": "green", "RECORDATORIO": "blue",

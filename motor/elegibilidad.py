@@ -111,12 +111,23 @@ def construir_hechos(fila, fecha_objetivo, dia=None):
     dias_para_compromiso = (compromiso - fecha_objetivo).days if compromiso else None
 
     canales = {c: _valor(fila, c) for c in ("tiene_celular", "tiene_fijo", "tiene_email")}
+    autorizaciones = {
+        columna: _valor(fila, columna)
+        for columna in config.COLUMNA_AUTORIZACION.values()
+    }
 
     # Sin la fecha del último contacto de una cuenta gestionada, o sin saber qué
-    # canales tiene, el motor no puede verificar las demás reglas. Pasa con
-    # cargas anteriores a la ampliación del esquema.
-    datos_completos = (not (gestionada and ultima is None)
-                       and all(v is not None for v in canales.values()))
+    # canales tiene, el motor no puede verificar las demás reglas. Cuando la
+    # autorización por canal está exigida, tampoco puede operar si falta ese
+    # dato: un permiso desconocido nunca debe convertirse en permiso implícito.
+    datos_completos = (
+        not (gestionada and ultima is None)
+        and all(v is not None for v in canales.values())
+        and (
+            not config.EXIGIR_AUTORIZACION_CANAL
+            or all(v is not None for v in autorizaciones.values())
+        )
+    )
 
     return {
         "dia_habil": dia["dia_habil"],
@@ -125,7 +136,9 @@ def construir_hechos(fila, fecha_objetivo, dia=None):
         "dias_para_compromiso": dias_para_compromiso,
         "codigo": _valor(fila, "codigo"),
         "resultado_gestion": _valor(fila, "resultado_gestion"),
+        "exigir_autorizacion_canal": config.EXIGIR_AUTORIZACION_CANAL,
         **canales,
+        **autorizaciones,
     }
 
 
