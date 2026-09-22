@@ -543,8 +543,13 @@ _CODIGOS_SIN_ACUERDO = {
     "OTRO": 0.02,
 }
 
+# Códigos válidos cuando SÍ hay acuerdo. "resultado" siempre queda como
+# "ACUERDO" (vocabulario de resultado_gestion); "codigo" debe ser uno de
+# estos, porque es el vocabulario que revisa CODIGOS_CON_COMPROMISO.
+_CODIGOS_CON_ACUERDO = ["DIFERIDO", "PAGO TOTAL", "POSIBLE NEGOCIACION", "DEBITO"]
+
 _HORA_HABIL_MIN = 7
-_HORA_HABIL_MAX = 20
+_HORA_HABIL_MAX = 19
 
 def _hora_habil(rng):
     return timedelta(
@@ -639,12 +644,14 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
             hay_acuerdo = rng.uniform() < probabilidad
 
             if hay_acuerdo:
-                codigo = "ACUERDO"
+                codigo = str(rng.choice(_CODIGOS_CON_ACUERDO))
+                resultado = "ACUERDO"
                 valor_acordado = float(fila["cobranza_min"])
                 fecha_compromiso = fecha + timedelta(days=int(rng.integers(3, 30)))
             else:
                 codigo = str(rng.choice(list(_CODIGOS_SIN_ACUERDO.keys()),
                                         p=list(_CODIGOS_SIN_ACUERDO.values())))
+                resultado = codigo
                 valor_acordado = None
                 fecha_compromiso = None
 
@@ -655,7 +662,7 @@ def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulad
                 "credito_id": fila["credito_id"],
                 "canal": canal,
                 "sentido": "SALIENTE",
-                "resultado": codigo,
+                "resultado": resultado,
                 "codigo": codigo,
                 "motivo_no_pago": None if hay_acuerdo else codigo,
                 "valor_acordado": valor_acordado,
