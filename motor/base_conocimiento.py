@@ -176,6 +176,54 @@ REGLAS = [
         "condicion": {"resultado_gestion": "NUMERO_ERRADO"},
         "efecto": {"quitar_canales": ["SMS", "WHATSAPP", "LLAMADA"]},
     },
+    {
+        "id": "C5",
+        "nombre": "Llamada no autorizada",
+        "fase": "canales",
+        "fundamento": "Ley 2300 de 2023, artículo 2: las gestiones de cobranza deben "
+                      "realizarse únicamente mediante los canales autorizados por "
+                      "el consumidor.",
+        "descripcion": "SI se exige autorización y el titular no autorizó llamadas "
+                       "ENTONCES no se usa LLAMADA",
+        "condicion": {"exigir_autorizacion_canal": True, "autoriza_llamada": False},
+        "efecto": {"quitar_canales": ["LLAMADA"]},
+    },
+    {
+        "id": "C6",
+        "nombre": "WhatsApp no autorizado",
+        "fase": "canales",
+        "fundamento": "Ley 2300 de 2023, artículo 2: las gestiones de cobranza deben "
+                      "realizarse únicamente mediante los canales autorizados por "
+                      "el consumidor.",
+        "descripcion": "SI se exige autorización y el titular no autorizó WhatsApp "
+                       "ENTONCES no se usa WHATSAPP",
+        "condicion": {"exigir_autorizacion_canal": True, "autoriza_whatsapp": False},
+        "efecto": {"quitar_canales": ["WHATSAPP"]},
+    },
+    {
+        "id": "C7",
+        "nombre": "SMS no autorizado",
+        "fase": "canales",
+        "fundamento": "Ley 2300 de 2023, artículo 2: las gestiones de cobranza deben "
+                      "realizarse únicamente mediante los canales autorizados por "
+                      "el consumidor.",
+        "descripcion": "SI se exige autorización y el titular no autorizó SMS "
+                       "ENTONCES no se usa SMS",
+        "condicion": {"exigir_autorizacion_canal": True, "autoriza_sms": False},
+        "efecto": {"quitar_canales": ["SMS"]},
+    },
+    {
+        "id": "C8",
+        "nombre": "Correo no autorizado",
+        "fase": "canales",
+        "fundamento": "Ley 2300 de 2023, artículo 2: las gestiones de cobranza deben "
+                      "realizarse únicamente mediante los canales autorizados por "
+                      "el consumidor.",
+        "descripcion": "SI se exige autorización y el titular no autorizó correo "
+                       "ENTONCES no se usa EMAIL",
+        "condicion": {"exigir_autorizacion_canal": True, "autoriza_email": False},
+        "efecto": {"quitar_canales": ["EMAIL"]},
+    },
 
     # ------------------------------------------------------------------- cierre
     {
@@ -267,7 +315,14 @@ REGLAS = [
 OPERADORES = {"<", "<=", ">", ">=", "en", "entre"}
 EFECTOS = {"estado", "canales_preferidos", "quitar_canales", "canal"}
 ESTADOS = {"BLOQUEADA", "EN_ESPERA", "RECORDATORIO"}
-HECHOS_VALIDOS = {"dia_habil", "datos_completos", "dias_desde_contacto", "dias_para_compromiso", "codigo", "resultado_gestion", "tiene_celular", "tiene_fijo", "tiene_email", "canales_permitidos"}
+HECHOS_VALIDOS = {
+    "dia_habil", "datos_completos", "dias_desde_contacto",
+    "dias_para_compromiso", "codigo", "resultado_gestion",
+    "tiene_celular", "tiene_fijo", "tiene_email",
+    "exigir_autorizacion_canal",
+    "autoriza_llamada", "autoriza_whatsapp", "autoriza_sms", "autoriza_email",
+    "canales_permitidos",
+}
 
 
 def reglas_de_fase(fase):
