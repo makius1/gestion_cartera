@@ -36,6 +36,7 @@ import pandas as pd
 
 import config
 from motor import base_conocimiento as bc
+from motor import thompson
 
 ESTADO_INICIAL = "CONTACTABLE"
 ESTADOS = ["CONTACTABLE", "RECORDATORIO", "EN_ESPERA", "BLOQUEADA"]
@@ -167,7 +168,7 @@ def se_cumple(regla, hechos):
 # 4. INFERENCIA
 # ---------------------------------------------------------------------------
 
-def evaluar_cuenta(hechos):
+def evaluar_cuenta(hechos, estadisticas_thompson=None, clave_thompson=""):
     """Aplica la base de conocimiento a los hechos de una cuenta.
 
     Recorre las fases en orden. Cada fase puede cerrar el razonamiento: si una
@@ -226,18 +227,54 @@ def evaluar_cuenta(hechos):
         canal = next((c for c in preferidos if c in canales), canales[0])
         return _resultado(estado, canales, canal, determinante, traza, hechos, [])
 
-    # Conjunto de conflicto: todas las estrategias aplicables. Gana la de mayor
-    # prioridad; las demás se conservan para la explicación.
-    aplicables = sorted((r for r in bc.reglas_de_fase("estrategia") if se_cumple(r, hechos)),
-                        key=lambda r: r["prioridad"], reverse=True)
+    # Las reglas E se siguen evaluando para conservar la explicación del
+    # sistema experto y permitir comparar la recomendación histórica con
+    # Thompson. Ya no determinan por sí solas el canal final cuando existe
+    # historia real de gestiones.
+    aplicables = sorted(
+        (r for r in bc.reglas_de_fase("estrategia") if se_cumple(r, hechos)),
+        key=lambda r: r["prioridad"],
+        reverse=True,
+    )
     ganadora = aplicables[0]
     traza.append(("estrategia", ganadora))
-    canal = ganadora["efecto"]["canal"]
-    if canal not in canales:
-        # El canal ideal no está disponible: se usa el más barato de los que
-        # quedan. La lista ya viene ordenada por costo.
-        canal = canales[0]
-    return _resultado(ESTADO_INICIAL, canales, canal, ganadora, traza, hechos, aplicables[1:])
+
+    canal_regla = ganadora["efecto"]["canal"]
+    if canal_regla not in canales:
+        canal_regla = canales[0]
+
+    canal = canal_regla
+    muestras_thompson = {}
+
+    if estadisticas_thompson is not None and thompson.hay_historia(estadisticas_thompson):
+        canal, muestras_thompson = thompson.elegir(
+            canales,
+            estadisticas_thompson,
+            semilla=config.SEMILLA,
+            clave=clave_thompson,
+        )
+
+    resultado = _resultado(
+        ESTADO_INICIAL,
+        canales,
+        canal,
+        ganadora,
+        traza,
+        hechos,
+        aplicables[1:],
+    )
+    resultado["canal_regla"] = canal_regla
+    resultado["usa_thompson"] = bool(muestras_thompson)
+    resultado["muestras_thompson"] = muestras_thompson
+
+    if muestras_thompson:
+        resultado["explicacion"] = (
+            resultado["explicacion"]
+            + " Thompson seleccionó {} entre los canales permitidos; "
+              "la regla experta habría recomendado {}.".format(canal, canal_regla)
+        )[:1000]
+
+    return resultado
 
 
 def _resultado(estado, canales, canal, determinante, traza, hechos, descartadas):
@@ -303,16 +340,23 @@ def explicar(estado, canales, canal, determinante, traza, descartadas):
 # 5. EJECUCIÓN SOBRE UNA CARTERA
 # ---------------------------------------------------------------------------
 
-def evaluar_cartera(cartera, fecha_objetivo):
+def evaluar_cartera(cartera, fecha_objetivo, estadisticas_thompson=None):
     """Evalúa todas las cuentas de una cartera. Retorna un DataFrame."""
     dia = diagnostico_fecha(fecha_objetivo)
     filas = []
     for fila in cartera.to_dict(orient="records"):
-        r = evaluar_cuenta(construir_hechos(fila, fecha_objetivo, dia))
+        clave = "{}|{}".format(fila["credito_id"], fecha_objetivo)
+        r = evaluar_cuenta(
+            construir_hechos(fila, fecha_objetivo, dia),
+            estadisticas_thompson=estadisticas_thompson,
+            clave_thompson=clave,
+        )
         filas.append({
             "credito_id": fila["credito_id"],
             "estado": r["estado"],
             "canal_recomendado": r["canal_recomendado"],
+            "canal_regla": r.get("canal_regla"),
+            "usa_thompson": r.get("usa_thompson", False),
             "canales_permitidos": ",".join(r["canales_permitidos"]),
             "regla_determinante": r["regla_determinante"],
             "reglas": ",".join(r["reglas"])[:200],
@@ -363,7 +407,16 @@ def ejecutar(carga_id=None, fecha_objetivo=None, usuario="sistema", guardar=True
         raise LookupError("No hay cartera cargada para evaluar.")
     carga_id = int(cartera["carga_id"].iloc[0])
 
-    resultados = evaluar_cartera(cartera, fecha_objetivo)
+    historial = bd.leer_gestiones(carga_id)
+    estadisticas_thompson = thompson.estadisticas(
+        historial,
+        hasta=fecha_objetivo,
+    )
+    resultados = evaluar_cartera(
+        cartera,
+        fecha_objetivo,
+        estadisticas_thompson=estadisticas_thompson,
+    )
     resumen = resumir(resultados, carga_id, fecha_objetivo)
 
     if guardar:
