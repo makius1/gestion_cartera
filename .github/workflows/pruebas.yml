@@ -59,6 +59,9 @@ jobs:
       - name: "Probar la confirmacion de escritura remota (issue #36)"
         run: python -m pruebas.prueba_confirmacion
 
+      - name: "Probar la clave de seudonimos contra una base remota (issue #37)"
+        run: python -m pruebas.prueba_seudonimos
+
       - name: Verificar la conexión
         run: python -m datos.base_datos probar
 
