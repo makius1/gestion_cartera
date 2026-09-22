@@ -452,6 +452,8 @@ La primera implementación aprende por canal para toda la carga. La extensión
 por segmento requiere que el segmento esté disponible antes de ejecutar el
 motor; actualmente la segmentación ocurre en una etapa posterior.
 
+**Limitación conocida:** esta versión optimiza únicamente la probabilidad de respuesta y no incorpora el costo económico del canal. Por ello, si un canal más costoso —como LLAMADA— presenta una tasa de respuesta superior, Thompson puede recomendarlo con mayor frecuencia y aumentar el costo total de la operación.
+
 ### 8.6 Programación lineal entera para el plan
 
 Con $x_{ig} \in \{0,1\}$ igual a 1 si la cuenta $i$ va al gestor $g$:
