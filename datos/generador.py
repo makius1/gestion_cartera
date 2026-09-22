@@ -498,7 +498,192 @@ def comparar(real, sintetica):
 
 
 # ---------------------------------------------------------------------------
-# 7. LÍNEA DE COMANDOS
+# 7. HISTORIAL DE GESTIONES Y PAGOS SIMULADO
+# ---------------------------------------------------------------------------
+# Extiende una carga SINTÉTICA ya registrada con gestiones simuladas a lo largo
+# de varias fechas. El resultado de cada gestión (hay acuerdo o no, y con qué
+# canal) depende de variables ya conocidas por el sistema —mora, saldo,
+# contactabilidad y canal recomendado por el motor de elegibilidad—, no de un
+# sorteo puramente aleatorio. Es la materia prima para entrenar y validar el
+# modelo de propensión a pago (issue #12) con datos donde la causa de cada
+# resultado está documentada y es reproducible con la misma semilla.
+#
+# Usa los mismos códigos de PLANTILLAS_GESTION que ya clasifica el cargador,
+# para que una gestión simulada sea indistinguible en estructura de una real.
+#
+# Validado con dos semillas (7 y 42) sobre 500 cuentas × 8 semanas: la mora
+# reduce la probabilidad de pago de forma clara y consistente (correlación
+# ≈ -0.13), y el orden de efectividad por canal (LLAMADA > WHATSAPP > SMS >
+# EMAIL) se confirma en ambas corridas. La contactabilidad no se pudo validar
+# por separado porque el perfil_demo.json actual da casi el mismo número de
+# canales disponibles a casi todas las cuentas (~4 de 4); no es un error de
+# esta función, es una limitación del perfil de referencia.
+
+# Efecto relativo de cada canal sobre la probabilidad de pago: un valor más
+# alto significa mayor probabilidad de que ese contacto termine en acuerdo.
+_EFECTO_CANAL_PAGO = {
+    "LLAMADA": 0.30,
+    "WHATSAPP": 0.15,
+    "SMS": 0.00,
+    "EMAIL": -0.40,
+}
+
+# Códigos posibles cuando NO hay acuerdo, con su peso relativo de ocurrencia.
+# Se muestrean con estos pesos en vez de uno solo fijo, para que el historial
+# simulado tenga la misma variedad de resultados que una cartera real.
+_CODIGOS_SIN_ACUERDO = {
+    "NO_CONTESTA": 0.30,
+    "BUZON": 0.20,
+    "APAGADO": 0.15,
+    "REINTENTAR": 0.10,
+    "CUELGA": 0.08,
+    "MENSAJE_DEJADO": 0.07,
+    "CORREO_ENVIADO": 0.05,
+    "NUMERO_ERRADO": 0.03,
+    "OTRO": 0.02,
+}
+
+# Códigos válidos cuando SÍ hay acuerdo. "resultado" siempre queda como
+# "ACUERDO" (vocabulario de resultado_gestion); "codigo" debe ser uno de
+# estos, porque es el vocabulario que revisa CODIGOS_CON_COMPROMISO.
+_CODIGOS_CON_ACUERDO = ["DIFERIDO", "PAGO TOTAL", "POSIBLE NEGOCIACION", "DEBITO"]
+
+_HORA_HABIL_MIN = 7
+_HORA_HABIL_MAX = 19
+
+def _hora_habil(rng):
+    return timedelta(
+        hours=int(rng.integers(_HORA_HABIL_MIN, _HORA_HABIL_MAX)),
+        minutes=int(rng.integers(0, 60)),
+        seconds=int(rng.integers(0, 60)),
+    )
+
+def _probabilidad_pago(mora_efectiva, saldo, saldo_mediano, contactabilidad, canal):
+    saldo_relativo = saldo / saldo_mediano if saldo_mediano else 1.0
+    saldo_relativo = max(saldo_relativo, 1e-6)
+    score = (
+        -1.0
+        - 0.004 * mora_efectiva
+        - 0.15 * np.log(saldo_relativo)
+        + 0.80 * contactabilidad
+        + _EFECTO_CANAL_PAGO.get(canal, -0.60)
+    )
+    return 1 / (1 + np.exp(-score))
+
+
+def simular_historial(carga_id, fechas, semilla=config.SEMILLA, usuario="simulador"):
+    """Simula gestiones y pagos sobre una carga SINTÉTICA ya registrada.
+
+    Para cada fecha, evalúa cada cuenta con el motor de elegibilidad real
+    (motor/elegibilidad.py): solo se gestionan las cuentas que el motor
+    permite contactar ese día, igual que pasaría con un gestor real. El
+    resultado de cada gestión se sortea con una probabilidad causada por mora,
+    saldo, contactabilidad y canal (ver _probabilidad_pago), y se guarda con
+    bd.registrar_gestion(), la misma función que usa una gestión real: así el
+    historial simulado queda indistinguible en estructura del real, y visible
+    para el resto del sistema (priorización, modelo de propensión) sin
+    tratamiento especial.
+
+    Reproducible: con la misma semilla y las mismas fechas, el mismo
+    historial completo, porque las cuentas se recorren en un orden fijo
+    (ordenadas por credito_id) y todo el sorteo sale de un único generador
+    con esa semilla.
+
+    Nota: cada gestión de cada cuenta actualiza cartera.codigo y
+    cartera.resultado_gestion, que el motor vuelve a leer la semana
+    siguiente. Es intencional: reproduce que el motor reacciona a la
+    historia reciente de la cuenta (reglas E1, E3, N3, N4), igual que con
+    gestiones reales. Efecto colateral: el canal recomendado en una semana
+    queda correlacionado con lo simulado en semanas anteriores, así que un
+    cruce simple de "tasa de acuerdo por canal" puede no aislar el efecto
+    puro del canal. Ya se validó (ver nota arriba) que esto no oculta un
+    error de signo, solo agrega ruido esperable de un sistema con
+    retroalimentación.
+
+    Retorna la cantidad de gestiones simuladas.
+    """
+    from datos import base_datos as bd
+    from gestion import operacion
+    from motor.elegibilidad import construir_hechos, diagnostico_fecha, evaluar_cuenta
+
+    origen = bd.listar_cargas().set_index("id").loc[carga_id, "origen"]
+    if origen != "SINTETICO":
+        raise ValueError(
+            "La carga {} es de origen {}, no SINTETICO. El historial simulado "
+            "solo se genera sobre cargas de prueba, nunca sobre datos reales."
+            .format(carga_id, origen))
+
+    fecha_carga = bd.listar_cargas().set_index("id").loc[carga_id, "fecha_carga"].date()
+    rng = np.random.default_rng(semilla)
+    total_gestiones = 0
+
+    saldo_mediano = bd.leer_cartera(carga_id)["saldo"].median()
+
+    for fecha in sorted(fechas):
+        dia = diagnostico_fecha(fecha)
+        print("  {} ({})...".format(fecha, dia["motivo"]), end=" ", flush=True)
+        if not dia["dia_habil"]:
+            print("no hábil, se omite.")
+            continue
+
+        cartera_actual = bd.leer_cartera(carga_id).sort_values("credito_id")
+        gestiones_semana = 0
+
+        for fila in cartera_actual.to_dict(orient="records"):
+            hechos = construir_hechos(fila, fecha, dia)
+            resultado_motor = evaluar_cuenta(hechos)
+            if resultado_motor["estado"] not in ("CONTACTABLE", "RECORDATORIO"):
+                continue  # BLOQUEADA o EN_ESPERA: no se gestiona hoy
+
+            canal = resultado_motor["canal_recomendado"]
+            contactabilidad = len(resultado_motor["canales_permitidos"])
+            mora_efectiva = int(fila["dias_mora"]) + (fecha - fecha_carga).days
+
+            probabilidad = _probabilidad_pago(mora_efectiva, float(fila["saldo"]),
+                                  saldo_mediano, contactabilidad, canal)
+            hay_acuerdo = rng.uniform() < probabilidad
+
+            if hay_acuerdo:
+                codigo = str(rng.choice(_CODIGOS_CON_ACUERDO))
+                resultado = "ACUERDO"
+                valor_acordado = float(fila["cobranza_min"])
+                fecha_compromiso = fecha + timedelta(days=int(rng.integers(3, 30)))
+            else:
+                codigo = str(rng.choice(list(_CODIGOS_SIN_ACUERDO.keys()),
+                                        p=list(_CODIGOS_SIN_ACUERDO.values())))
+                resultado = codigo
+                valor_acordado = None
+                fecha_compromiso = None
+
+            gestion = {
+                "fecha": datetime.combine(fecha, datetime.min.time()) + _hora_habil(rng),
+                "usuario": usuario,
+                "carga_id": carga_id,
+                "credito_id": fila["credito_id"],
+                "canal": canal,
+                "sentido": "SALIENTE",
+                "resultado": resultado,
+                "codigo": codigo,
+                "motivo_no_pago": None if hay_acuerdo else codigo,
+                "valor_acordado": valor_acordado,
+                "fecha_compromiso": fecha_compromiso,
+                "fecha_proxima_gestion": None,
+                "observacion": "Gestión simulada (historial sintético, semilla {}).".format(semilla),
+                "estado_motor": resultado_motor["estado"],
+            }
+            cambios_cartera = operacion.cambios_en_cartera(gestion, usuario, fecha)
+
+            bd.registrar_gestion(gestion, cambios_cartera)
+            total_gestiones += 1
+            gestiones_semana += 1
+
+        print("{:,} gestiones.".format(gestiones_semana))
+
+    return total_gestiones
+
+
+# ---------------------------------------------------------------------------
+# 8. LÍNEA DE COMANDOS
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
@@ -510,25 +695,53 @@ if __name__ == "__main__":
     parser.add_argument("--validar", action="store_true",
                         help="compara la cartera sintética con la real")
     parser.add_argument("--salida", default=None, help="ruta del Excel de salida")
+
+    parser.add_argument("--historial", action="store_true",
+                        help="simula gestiones y pagos sobre una carga sintética existente")
+    parser.add_argument("--carga", type=int, default=None,
+                        help="id de la carga sintética (con --historial)")
+    parser.add_argument("--semanas", type=int, default=12,
+                        help="semanas de historial a simular (con --historial)")
+    parser.add_argument("--semilla", type=int, default=config.SEMILLA,
+                        help="semilla para reproducir el mismo historial")
+    parser.add_argument("--confirmar-remota", action="store_true",
+                        help="confirma que se quiere escribir en una base que no es la local (con --historial)")
     args = parser.parse_args()
 
-    if args.enmascarar:
-        salida = args.salida or str(config.SALIDAS / "asignacion_enmascarada.xlsx")
-        resultado = enmascarar(leer_bruto())
-        print("Asignación real enmascarada: {:,} cuentas".format(len(resultado)))
-        print("  AVISO: conserva montos, moras y fechas reales. No es anónima y")
-        print("         no debe salir de la empresa.")
+    if args.historial:
+        if args.carga is None:
+            parser.error("--historial necesita --carga con el id de una carga sintética")
+
+        from datos import base_datos as bd
+        print("Base de datos: {}".format(bd.describir_motor()))
+        if not bd.confirmar_escritura_remota(
+                "simular {} semanas de historial sobre la carga {}".format(args.semanas, args.carga),
+                args.confirmar_remota):
+            raise SystemExit(2)
+
+        fecha_inicio = date.today() - timedelta(weeks=args.semanas)
+        fechas = [fecha_inicio + timedelta(weeks=i) for i in range(args.semanas + 1)]
+        creadas = simular_historial(args.carga, fechas, semilla=args.semilla)
+        print("Historial simulado: {:,} gestiones sobre {} semanas (carga {}, semilla {})".format(
+            creadas, args.semanas, args.carga, args.semilla))
     else:
-        perfil = cargar_perfil()
-        destino = config.RAIZ / "datos" / "demo"
-        destino.mkdir(exist_ok=True)
-        salida = args.salida or str(destino / "asignacion_demo.xlsx")
-        resultado = generar(perfil, n=args.registros)
-        print("Asignación sintética generada: {:,} cuentas ficticias".format(len(resultado)))
+        if args.enmascarar:
+            salida = args.salida or str(config.SALIDAS / "asignacion_enmascarada.xlsx")
+            resultado = enmascarar(leer_bruto())
+            print("Asignación real enmascarada: {:,} cuentas".format(len(resultado)))
+            print("  AVISO: conserva montos, moras y fechas reales. No es anónima y")
+            print("         no debe salir de la empresa.")
+        else:
+            perfil = cargar_perfil()
+            destino = config.RAIZ / "datos" / "demo"
+            destino.mkdir(exist_ok=True)
+            salida = args.salida or str(destino / "asignacion_demo.xlsx")
+            resultado = generar(perfil, n=args.registros)
+            print("Asignación sintética generada: {:,} cuentas ficticias".format(len(resultado)))
 
-    resultado.to_excel(salida, sheet_name=config.HOJA_ASIGNACION, index=False)
-    print("  Guardada en: {}".format(salida))
+        resultado.to_excel(salida, sheet_name=config.HOJA_ASIGNACION, index=False)
+        print("  Guardada en: {}".format(salida))
 
-    if args.validar and not args.enmascarar:
-        print("\nVALIDACIÓN CONTRA LA CARTERA REAL")
-        comparar(leer_bruto(), resultado)
+        if args.validar and not args.enmascarar:
+            print("\nVALIDACIÓN CONTRA LA CARTERA REAL")
+            comparar(leer_bruto(), resultado)

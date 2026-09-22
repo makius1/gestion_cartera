@@ -90,6 +90,9 @@ jobs:
       - name: Validar la base de conocimiento
         run: python -m motor.elegibilidad --validar
 
+      - name: "Probar el historial de gestiones simulado (issue #11)"
+        run: python -m pruebas.prueba_generador
+
       - name: "Probar cada regla del motor (issue #7)"
         run: python -m pruebas.prueba_reglas_motor
 
