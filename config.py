@@ -329,9 +329,9 @@ LONGITUD_MINIMA_CLAVE = 10
 # revisa la traza del equipo y la bitácora. El administrador además administra
 # los usuarios.
 _CONSULTA = {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento", "ver_priorizacion",
-             "registrar_gestion", "gestionar_contactos", "ver_plan", "ver_traza"}
-_OPERACION = {"ejecutar_motor", "ejecutar_priorizacion", "gestionar_cargas", "gestionar_plan",
-              "gestionar_obligaciones", "ver_auditoria", "ver_traza_equipo"}
+             "ver_propension", "registrar_gestion", "gestionar_contactos", "ver_plan", "ver_traza"}
+_OPERACION = {"ejecutar_motor", "ejecutar_priorizacion", "ejecutar_propension", "gestionar_cargas",
+              "gestionar_plan", "gestionar_obligaciones", "ver_auditoria", "ver_traza_equipo"}
 PERMISOS = {
     "GESTOR": _CONSULTA,
     "SUPERVISOR": _CONSULTA | _OPERACION,
