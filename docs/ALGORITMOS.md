@@ -115,13 +115,20 @@ $$
   |---|---|---|
   | 1. Bloqueos | L1, N1, L3, L2 | Si alguna se dispara, se detiene el razonamiento |
   | 2. Compromisos | N3, N4 | Mutuamente excluyentes por rango de días |
-  | 3. Canales | C1 a C4 | Cada regla resta canales al conjunto disponible |
+  | 3. Canales | C1 a C8 | Cada regla resta canales no disponibles o no autorizados |
   | 4. Cierre | N2 | Razona sobre el hecho que dejó la fase 3 (canales restantes) |
   | 5. Estrategia | E1 a E5 y E9 | Conjunto de conflicto; gana la de mayor prioridad |
 
 - **Hechos desconocidos:** un dato vacío nunca cumple una premisa, como en una
   lógica de tres valores. Para que eso no termine en un contacto sin verificar
   la ley, la regla L3 bloquea toda cuenta con datos incompletos.
+- **Autorización por canal:** las reglas C5 a C8 aplican el artículo 2 de la
+  Ley 2300 de 2023 y eliminan LLAMADA, WHATSAPP, SMS o EMAIL cuando el
+  consumidor no autorizó ese canal. Solo se aplican cuando
+  `EXIGIR_AUTORIZACION_CANAL` está habilitado. El motor lee las columnas
+  `autoriza_llamada`, `autoriza_whatsapp`, `autoriza_sms` y `autoriza_email`.
+  Si la exigencia está activa y falta información de autorización, la cuenta
+  se trata como incompleta y L3 impide el contacto por precaución.
 - **Festivos:** calendario de Colombia con los traslados al lunes de la Ley
   Emiliani (librería `holidays`).
 - **Qué decide:** el estado de la cuenta y el canal. No predice: aplica
@@ -417,11 +424,33 @@ se gestiona.
 
 ### 8.5 Muestreo de Thompson para el canal
 
-Para cada canal y segmento se lleva una distribución $\mathrm{Beta}(\alpha, \beta)$
-de la tasa de respuesta, con $\alpha$ = respuestas y $\beta$ = no respuestas. En
-cada decisión se sortea una tasa de cada distribución y se usa el canal con el
-valor más alto. Explora canales poco probados y explota los que funcionan, sin
-fijar tasas a mano en `config.py`.
+La elección final del canal utiliza un bandido multibrazo con muestreo de
+Thompson. Primero el motor aplica los bloqueos, compromisos y restricciones
+legales y técnicas de las reglas L, N y C; Thompson **solo recibe los canales
+que continúan permitidos**, por lo que nunca puede recuperar un canal eliminado
+por el sistema experto.
+
+Para cada canal se estima una distribución
+$\mathrm{Beta}(1 + r, 1 + n)$, donde $r$ es el número de gestiones salientes
+que obtuvieron respuesta real del titular y $n$ el número de gestiones
+salientes sin respuesta. Se consideran respuestas los resultados definidos en
+`RESULTADOS_CON_CONTACTO`; las gestiones entrantes no se usan para entrenar la
+selección porque el sistema no eligió activamente su canal.
+
+En cada decisión se toma una muestra de la distribución de cada canal permitido
+y se recomienda el de mayor valor. La semilla se deriva de la semilla general,
+el crédito y la fecha objetivo, de modo que una misma ejecución con la misma
+historia sea reproducible.
+
+Las reglas E1 a E5 y E9 se conservan como estrategia experta de referencia:
+cuando existe historial, Thompson determina el canal final y el motor conserva
+cuál habría recomendado la regla para permitir la comparación. Si todavía no
+existen gestiones salientes, se mantiene temporalmente la recomendación de las
+reglas E.
+
+La primera implementación aprende por canal para toda la carga. La extensión
+por segmento requiere que el segmento esté disponible antes de ejecutar el
+motor; actualmente la segmentación ocurre en una etapa posterior.
 
 ### 8.6 Programación lineal entera para el plan
 

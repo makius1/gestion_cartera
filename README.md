@@ -86,6 +86,7 @@ lo muestra en la pantalla **Metodología**.
    ├─ Actions: pruebas   ──────────►  base temporal de verificación
    ├─ Actions: sembrar   ──────────►  base externa del proyecto  ◄── Codespaces
    ├─ Actions: mantener  ──────────►  consulta cada tres días    ◄── equipo local
+   ├─ Actions: respaldar ──────────►  exporta la base cada lunes
    └─ Streamlit Cloud    ──────────►  aplicación web con ingreso
 ```
 
@@ -97,6 +98,7 @@ automáticos corren en los servidores de GitHub.
 | **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad, segmenta y prioriza, registra gestiones y abre cada pantalla de la aplicación con cada rol. |
 | **Sembrar base en Supabase** | Botón manual en la pestaña Actions: simula una cartera en GitHub y la registra directamente en Supabase. |
 | **Mantener activa la base** | Consulta la base cada tres días para reducir el riesgo de que el plan gratuito de Supabase la pause por inactividad. |
+| **Respaldar la base compartida** | Cada lunes y también a demanda: exporta toda la base de Supabase, la restaura en una base temporal para comprobar que sirve, y la publica como artefacto de la ejecución. |
 | **Codespaces** | Entorno de desarrollo en el navegador, con Python y las dependencias instaladas automáticamente. |
 | **Streamlit Community Cloud** | Publica la aplicación web directamente desde este repositorio: cada envío a `main` la actualiza. |
 
@@ -159,6 +161,44 @@ Al crear las tablas en PostgreSQL, el sistema activa **Row Level Security**.
 Supabase publica cada tabla en una API REST accesible con la llave pública del
 proyecto; con RLS activo y sin políticas definidas, esa API no devuelve ninguna
 fila. El sistema se conecta como dueño de las tablas y no se ve afectado.
+
+### Respaldo y restauración
+
+Toda la historia del proyecto vive en una sola instancia gratuita de Supabase,
+que puede pausarse o perderse. El flujo **Respaldar la base compartida** la
+exporta cada lunes y también con el botón **Run workflow**, en la pestaña
+**Actions**. Antes de publicarlo, el propio flujo restaura el respaldo en una
+base temporal y compara el número de filas de siete tablas contra el origen:
+si algo no cuadra, la ejecución falla en vez de dejar un respaldo que no sirve.
+
+**Descargar un respaldo.** Pestaña **Actions** → **Respaldar la base
+compartida** → una ejecución → sección **Artifacts**, al final de la página.
+Los artefactos se conservan 90 días.
+
+**Restaurar un respaldo en una base nueva:**
+
+1. Descomprimir el archivo (`.sql.gz`).
+2. Crear el proyecto nuevo en Supabase, como en el paso 1 de esta sección.
+3. Copiar la cadena de conexión del **Session pooler** (paso 2).
+4. Restaurar:
+
+   ```bash
+   psql "postgresql://postgres.REFERENCIA:CONTRASEÑA@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require" \
+       -v ON_ERROR_STOP=1 -f respaldo_gestion_cartera_AAAA-MM-DD.sql
+   ```
+
+   Necesita `psql` instalado, o se puede correr desde Docker sin instalar nada:
+
+   ```bash
+   docker run --rm -i -v "$PWD:/respaldo" postgres:17 \
+       psql "postgresql://postgres.REFERENCIA:CONTRASEÑA@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require" \
+       -v ON_ERROR_STOP=1 -f /respaldo/respaldo_gestion_cartera_AAAA-MM-DD.sql
+   ```
+5. Verificar: `python -m datos.base_datos probar` con esa cadena como
+   `DATABASE_URL` debe mostrar las mismas tablas con datos.
+
+El respaldo no incluye la cadena de conexión original ni ninguna credencial: el
+flujo lo comprueba antes de publicarlo.
 
 ---
 
@@ -481,6 +521,7 @@ uso, sin tocar los datos existentes.
 │   ├── pruebas.yml             Integración continua contra PostgreSQL
 │   ├── sembrar_supabase.yml    Registro manual de una cartera simulada en Supabase
 │   ├── mantener_activa.yml     Consulta periódica para evitar la pausa
+│   ├── respaldar_base.yml      Respaldo semanal de la base, con restauración verificada
 │   └── crear_issues.yml        Creación de los issues de una lista de tareas por área
 ├── .github/tareas/             Listas de tareas por área y el script que las publica
 ├── .devcontainer/              Entorno de GitHub Codespaces
