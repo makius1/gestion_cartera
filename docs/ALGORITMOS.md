@@ -424,11 +424,33 @@ se gestiona.
 
 ### 8.5 Muestreo de Thompson para el canal
 
-Para cada canal y segmento se lleva una distribución $\mathrm{Beta}(\alpha, \beta)$
-de la tasa de respuesta, con $\alpha$ = respuestas y $\beta$ = no respuestas. En
-cada decisión se sortea una tasa de cada distribución y se usa el canal con el
-valor más alto. Explora canales poco probados y explota los que funcionan, sin
-fijar tasas a mano en `config.py`.
+La elección final del canal utiliza un bandido multibrazo con muestreo de
+Thompson. Primero el motor aplica los bloqueos, compromisos y restricciones
+legales y técnicas de las reglas L, N y C; Thompson **solo recibe los canales
+que continúan permitidos**, por lo que nunca puede recuperar un canal eliminado
+por el sistema experto.
+
+Para cada canal se estima una distribución
+$\mathrm{Beta}(1 + r, 1 + n)$, donde $r$ es el número de gestiones salientes
+que obtuvieron respuesta real del titular y $n$ el número de gestiones
+salientes sin respuesta. Se consideran respuestas los resultados definidos en
+`RESULTADOS_CON_CONTACTO`; las gestiones entrantes no se usan para entrenar la
+selección porque el sistema no eligió activamente su canal.
+
+En cada decisión se toma una muestra de la distribución de cada canal permitido
+y se recomienda el de mayor valor. La semilla se deriva de la semilla general,
+el crédito y la fecha objetivo, de modo que una misma ejecución con la misma
+historia sea reproducible.
+
+Las reglas E1 a E5 y E9 se conservan como estrategia experta de referencia:
+cuando existe historial, Thompson determina el canal final y el motor conserva
+cuál habría recomendado la regla para permitir la comparación. Si todavía no
+existen gestiones salientes, se mantiene temporalmente la recomendación de las
+reglas E.
+
+La primera implementación aprende por canal para toda la carga. La extensión
+por segmento requiere que el segmento esté disponible antes de ejecutar el
+motor; actualmente la segmentación ocurre en una etapa posterior.
 
 ### 8.6 Programación lineal entera para el plan
 
