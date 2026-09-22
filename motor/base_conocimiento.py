@@ -168,11 +168,9 @@ REGLAS = [
         "id": "C4",
         "nombre": "Número errado",
         "fase": "canales",
-        "fundamento": "Ley 2300 de 2023, artículo 4: en las gestiones de cobranza "
-                      "no se deben contactar referencias personales o de otra índole. "
-                      "Además, la Ley 1581 de 2012, artículo 4, exige respetar los "
-                      "principios de libertad, acceso y circulación restringida, "
-                      "seguridad y confidencialidad de los datos personales.",
+        "fundamento": "Ley 1581 de 2012 (protección de datos personales): "
+                      "contactar a un tercero que no es el titular expone la deuda "
+                      "a quien no debe conocerla.",
         "descripcion": "SI el último contacto indicó número equivocado ENTONCES no se "
                        "usa ningún canal telefónico",
         "condicion": {"resultado_gestion": "NUMERO_ERRADO"},
