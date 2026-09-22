@@ -41,19 +41,24 @@ with st.container(border=True):
         from datos.generador import generar as generar_bruto
         from datos.perfilador import cargar_perfil
 
-        with st.spinner("Generando {} cuentas y guardándolas...".format(comun.numero(registros))):
-            bruto = generar_bruto(cargar_perfil(), n=int(registros), semilla=int(semilla),
-                                  fecha_referencia=config.hoy())
-            carga_id = bd.registrar_carga(cargar(bruto=bruto), "SINTETICO", "generada_en_la_web",
-                                          semilla=int(semilla))
-            titulares_n, contactos_n = bd.registrar_directorio(*extraer_directorio(bruto), "SINTETICO", usuario)
-        bd.registrar_evento(usuario, "CARGAR_CARTERA", "carga {}: {} cuentas simuladas, semilla {}".format(
-            carga_id, registros, semilla))
-        comun.limpiar_cache()
-        st.session_state["aviso_cargas"] = (
-            "Carga {} registrada con {} cuentas; {} titulares y {} contactos nuevos en el directorio."
-            .format(carga_id, comun.numero(registros), comun.numero(titulares_n), comun.numero(contactos_n)))
-        st.rerun()
+        try:
+            with st.spinner("Generando {} cuentas y guardándolas...".format(comun.numero(registros))):
+                bruto = generar_bruto(cargar_perfil(), n=int(registros), semilla=int(semilla),
+                                      fecha_referencia=config.hoy())
+                carga_id = bd.registrar_carga(cargar(bruto=bruto), "SINTETICO", "generada_en_la_web",
+                                              semilla=int(semilla))
+                titulares_n, contactos_n = bd.registrar_directorio(
+                    *extraer_directorio(bruto), "SINTETICO", usuario)
+        except PermissionError as error:
+            st.error(str(error))
+        else:
+            bd.registrar_evento(usuario, "CARGAR_CARTERA", "carga {}: {} cuentas simuladas, semilla {}".format(
+                carga_id, registros, semilla))
+            comun.limpiar_cache()
+            st.session_state["aviso_cargas"] = (
+                "Carga {} registrada con {} cuentas; {} titulares y {} contactos nuevos en el directorio."
+                .format(carga_id, comun.numero(registros), comun.numero(titulares_n), comun.numero(contactos_n)))
+            st.rerun()
 
 # --- Completar cargas incompletas ------------------------------------------------
 incompletas = sorted(comun.cargas_incompletas())
@@ -70,7 +75,7 @@ if incompletas:
             try:
                 with st.spinner("Reconstruyendo y verificando la carga {}...".format(elegida)):
                     resultado = completar_carga(elegida, usuario)
-            except (ValueError, LookupError) as error:
+            except (ValueError, LookupError, PermissionError) as error:
                 st.error(str(error))
             else:
                 comun.limpiar_cache()
