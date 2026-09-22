@@ -35,6 +35,7 @@ if "supabase" in config.URL_BASE_DATOS:
 PAGINAS = {
     "tablero": "ver_tablero", "cartera": "ver_cartera", "motor": "ver_motor",
     "conocimiento": "ver_conocimiento", "cargas": "gestionar_cargas",
+    "obligaciones": "gestionar_obligaciones",
     "usuarios": "gestionar_usuarios", "auditoria": "ver_auditoria", "mi_cuenta": None,
     "priorizacion": "ver_priorizacion", "gestion": "registrar_gestion",
     "plan": "ver_plan", "traza": "ver_traza", "metodologia": "ver_conocimiento",
