@@ -27,6 +27,11 @@ import config
 from datos import base_datos as bd
 from motor import elegibilidad as motor
 
+import numpy as np
+from scipy.optimize import LinearConstraint, milp
+from analisis import criterios as crit
+from decision import priorizacion as prio
+
 
 def gestores_disponibles():
     """Usuarios activos con rol de gestor; si no hay, todos los activos."""
@@ -51,8 +56,60 @@ def repartir_en_serpentina(cuentas, gestores):
     return asignados, ordenes
 
 
-def crear_plan(carga_id, priorizacion_id, fecha, gestores, cupo, usuario):
-    """Crea el plan del día. Retorna (plan_id, resumen)."""
+def asignar_optimo(cuentas_valor, gestores, cupo):
+    """Asigna cuentas a gestores maximizando el recaudo esperado total,
+    respetando el cupo de cada gestor, con programación lineal entera.
+
+    cuentas_valor: Series indexada por credito_id, con el valor esperado de
+    cada cuenta (issue #14). Retorna (creditos_asignados, gestores_asignados,
+    ordenes): tres listas paralelas, una entrada por cada cuenta que SÍ quedó
+    asignada (puede ser menos que len(cuentas_valor) si el cupo total no
+    alcanza para todas).
+    """
+    creditos = cuentas_valor.index.tolist()
+    n_cuentas, n_gestores = len(creditos), len(gestores)
+    valores = cuentas_valor.values
+
+    c = -np.repeat(valores, n_gestores)
+
+    A_cuenta = np.zeros((n_cuentas, n_cuentas * n_gestores))
+    for i in range(n_cuentas):
+        A_cuenta[i, i * n_gestores:(i + 1) * n_gestores] = 1
+    restr_cuenta = LinearConstraint(A_cuenta, ub=1)
+
+    A_gestor = np.zeros((n_gestores, n_cuentas * n_gestores))
+    for g in range(n_gestores):
+        A_gestor[g, g::n_gestores] = 1
+    restr_gestor = LinearConstraint(A_gestor, ub=cupo)
+
+    resultado = milp(c, constraints=[restr_cuenta, restr_gestor],
+                     integrality=np.ones(n_cuentas * n_gestores), bounds=(0, 1))
+    if not resultado.success:
+        raise RuntimeError("El optimizador no encontró una asignación válida: " + resultado.message)
+
+    x = resultado.x.reshape(n_cuentas, n_gestores).round().astype(bool)
+    creditos_asignados, gestores_asignados, ordenes = [], [], []
+    contador = {g: 0 for g in gestores}
+    for i in range(n_cuentas):
+        fila = np.where(x[i])[0]
+        if len(fila) == 0:
+            continue
+        gestor = gestores[fila[0]]
+        contador[gestor] += 1
+        creditos_asignados.append(creditos[i])
+        gestores_asignados.append(gestor)
+        ordenes.append(contador[gestor])
+    return creditos_asignados, gestores_asignados, ordenes
+
+
+def crear_plan(carga_id, priorizacion_id, fecha, gestores, cupo, usuario, metodo="serpentina"):
+    """Crea el plan del día. Retorna (plan_id, resumen).
+
+    metodo: "serpentina" (por defecto) o "optimo" (issue #14, programación
+    lineal entera). Se calculan los dos repartos siempre, sobre el mismo
+    universo completo de candidatas permitidas, para poder comparar el valor
+    esperado de uno contra el otro de forma justa sin importar cuál se use.
+    """
     if not gestores:
         raise ValueError("Seleccione al menos un gestor.")
     dia = motor.diagnostico_fecha(fecha)
@@ -72,24 +129,57 @@ def crear_plan(carga_id, priorizacion_id, fecha, gestores, cupo, usuario):
     permitidas = candidatas[candidatas["credito_id"].map(evaluacion) == "CONTACTABLE"]
     descartadas = len(candidatas) - len(permitidas)
 
-    # Regla 2 y 3: las mejores, hasta el cupo, en serpentina.
-    seleccion = permitidas.head(len(gestores) * cupo).reset_index(drop=True)
-    if seleccion.empty:
+    # Universo completo de candidatas permitidas (para comparar de forma
+    # justa contra el verdadero óptimo, sin importar qué método se use
+    # para el reparto final).
+    seleccion_completa = permitidas.reset_index(drop=True)
+    if seleccion_completa.empty:
         raise LookupError("Ninguna cuenta de la priorización se puede contactar el {}.".format(fecha))
-    asignados, ordenes = repartir_en_serpentina(seleccion["credito_id"].tolist(), list(gestores))
+
+    # Valor esperado de cada cuenta con los datos frescos de la fecha del
+    # plan (mismo cálculo que usa priorización, issue #13).
+    cartera_completa = cartera[cartera["credito_id"].isin(seleccion_completa["credito_id"])]
+    criterios = crit.preparar(cartera_completa)
+    canal_por_cuenta = pd.Series("LLAMADA", index=cartera_completa["credito_id"])
+    valor = prio._valor_esperado(cartera_completa, criterios, canal_por_cuenta)
+    valor = valor.reindex(seleccion_completa["credito_id"]).fillna(0)
+
+    # Regla 3: reparto. Se calculan los dos métodos siempre, sobre el mismo
+    # universo completo, para que la comparación sea justa sin importar cuál
+    # se use para el plan final (criterio de aceptación del issue #14).
+    creditos_serpentina = (seleccion_completa.sort_values("posicion")["credito_id"]
+                           .head(len(gestores) * cupo).tolist())
+    asignados_serp, ordenes_serp = repartir_en_serpentina(creditos_serpentina, list(gestores))
+    valor_serpentina = float(valor.loc[creditos_serpentina].sum())
+
+    creditos_optimo, gestores_optimo, ordenes_optimo = asignar_optimo(valor, list(gestores), cupo)
+    valor_optimo = float(valor.loc[creditos_optimo].sum()) if creditos_optimo else 0.0
+
+    if metodo == "optimo":
+        creditos_finales, asignados, ordenes = creditos_optimo, gestores_optimo, ordenes_optimo
+    else:
+        creditos_finales, asignados, ordenes = creditos_serpentina, asignados_serp, ordenes_serp
+
+    seleccion_indexada = seleccion_completa.set_index("credito_id")
     asignaciones = pd.DataFrame({
-        "credito_id": seleccion["credito_id"], "gestor": asignados, "orden": ordenes,
-        "posicion": seleccion["posicion"].astype("Int64"), "prioridad": seleccion["prioridad"]})
+        "credito_id": creditos_finales,
+        "gestor": asignados,
+        "orden": ordenes,
+        "posicion": seleccion_indexada.loc[creditos_finales, "posicion"].astype("Int64").values,
+        "prioridad": seleccion_indexada.loc[creditos_finales, "prioridad"].values,
+    })
 
     plan_id = bd.guardar_plan({
         "fecha": fecha, "carga_id": int(carga_id), "priorizacion_id": int(priorizacion_id),
         "gestores": len(gestores), "cupo": int(cupo), "cuentas": len(asignaciones),
+        "metodo": metodo, "valor_serpentina": valor_serpentina, "valor_optimo": valor_optimo,
         "creado": config.ahora(), "creado_por": usuario[:40]}, asignaciones)
     bd.registrar_evento(usuario, "CREAR_PLAN", "plan {} para el {}: {} cuentas entre {} gestores "
-                        "({} descartadas por el motor)".format(plan_id, fecha, len(asignaciones),
-                                                               len(gestores), descartadas))
-    return plan_id, {"cuentas": len(asignaciones), "descartadas": descartadas, "gestores": len(gestores)}
-
+                        "({} descartadas por el motor), método {}, valor esperado ${:,.0f}".format(
+                            plan_id, fecha, len(asignaciones), len(gestores), descartadas, metodo,
+                            valor_optimo if metodo == "optimo" else valor_serpentina))
+    return plan_id, {"cuentas": len(asignaciones), "descartadas": descartadas, "gestores": len(gestores),
+                     "metodo": metodo, "valor_serpentina": valor_serpentina, "valor_optimo": valor_optimo}
 
 def avance(plan):
     """Asignaciones del plan con su estado de gestión en la fecha del plan.
