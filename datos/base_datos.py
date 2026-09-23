@@ -469,6 +469,39 @@ def describir_motor():
     return "PostgreSQL remoto"
 
 
+def reloj_confiable(margen_minutos=10):
+    """True si el reloj de este servidor coincide con el de la base de datos,
+    dentro de un margen razonable.
+
+    Existe por el issue #51: en la aplicación publicada, un contacto saliente
+    se registró fuera del horario permitido sin que la regla de la Ley 2300 lo
+    rechazara. La causa no fue un error de zona horaria en el código —
+    config.ahora() ya usa una zona fija, sin depender del sistema operativo—
+    sino que el reloj del contenedor donde corría la aplicación estaba
+    atrasado varias horas. La única forma de detectarlo desde la aplicación es
+    comparar contra un reloj que no comparte esa misma máquina: el de la base
+    de datos.
+
+    Sobre SQLite no hay nada que comparar: la aplicación y la base están en el
+    mismo equipo, así que se confía en el reloj local. Si la comparación
+    contra Postgres falla por cualquier razón (por ejemplo, una base lenta o
+    sin conexión momentánea), tampoco se bloquea el registro por eso: se seguía
+    confiando en el reloj local antes de este chequeo, y una falla de red no
+    debería impedir gestionar cuentas el resto del día.
+    """
+    if es_local():
+        return True
+    try:
+        with obtener_motor().connect() as conexion:
+            momento_bd = conexion.execute(text("SELECT NOW()")).scalar()
+        if momento_bd.tzinfo is not None:
+            momento_bd = momento_bd.astimezone(config.ZONA_COLOMBIA).replace(tzinfo=None)
+        diferencia = abs((config.ahora() - momento_bd).total_seconds())
+        return diferencia <= margen_minutos * 60
+    except Exception:
+        return True
+
+
 def confirmar_escritura_remota(accion, confirmada=False):
     """Pide confirmación antes de que un comando escriba en una base que no es
     la local. Retorna True si se puede seguir.

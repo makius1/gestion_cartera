@@ -35,10 +35,18 @@ SENTIDOS = {"SALIENTE": "Saliente: la casa de cobranza contacta",
 # ---------------------------------------------------------------------------
 
 def en_horario(momento):
-    """True si el momento está dentro del horario de contacto de la Ley 2300."""
+    """True si el momento está dentro del horario de contacto de la Ley 2300.
+
+    Si el horario ya da falso (festivo, domingo o fuera de la franja), no hace
+    falta comprobar nada más. Si da verdadero, todavía depende de que el
+    reloj de este servidor sea confiable (issue #51): un reloj atrasado podría
+    hacer parecer "en horario" un momento que en la realidad ya no lo está.
+    """
     franja = config.HORARIO_HABIL.get(momento.weekday())
     dia = motor.diagnostico_fecha(momento.date())
-    return bool(franja) and dia["dia_habil"] and franja[0] <= momento.hour < franja[1]
+    if not (bool(franja) and dia["dia_habil"] and franja[0] <= momento.hour < franja[1]):
+        return False
+    return bd.reloj_confiable()
 
 
 def estado_hoy(fila, momento=None):
