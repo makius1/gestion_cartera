@@ -231,8 +231,10 @@ with pestanas[3]:
     opciones = tabla[tabla["candidata"]].sort_values("posicion")["credito_id"].tolist()
     credito = st.selectbox("Crédito", opciones, help="Ordenadas por posición en la cola.")
     fila = tabla[tabla["credito_id"] == credito].iloc[0]
+    evaluacion = (bd.leer_evaluaciones(int(cabecera["ejecucion_id"]))
+                 if pd.notna(cabecera["ejecucion_id"]) else None)
     detalle = prio.explicar_cuenta(comun.cartera(int(cabecera["carga_id"])), credito,
-                                   candidatos=opciones)
+                                   candidatos=opciones, evaluacion=evaluacion)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Posición", comun.numero(fila["posicion"]))

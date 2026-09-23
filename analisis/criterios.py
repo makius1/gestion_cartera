@@ -28,16 +28,31 @@ def contactabilidad(cartera):
     return (0.7 * por_resultado + 0.3 * por_canales.clip(0, 1)).astype(float)
 
 
-def preparar(cartera):
-    """Tabla de criterios indexada por crédito, sin valores faltantes."""
+def preparar(cartera, canales=None, usar_modelo=True):
+    """Tabla de criterios indexada por crédito, sin valores faltantes.
+
+    contactabilidad viene del modelo de propensión entrenado (issue #12)
+    cuando usar_modelo=True y hay un modelo guardado para esta carga; si no
+    hay modelo, o usar_modelo=False, usa la heurística del experto (sección
+    1.3 de docs/ALGORITMOS.md). Con usar_modelo=True y sin modelo entrenado
+    cae a la heurística sin avisar: mantiene la priorización operando aunque
+    todavía no se haya entrenado un modelo para esa carga.
+    """
     tabla = pd.DataFrame(index=cartera["credito_id"].values)
     tabla["saldo"] = pd.to_numeric(cartera["saldo"], errors="coerce").values
-    tabla["contactabilidad"] = contactabilidad(cartera).values
+
+    probabilidad = None
+    if usar_modelo:
+        from analisis import propension
+        probabilidad = propension.predecir(cartera, canales=canales)
+    if probabilidad is not None:
+        tabla["contactabilidad"] = probabilidad.reindex(tabla.index).values
+    else:
+        tabla["contactabilidad"] = contactabilidad(cartera).values
+
     tabla["dias_mora"] = pd.to_numeric(cartera["dias_mora"], errors="coerce").values
     tabla["margen_pct"] = pd.to_numeric(cartera["margen_pct"], errors="coerce").values
     tabla["meses_en_gestion"] = pd.to_numeric(cartera["meses_en_gestion"], errors="coerce").values
-    # Un faltante se reemplaza por la mediana de la cartera: ni premia ni castiga
-    # a la cuenta en ese criterio.
     return tabla.fillna(tabla.median(numeric_only=True)).astype(float)
 
 
