@@ -361,6 +361,13 @@ $$
 - **Método:** sistema de reglas de restricción. Las de nivel *error* impiden
   guardar; las de nivel *aviso* se registran. La gestión y la actualización de
   la cartera van en una transacción ACID: o se guardan las dos o ninguna.
+- **Reloj confiable (issue #51):** la regla de horario (G1) depende de la hora
+  del servidor donde corre la aplicación, no solo del código: si ese reloj se
+  atrasa, un contacto fuera de horario real podría verse "en horario" y no
+  rechazarse. Contra una base remota, `datos/base_datos.py → reloj_confiable()`
+  compara la hora del servidor contra la de la base de datos antes de aceptar
+  un horario como válido; si difieren más de 10 minutos, se rechaza por
+  precaución, el mismo principio que ya usa L3 con un dato incompleto.
 
 ---
 
