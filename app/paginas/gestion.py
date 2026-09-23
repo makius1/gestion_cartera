@@ -19,6 +19,7 @@ import streamlit as st
 
 import config
 from app import comun
+from datos import autorizaciones as autz
 from datos import base_datos as bd
 from gestion import operacion as op
 from gestion import plan
@@ -168,6 +169,11 @@ with hoy.container(border=True):
     if not decision["en_horario"]:
         st.markdown(":red[Fuera del horario de contacto: solo se pueden registrar gestiones entrantes.]")
     st.caption(decision["explicacion"])
+    autorizaciones_hoy = autz.leer(fila["cuenta_id"])
+    st.caption("Autorizacion del titular: " + ", ".join(
+        "{} {}".format(canal, {"AUTORIZADO": "OK", "NO_AUTORIZADO": "NO",
+                               "DESCONOCIDO": "?"}[dato["estado"]])
+        for canal, dato in autorizaciones_hoy.items()))
 
 # --- Titular y datos de contacto ------------------------------------------------
 # Los cambios de contacto recalculan los canales de la cuenta: se limpia la
@@ -197,6 +203,32 @@ with st.expander("Titular y datos de contacto · {}".format(titular["nombre"] if
                     st.error(str(error))
                 else:
                     _tras_cambio("Datos del titular actualizados.")
+
+        st.markdown("**Canales autorizados** (Ley 2300, art. 2)")
+        st.caption("Tener el dato de contacto no es tener permiso para usarlo. Registre lo que "
+                   "el titular autorizo o revoco por telefono; OK autorizado, NO no autorizado, "
+                   "? nunca se le pregunto.")
+        autorizaciones = autz.leer(fila["cuenta_id"])
+        iconos = {"AUTORIZADO": "OK", "NO_AUTORIZADO": "NO", "DESCONOCIDO": "?"}
+        with st.form("autorizaciones_{}".format(fila["cuenta_id"])):
+            for canal in sorted(config.CANALES):
+                dato = autorizaciones[canal]
+                st.selectbox(
+                    "{} {}".format(iconos[dato["estado"]], canal),
+                    config.ESTADOS_AUTORIZACION,
+                    index=config.ESTADOS_AUTORIZACION.index(dato["estado"]),
+                    key="autoriza_{}_{}".format(fila["cuenta_id"], canal))
+            if st.form_submit_button("Guardar autorizaciones"):
+                cambios = 0
+                for canal in sorted(config.CANALES):
+                    nuevo_estado = st.session_state["autoriza_{}_{}".format(fila["cuenta_id"], canal)]
+                    if nuevo_estado != autorizaciones[canal]["estado"]:
+                        autz.registrar(fila["cuenta_id"], canal, nuevo_estado, usuario, origen="GESTOR")
+                        cambios += 1
+                if cambios:
+                    _tras_cambio("Autorizacion actualizada en {} canal(es).".format(cambios))
+                else:
+                    st.info("No hubo cambios: los estados ya eran esos.")
 
     with derecha:
         if contactos.empty:
