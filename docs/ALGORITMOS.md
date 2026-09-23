@@ -19,7 +19,7 @@ determinista y auditable.
 | Segmentación de la cartera | K-Means · Jerárquico de Ward · Mezcla gaussiana | Silueta, Calinski-Harabasz y Davies-Bouldin | ✅ |
 | Número de segmentos | k = 2 a 6 en cada algoritmo | Silueta con principio de parsimonia | ✅ |
 | Priorización de cuentas | Lógica difusa Mamdani · TOPSIS · Ponderación simple | Recaudo esperado, robustez y discriminación | ✅ |
-| Reparto del plan de trabajo | Serpentina (fase 5: voraz por valor · programación lineal entera) | Valor asignado y equidad entre gestores | Parcial |
+| Reparto del plan de trabajo | Serpentina · Programación lineal entera (`scipy.optimize.milp`) | Valor asignado (recaudo esperado) contra la serpentina | ✅ |
 | Propensión a pagar | Regresión logística · Árbol CART · Bosque aleatorio · Gradient Boosting | AUC, KS, Brier y estabilidad | ✅ |
 | Canal de contacto | Reglas E1 a E5 y E9 · muestreo de Thompson sobre el historial de respuestas | Tasa de respuesta observada | ✅ |
 
@@ -348,7 +348,12 @@ $$
   depende de $g$: todos reciben la misma suma de posiciones. Así nadie recibe
   siempre la mejor cuenta de cada vuelta y los resultados entre gestores se
   pueden comparar.
-- **Fase 5:** reemplazarlo por asignación óptima (sección 8.6).
+- **Asignación óptima (issue #14):** alternativa disponible con
+  `gestion/plan.py` → `asignar_optimo()`, programación lineal entera con
+  `scipy.optimize.milp` (ver sección 8.6). Ambos métodos se calculan siempre
+  sobre el mismo universo de cuentas permitidas, de modo que cada plan guarda
+  el valor esperado con serpentina y con el óptimo, y se puede comparar uno
+  contra otro sin importar cuál se use para el reparto final.
 
 ---
 
