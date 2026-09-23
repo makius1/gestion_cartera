@@ -343,15 +343,28 @@ def ejecutar(carga_id=None, ejecucion_id=None, usuario="sistema", guardar=True):
     return resumen, tabla
 
 
-def explicar_cuenta(cartera, credito_id, candidatos=None):
+def explicar_cuenta(cartera, credito_id, candidatos=None, evaluacion=None):
     """Detalle del razonamiento de los métodos para una cuenta.
 
     Se recalcula sobre el mismo conjunto de candidatas con el que se guardó la
     priorización: el saldo difuso es un percentil y TOPSIS compara contra la
     mejor y la peor cuenta, así que el resultado de una cuenta depende de con
-    cuáles otras se compara.
+    cuáles otras se compara. Los criterios se recalculan con los mismos
+    canales y la misma elección modelo/heurística que usó priorizar(), para
+    que la probabilidad mostrada aquí coincida con la que se usó al ordenar
+    la cola.
     """
-    criterios = crit.preparar(cartera)
+    indice = cartera["credito_id"].values
+    if evaluacion is not None:
+        canales = evaluacion.set_index("credito_id")["canal_recomendado"].reindex(indice)
+    else:
+        canales = pd.Series("LLAMADA", index=indice)
+
+    criterios_modelo = crit.preparar(cartera, canales=canales, usar_modelo=True)
+    criterios_heuristica = crit.preparar(cartera, canales=canales, usar_modelo=False)
+    usa_modelo = not criterios_modelo["contactabilidad"].equals(criterios_heuristica["contactabilidad"])
+    criterios = criterios_modelo if usa_modelo else criterios_heuristica
+
     if candidatos is not None:
         criterios = criterios.loc[list(candidatos)]
     _, difuso = inferir_difuso(criterios, detalle=True)
@@ -366,7 +379,7 @@ def explicar_cuenta(cartera, credito_id, candidatos=None):
             "grados": grados, "reglas": reglas,
             "d_ideal": float(dist["d_ideal"].loc[credito_id]),
             "d_anti": float(dist["d_anti"].loc[credito_id]),
-                        "probabilidad_pago": float(criterios.loc[credito_id, "contactabilidad"])}
+            "probabilidad_pago": float(criterios.loc[credito_id, "contactabilidad"])}
 
 
 # ---------------------------------------------------------------------------
