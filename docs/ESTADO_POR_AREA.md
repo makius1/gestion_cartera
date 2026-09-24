@@ -80,11 +80,7 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
 
 ### Pendiente
 
-| Prioridad | Tarea |
-|---|---|
-| Alta | Crear en la aplicación el usuario de cada integrante con su rol (la pantalla **Usuarios** ya existe) |
-| Alta | Cambiar la contraseña de la base y actualizar los secretos antes de publicar |
-| Media | Preparar la base compartida y dirigir la primera sesión de pruebas conjuntas |
+Sin pendientes por ahora.
 
 ### Comandos de revisión
 
@@ -116,6 +112,12 @@ DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos sintetic
 - Fundamento legal de cada regla revisado contra la Ley 2300 y la Ley 1581.
 - Canal de contacto elegido con muestreo de Thompson sobre la respuesta
   observada, con reglas E1 a E5 y E9 como referencia cuando no hay historial.
+- Simulación de historial de gestiones con causa conocida para entrenar el
+  modelo (issue #11).
+- Uso de la probabilidad de pago del modelo en la priorización, con
+  comparación de recaudo esperado con y sin modelo (issue #13).
+- Asignación óptima de cuentas a gestores con programación lineal entera,
+  comparada contra la serpentina (issue #14).
 
 ### Pendiente
 
