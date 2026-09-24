@@ -19,6 +19,7 @@ import streamlit as st
 
 import config
 from app import comun
+from datos import autorizaciones as aut
 from datos import base_datos as bd
 from gestion import operacion as op
 from gestion import plan
@@ -167,6 +168,13 @@ with hoy.container(border=True):
             decision["canal_recomendado"], ", ".join(decision["canales_permitidos"])))
     if not decision["en_horario"]:
         st.markdown(":red[Fuera del horario de contacto: solo se pueden registrar gestiones entrantes.]")
+    # Se leen las columnas derivadas de la cartera, que son las mismas que usa el
+    # motor: así el gestor ve por qué un canal no aparece entre los permitidos.
+    # Un valor vacío (carga anterior a la autorización por canal) cuenta como no
+    # autorizado, igual que para el motor.
+    autorizados = [canal for canal, columna in config.COLUMNA_AUTORIZACION.items()
+                   if pd.notna(fila.get(columna)) and bool(fila.get(columna))]
+    st.markdown("Autorizados por el titular: {}".format(", ".join(sorted(autorizados)) or "ninguno"))
     st.caption(decision["explicacion"])
 
 # --- Titular y datos de contacto ------------------------------------------------
@@ -235,6 +243,34 @@ with st.expander("Titular y datos de contacto · {}".format(titular["nombre"] if
                     st.error(str(error))
                 else:
                     _tras_cambio("Contacto agregado como válido.")
+
+# --- Autorización del titular por canal (Ley 2300, artículo 2) ------------------
+# El titular autoriza o revoca un canal hablando con el gestor, y el cambio tiene
+# que quedar registrado en ese momento: con quién, cuándo y qué dijo. Registrar
+# actualiza también las columnas de la cartera que lee el motor.
+
+autorizaciones = aut.leer(fila["cuenta_id"])
+with st.expander("Autorización del titular por canal", expanded=True):
+    st.dataframe(pd.DataFrame([{
+        "Canal": canal, "Estado": aut.ETIQUETAS[dato["estado"]], "Origen": dato["origen"] or "—",
+        "Actualizado": dato["actualizado"], "Registrado por": dato["actualizado_por"] or "—"}
+        for canal, dato in autorizaciones.items()]),
+        hide_index=True, use_container_width=True,
+        column_config={"Actualizado": st.column_config.DatetimeColumn(format="YYYY-MM-DD HH:mm")})
+    if not config.EXIGIR_AUTORIZACION_CANAL:
+        st.caption("La exigencia de autorización está apagada (EXIGIR_AUTORIZACION_CANAL en config.py): "
+                   "lo que se registre aquí queda guardado y en la cartera, pero el motor todavía no "
+                   "descarta canales por esta causa.")
+    with st.form("autorizacion_{}".format(fila["cuenta_id"])):
+        c1, c2, c3 = st.columns([1, 2, 1])
+        canal_autorizacion = c1.selectbox("Canal a registrar", sorted(config.CANALES))
+        estado_autorizacion = c2.radio("Qué dijo el titular", list(config.ESTADOS_AUTORIZACION),
+                                       format_func=aut.ETIQUETAS.get, horizontal=True)
+        c3.write("")
+        if c3.form_submit_button("Registrar autorización", use_container_width=True):
+            aut.registrar(fila["cuenta_id"], canal_autorizacion, estado_autorizacion, usuario)
+            _tras_cambio("{}: {}.".format(canal_autorizacion,
+                                          aut.ETIQUETAS[estado_autorizacion].lower()))
 
 historial = bd.leer_gestiones(carga_id, credito)
 with st.expander("Historial de gestiones ({})".format(len(historial)), expanded=not historial.empty):

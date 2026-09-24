@@ -37,6 +37,12 @@ from sqlalchemy import delete, insert, select, update
 import config
 from datos import base_datos as bd
 
+# Cómo se muestra cada estado en pantalla. "Sin preguntar" y "No autorizó" pesan
+# igual para el motor, pero no son lo mismo ante una reclamación: uno es un
+# dato que falta y el otro una negativa que el titular dio y quedó registrada.
+ETIQUETAS = {"AUTORIZADO": "Autorizó", "NO_AUTORIZADO": "No autorizó",
+             "DESCONOCIDO": "Sin preguntar"}
+
 
 def _validar(canal, estado):
     if canal not in config.CANALES:

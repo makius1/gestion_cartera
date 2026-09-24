@@ -146,6 +146,53 @@ def prueba_gestion():
     print("  Gestión: toma la cuenta de la cola, graba y actualiza la cartera")
 
 
+def prueba_autorizacion():
+    """Registra desde la pantalla de gestión una negativa y luego una
+    autorización (issue #40) y comprueba que cada una queda en su tabla, en la
+    columna de la cartera que lee el motor, en el panel del motor y en la
+    auditoría con el gestor que la hizo."""
+    from datos import autorizaciones as aut
+    usuario, _ = usuario_de_prueba("GESTOR")
+    sesion = {"usuario": usuario, "nombre": "Prueba", "rol": "GESTOR", "ultimo_ingreso": None}
+    pagina = abrir("gestion", sesion)
+
+    def control(lista, etiqueta):
+        return next(c for c in lista if c.label == etiqueta)
+
+    control(pagina.button, "Siguiente cuenta").click().run()
+    assert not pagina.exception, pagina.exception
+    credito = pagina.session_state["gestion_credito"]
+    carga = int(bd.listar_priorizaciones(1).iloc[0]["carga_id"])
+    cuenta = bd.leer_cartera(carga).set_index("credito_id").loc[credito, "cuenta_id"]
+
+    def registrar(estado):
+        # AppTest no acepta un segundo envío de un formulario justo después de
+        # un st.rerun() lanzado por el primero (pasa igual con el de contactos,
+        # que en la aplicación funciona bien): una corrida intermedia lo evita.
+        pagina.run()
+        control(pagina.selectbox, "Canal a registrar").set_value("SMS")
+        control(pagina.radio, "Qué dijo el titular").set_value(estado)
+        control(pagina.button, "Registrar autorización").click().run()
+        assert not pagina.exception, pagina.exception
+        return aut.leer(cuenta)["SMS"], bd.leer_cartera(carga).set_index("credito_id").loc[credito]
+
+    dato, fila = registrar("NO_AUTORIZADO")
+    assert dato["estado"] == "NO_AUTORIZADO" and dato["actualizado_por"] == usuario, dato
+    assert not bool(fila["autoriza_sms"]), "una negativa no puede habilitar el canal"
+
+    dato, fila = registrar("AUTORIZADO")
+    assert dato["estado"] == "AUTORIZADO", dato
+    assert bool(fila["autoriza_sms"]), "la cartera no tomó la autorización"
+    panel = " ".join(m.value for m in pagina.markdown)
+    assert "Autorizados por el titular:" in panel and "SMS" in panel, "el panel del motor no la muestra"
+
+    eventos = bd.leer_auditoria(50)
+    propios = eventos[(eventos["accion"] == "AUTORIZACION_CANAL") & (eventos["usuario"] == usuario)]
+    assert len(propios) == 2, "la auditoría no registró los dos cambios"
+    print("  Autorización por canal: la negativa y la autorización quedan en la cartera, "
+          "el panel y la auditoría")
+
+
 def prueba_sintaxis():
     """Comprueba que todas las pantallas compilan.
 
@@ -172,6 +219,7 @@ if __name__ == "__main__":
     prueba_ingreso()
     prueba_plan()
     prueba_gestion()
+    prueba_autorizacion()
 
     fallas = 0
     for rol in auth.ROLES:
