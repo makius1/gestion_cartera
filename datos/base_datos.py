@@ -337,6 +337,12 @@ planes = Table(
     Column("cuentas", Integer, nullable=False),
     Column("creado", DateTime, nullable=False),
     Column("creado_por", String(40), nullable=False),
+    # Método de reparto y comparación de valor esperado (issue #14): permite
+    # ver, para cada plan ya creado, cuánto se habría recaudado con el otro
+    # método, sin tener que recalcularlo.
+    Column("metodo", String(20)),
+    Column("valor_serpentina", Float),
+    Column("valor_optimo", Float),
 )
 
 plan_asignaciones = Table(
