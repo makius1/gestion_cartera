@@ -184,12 +184,13 @@ python -m decision.priorizacion --no-guardar
   sin plan no reciban la misma, con prueba de concurrencia real.
 - Registrar obligaciones nuevas desde la aplicación, sin una carga completa.
 - Cambiar el texto de la pantalla de ingreso por uno sobre la administración de la información.
+- Registro y revocación de la autorización del titular por canal desde la
+  pantalla de gestión, con el estado de los cuatro canales, el panel del motor
+  y la auditoría de cada cambio (issue #40).
 
 ### Pendiente
 
-| Prioridad | Tarea |
-|---|---|
-| Alta | Registrar y revocar la autorización de canales desde la aplicación (#40) |
+Sin pendientes por ahora.
 
 ### Comandos de revisión
 

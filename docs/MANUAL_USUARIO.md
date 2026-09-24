@@ -51,6 +51,12 @@ seudónimo (`K...` para el crédito, `C...` para el titular). Muestra:
   ejemplo, "en espera" porque hay un compromiso vigente).
 - El titular y sus datos de contacto, enmascarados (solo se ven los últimos
   dígitos); puede marcarlos como válidos o errados, o agregar uno nuevo.
+- La **autorización del titular por canal** (Ley 2300, artículo 2): una tabla
+  con el estado de llamada, WhatsApp, SMS y correo, quién lo registró y
+  cuándo. Si el titular autoriza o revoca un canal durante la gestión, se
+  elige el canal y lo que dijo ("Autorizó", "No autorizó" o "Sin preguntar")
+  y se pulsa **Registrar autorización**; el cambio queda en la auditoría y el
+  panel del motor muestra los canales autorizados.
 - El historial completo de gestiones anteriores.
 - El formulario para **registrar la gestión**: canal, sentido (entrante o
   saliente), resultado del contacto, código de gestión y, si hubo acuerdo,
