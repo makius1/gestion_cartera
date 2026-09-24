@@ -53,7 +53,7 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
 - Carga, limpieza y seudonimización de identificadores con HMAC-SHA256.
 - Simulador determinista de carteras a partir de un perfil, que reconstruye
   cualquier carga con su semilla.
-- Esquema de 15 tablas con historial de cargas, migración automática de
+- Esquema de 16 tablas con historial de cargas, migración automática de
   columnas y Row Level Security en Supabase.
 - Directorio de titulares y contactos separado de la analítica, con datos
   enmascarados.
@@ -77,6 +77,10 @@ y al terminar, `Remove-Item Env:DATABASE_URL`.
   guía de trabajo en equipo.
 - Aplicación publicada en Streamlit Community Cloud.
 - Manual de usuario por rol (`docs/MANUAL_USUARIO.md`).
+- Reloj confiable: contra una base remota, la hora del servidor se compara con
+  la de la base antes de aceptar un horario de contacto (issue #51).
+- Estimación de esfuerzo y costo del proyecto con puntos de historia, puntos
+  de función, COCOMO II y Wideband Delphi (`docs/ESTIMACION_COSTOS.md`).
 
 ### Pendiente
 
@@ -175,10 +179,11 @@ python -m decision.priorizacion --no-guardar
   cartera y retroalimentan al motor.
 - Titulares y datos de contacto: validación de formatos, enmascarado y consulta
   auditada del dato completo.
-- Plan de trabajo diario repartido en serpentina y avance por gestor.
+- Plan de trabajo diario repartido en serpentina o con el reparto óptimo, y
+  avance por gestor.
 - Traza de trabajo por gestor y por cuenta.
-- Aplicación web con 14 pantallas y menú por rol.
-- Prueba automática de las 14 pantallas con los tres roles, y plan de pruebas
+- Aplicación web con 15 pantallas y menú por rol.
+- Prueba automática de las 15 pantallas con los tres roles, y plan de pruebas
   conjuntas.
 - Reserva de la cuenta entregada por *Siguiente cuenta*, para que dos gestores
   sin plan no reciban la misma, con prueba de concurrencia real.

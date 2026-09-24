@@ -31,8 +31,11 @@ códigos que no coinciden con los de la base.
 2. **Proteger la rama `main`:** *Settings → Rules → Rulesets → New ruleset →
    New branch ruleset*:
    - *Ruleset name:* `Proteger main`. *Enforcement status:* **Active**.
-   - *Bypass list:* vacía. Si el dueño se agrega ahí, puede saltarse las
-     reglas y la protección pierde sentido.
+   - *Bypass list:* **Repository admin**. Se agregó para que el dueño pueda
+     fusionar un *pull request* con las pruebas en verde cuando ningún
+     compañero puede aprobarlo a tiempo (**Bypass rules and merge**). Por
+     acuerdo del equipo no se usa para subir commits directo a `main` ni para
+     fusionar con las pruebas en rojo.
    - *Target branches → Add target → Include default branch*.
    - **Restrict deletions** y **Block force pushes**.
    - **Require a pull request before merging**, con *Required approvals* en 1
@@ -90,8 +93,9 @@ Nadie trabaja directamente sobre `main`. Cada tarea va en su propia rama.
 ### Quién puede tocar `main`
 
 Nadie sube cambios directo a `main`, ni siquiera el dueño del repositorio.
-`main` solo cambia cuando se fusiona un *pull request* aprobado por otro
-integrante y con las pruebas en verde. Es la versión que publica Streamlit
+`main` solo cambia cuando se fusiona un *pull request* con las pruebas en
+verde, aprobado por otro integrante o, como excepción, fusionado por el dueño
+con *Bypass rules and merge*. Es la versión que publica Streamlit
 Cloud y la que todos prueban, así que siempre debe funcionar.
 
 | Acción | Dueño (*Admin*) | Integrantes (*Write*) |
@@ -101,11 +105,13 @@ Cloud y la que todos prueban, así que siempre debe funcionar.
 | Abrir *pull requests* | Sí | Sí |
 | Aprobar un *pull request* | Solo los de otros | Solo los de otros |
 | Fusionar un *pull request* aprobado y en verde | Sí | Sí |
+| Fusionar un *pull request* en verde sin aprobación (*Bypass rules and merge*) | Sí, solo si nadie puede revisar | No |
 | Borrar `main` o reescribir su historia | No | No |
 | Cambiar reglas, secretos y colaboradores | Sí | No |
 
 GitHub no deja que alguien apruebe su propio *pull request*: todo cambio, incluso
-los del dueño, lo revisa al menos otra persona. Por acuerdo del equipo, el
+los del dueño, lo revisa al menos otra persona, salvo la excepción de la
+*bypass list* descrita arriba. Por acuerdo del equipo, el
 **autor** fusiona su *pull request* una vez aprobado, porque es quien sabe
 cuándo está listo.
 
@@ -217,7 +223,7 @@ flowchart LR
     I["Issue #12<br/>Pendiente"] --> A["Se asigna<br/>En curso"]
     A --> R["Rama<br/>funcion/12-..."]
     R --> C["Commits<br/>... (#12)"]
-    C --> P["Pull request<br/>Cierra #12<br/>En revisión"]
+    C --> P["Pull request<br/>Closes #12<br/>En revisión"]
     P --> F["Fusión a main<br/>Hecho"]
 ```
 
@@ -225,8 +231,10 @@ flowchart LR
    *En curso* en el tablero. Así nadie trabaja dos veces lo mismo.
 2. Crea la rama con el número del *issue* y hace sus commits terminando en
    `(#12)`.
-3. En el *pull request* escribe `Cierra #12`. Al fusionarlo, GitHub cierra el
-   *issue* solo y lo pasa a *Hecho*.
+3. En la descripción del *pull request* escribe `Closes #12`. Al fusionarlo,
+   GitHub cierra el *issue* solo y lo pasa a *Hecho*. La palabra tiene que ir
+   en inglés (`Closes`, `Fixes` o `Resolves`): GitHub no reconoce `Cierra`, y
+   con ella el *issue* queda abierto y hay que cerrarlo a mano.
 
 **Discusión:** los comentarios sobre una propuesta se hacen dentro del mismo
 *issue*, no por fuera, para que la decisión quede escrita junto al cambio.
