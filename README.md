@@ -47,11 +47,11 @@ ASIGNACIÓN (Excel / base de datos)
         │
 [2] NÚCLEO DETERMINISTA
     ├─ Motor de reglas de elegibilidad       (Ley 2300 de 2023)   ← implementado
-    ├─ Propensión a compromiso de pago       (árboles de decisión)
+    ├─ Propensión a compromiso de pago       (árboles de decisión)  ← implementado
     ├─ Segmentación de la cartera            (K-Means · Ward · GMM)     ← implementado
     ├─ Priorización                          (lógica difusa + TOPSIS)   ← implementado
     ├─ Monto óptimo de negociación           (banda mínimo-máximo)
-    └─ Asignación a gestores                 (optimización con capacidad)
+    └─ Asignación a gestores                 (optimización con capacidad)  ← implementado
         │
 [3] ORQUESTADOR DIARIO DE COLAS POR CANAL
         │
@@ -709,8 +709,8 @@ request* que lo resuelve lo cierra al fusionarse.
 | 3 | Segmentación (K-Means, Ward, mezcla gaussiana) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
 | 3b | Gestión de cuentas con reglas de validación y actualización de la cartera | ✅ |
 | 3c | Directorio de titulares, plan de trabajo diario y traza de trabajo | ✅ |
-| 4 | Modelo de propensión a compromiso de pago | Pendiente |
-| 5 | Optimización de campañas y asignación | Pendiente |
+| 4 | Modelo de propensión a compromiso de pago | ✅ |
+| 5 | Optimización de campañas y asignación | ✅ |
 
 El detalle de lo completo y lo pendiente en cada área, con su responsable, está
 en [`docs/ESTADO_POR_AREA.md`](docs/ESTADO_POR_AREA.md).
