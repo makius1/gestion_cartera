@@ -118,6 +118,7 @@ PAGINAS = {
     "Conocimiento": [
         ("paginas/conocimiento.py", "Base de conocimiento", ":material/menu_book:", "ver_conocimiento"),
         ("paginas/metodologia.py", "Metodología", ":material/functions:", "ver_conocimiento"),
+        ("paginas/laboratorio.py", "Laboratorio de algoritmos", ":material/science:", "ver_laboratorio"),
     ],
     "Administración": [
         ("paginas/cargas.py", "Cargas", ":material/upload_file:", "gestionar_cargas"),

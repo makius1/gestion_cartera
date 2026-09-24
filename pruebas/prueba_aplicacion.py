@@ -39,6 +39,7 @@ PAGINAS = {
     "usuarios": "gestionar_usuarios", "auditoria": "ver_auditoria", "mi_cuenta": None,
     "priorizacion": "ver_priorizacion", "propension": "ver_propension", "gestion": "registrar_gestion",
     "plan": "ver_plan", "traza": "ver_traza", "metodologia": "ver_conocimiento",
+    "laboratorio": "ver_laboratorio",
 }
 TIEMPO = 120   # segundos máximos por pantalla
 # AppTest interpreta las rutas relativas desde este archivo, no desde la raíz.

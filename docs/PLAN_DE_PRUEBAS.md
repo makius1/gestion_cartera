@@ -16,7 +16,7 @@ se prueban como **entrantes**, salvo los que prueban justamente ese rechazo.
 |---|---|---|---|
 | A1 | Cualquiera | Ingresar con usuario y contraseña correctos | Entra y ve el menú de su rol |
 | A2 | Cualquiera | Ingresar con una contraseña errónea | "Usuario o contraseña incorrectos", sin decir si el usuario existe |
-| A3 | Gestor | Revisar el menú | No aparecen Cargas, Obligación nueva, Usuarios ni Auditoría |
+| A3 | Gestor | Revisar el menú | No aparecen Cargas, Obligación nueva, Usuarios, Auditoría ni Laboratorio de algoritmos |
 | A4 | Administrador | Desactivar a un gestor que tiene la sesión abierta | En menos de un minuto el gestor queda fuera con un aviso |
 | A5 | Cualquiera | Dejar la sesión quieta 30 minutos | La sesión se cierra por inactividad |
 | A6 | Administrador | Revisar **Auditoría** después de A1 a A5 | Aparecen los ingresos, el intento fallido y la desactivación |

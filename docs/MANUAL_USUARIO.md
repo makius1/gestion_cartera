@@ -23,7 +23,7 @@ aplicación completa con los tres roles sobre una carga de prueba.
 |---|---|---|
 | **Gestor** | Quien llama o escribe a los titulares | Consultar el tablero, la cartera, los resultados del motor, la priorización, la propensión a pago y la base de conocimiento; registrar gestiones |
 | **Supervisor** | Quien coordina el equipo de gestores | Ejecutar el motor de elegibilidad y la priorización, entrenar los modelos de propensión, crear el plan de trabajo del equipo, ver la traza de todos los gestores, cargar carteras, registrar obligaciones nuevas y revisar la auditoría |
-| **Administrador** | Quien administra el sistema | Crear, modificar y bloquear usuarios |
+| **Administrador** | Quien administra el sistema | Crear, modificar y bloquear usuarios, y presentar el sistema en el laboratorio de algoritmos |
 
 Cada rol ve **todo** lo del rol anterior, más lo propio. El menú de la
 izquierda solo muestra las pantallas a las que su rol tiene acceso.
@@ -176,6 +176,15 @@ modifica el rol de una cuenta existente, la bloquea o reactiva, y le
 restablece la contraseña. Es la única pantalla desde la que se administran
 los tres roles.
 
+### Laboratorio de algoritmos
+Una página completa para presentar el sistema: cada motor y algoritmo
+funciona en vivo con las mismas reglas, pesos y fórmulas del código, sobre
+cuentas de ejemplo. Tiene diez pestañas: el mapa de quién llama a quién (de
+la pantalla a la tabla), el motor de elegibilidad regla por regla, Thompson,
+la lógica difusa, TOPSIS y el árbitro, la segmentación, la propensión, el
+reparto del plan, las reglas G1 a G10 y los seudónimos. No lee ni escribe en
+la base de datos: es material de demostración.
+
 ---
 
 Los casos puntuales para la sesión de pruebas conjuntas (qué probar, con qué
@@ -188,7 +197,7 @@ rol y qué resultado se espera) están en
   carga de 1.500 cuentas simuladas, con 6 semanas de historial de
   gestiones, priorización, plan de trabajo y un modelo de propensión ya
   entrenado: no se encontró ninguna pantalla rota. Además, la prueba
-  automática abre las 15 pantallas con los tres roles en cada *pull request*.
+  automática abre las 16 pantallas con los tres roles en cada *pull request*.
 - Las cuentas de cada integrante se crean desde la pantalla **Usuarios**.
 - "Simular una cartera" y "Completar datos de contacto" (pantalla
   **Cargas**) muestran en pantalla el error si falta la clave de seudónimos
