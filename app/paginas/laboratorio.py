@@ -3,10 +3,11 @@
 Laboratorio de algoritmos: los motores del sistema, funcionando a la vista.
 
 Muestra en una página completa el laboratorio interactivo de
-app/recursos/laboratorio.html: el mapa de quién llama a quién, el motor de
+app/recursos/laboratorio.html, en doce pestañas: el mapa de quién llama a
+quién, las 21 reglas por fase con sus bloqueos y estados, el motor de
 elegibilidad regla por regla, Thompson, la lógica difusa, TOPSIS y el árbitro,
-la segmentación, la propensión, el reparto del plan, las reglas G1 a G10 y los
-seudónimos. Es material de demostración: corre en el navegador con cuentas de
+la segmentación, la propensión, el reparto del plan, las reglas G1 a G10, los
+seudónimos y la seguridad con los permisos de cada rol. Es material de demostración: corre en el navegador con cuentas de
 ejemplo y no lee ni escribe en la base de datos.
 
 Solo lo ve el administrador, que es quien presenta el sistema.
