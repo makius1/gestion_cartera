@@ -87,6 +87,9 @@ jobs:
       - name: "Probar la autorizacion por canal (issue #25)"
         run: python -m pruebas.prueba_autorizaciones
 
+      - name: "Probar el reloj del servidor contra la base (issue #51)"
+        run: python -m pruebas.prueba_reloj
+
       - name: Validar la base de conocimiento
         run: python -m motor.elegibilidad --validar
 
