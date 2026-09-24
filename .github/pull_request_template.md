@@ -4,7 +4,7 @@
 
 ## Por qué
 
-<!-- El problema que resuelve o el requerimiento que atiende (enlazar el issue: Cierra #N). -->
+<!-- El problema que resuelve o el requerimiento que atiende (enlazar el issue con "Closes #N", en inglés, para que se cierre solo al fusionar). -->
 
 ## Cómo se probó
 

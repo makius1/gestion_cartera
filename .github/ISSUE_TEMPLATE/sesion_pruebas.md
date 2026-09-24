@@ -63,6 +63,33 @@ aparte con la plantilla **Error** y se enlaza en su línea (`❌ ver #N`).
 - [ ] El cumplimiento del plan coincide con lo registrado
 - [ ] Las cuentas con acuerdo aparecen en espera o bloqueadas en una nueva ejecución del motor
 
+## 7. Cola general sin plan
+
+- [ ] G9
+- [ ] G10
+- [ ] G11
+
+## 8. Obligación nueva
+
+- [ ] O1
+- [ ] O2
+- [ ] O3
+- [ ] O4
+- [ ] O5
+- [ ] O6
+
+## 9. Autorización del titular por canal
+
+- [ ] AU1
+- [ ] AU2
+- [ ] AU3
+
+## 10. Propensión a pago y reparto óptimo
+
+- [ ] PR1
+- [ ] PR2
+- [ ] PR3
+
 ## Observaciones de la sesión
 
 <!-- Lo que no es un error pero vale la pena anotar. Si requiere trabajo, se

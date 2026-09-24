@@ -16,7 +16,7 @@ se prueban como **entrantes**, salvo los que prueban justamente ese rechazo.
 |---|---|---|---|
 | A1 | Cualquiera | Ingresar con usuario y contraseña correctos | Entra y ve el menú de su rol |
 | A2 | Cualquiera | Ingresar con una contraseña errónea | "Usuario o contraseña incorrectos", sin decir si el usuario existe |
-| A3 | Gestor | Revisar el menú | No aparecen Cargas, Usuarios ni Auditoría |
+| A3 | Gestor | Revisar el menú | No aparecen Cargas, Obligación nueva, Usuarios ni Auditoría |
 | A4 | Administrador | Desactivar a un gestor que tiene la sesión abierta | En menos de un minuto el gestor queda fuera con un aviso |
 | A5 | Cualquiera | Dejar la sesión quieta 30 minutos | La sesión se cierra por inactividad |
 | A6 | Administrador | Revisar **Auditoría** después de A1 a A5 | Aparecen los ingresos, el intento fallido y la desactivación |
@@ -93,3 +93,19 @@ se prueban como **entrantes**, salvo los que prueban justamente ese rechazo.
 | O4 | Supervisor o Administrador | **Auditoría**, filtrada por `OBLIGACION_NUEVA` | Aparece el registro de O2, con usuario y hora |
 | O5 | Supervisor | Ejecuta el motor sobre la carga después de O2 | La obligación nueva aparece evaluada (contactable o bloqueada por una regla de negocio), nunca bloqueada por L3 |
 | O6 | Supervisor | Registra una segunda obligación del mismo titular de O2, con el mismo celular | No se rechaza por "contacto duplicado"; la nueva cuenta queda con el canal disponible |
+
+## 9. Autorización del titular por canal (Ley 2300, artículo 2)
+
+| Id | Rol | Pasos | Resultado esperado |
+|---|---|---|---|
+| AU1 | Gestor | En **Gestión de cuentas**, sección *Autorización del titular por canal*, registrar SMS como "No autorizó" | La tabla muestra SMS "No autorizó", con su usuario y la hora; el panel del motor no incluye SMS entre los autorizados |
+| AU2 | Gestor | En la misma cuenta, registrar SMS como "Autorizó" | SMS aparece en "Autorizados por el titular" del panel del motor |
+| AU3 | Supervisor | **Auditoría**, filtrada por `AUTORIZACION_CANAL` | Aparecen los dos cambios de AU1 y AU2, con el gestor que los hizo |
+
+## 10. Propensión a pago y reparto óptimo
+
+| Id | Rol | Pasos | Resultado esperado |
+|---|---|---|---|
+| PR1 | Supervisor | **Propensión a pago → Entrenar y comparar** sobre una carga con historial de gestiones | Tabla con los cuatro modelos (AUC, KS, Brier, PSI) y el elegido marcado |
+| PR2 | Gestor | Abrir **Propensión a pago** | Ve el modelo y la comparación, pero no el botón de entrenar |
+| PR3 | Supervisor | Crear un plan con el método **Óptimo (recaudo máximo)** | El plan muestra el valor esperado con serpentina y con el óptimo; el óptimo nunca es menor |

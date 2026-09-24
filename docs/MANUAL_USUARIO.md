@@ -9,8 +9,9 @@ aplicación completa con los tres roles sobre una carga de prueba.
 1. Abra la URL de la aplicación (https://gestion-cartera.streamlit.app o el
    Codespace/entorno local).
 2. Escriba su usuario y contraseña, y presione **Ingresar**.
-3. Si se equivoca 5 veces seguidas, el usuario queda bloqueado y debe pedirle
-   a un administrador que lo reactive desde la pantalla **Usuarios**.
+3. Si se equivoca 5 veces seguidas, el usuario queda bloqueado 15 minutos.
+   Si no recuerda la contraseña, un administrador se la restablece desde la
+   pantalla **Usuarios**, y eso también quita el bloqueo.
 4. Por seguridad, la sesión se cierra sola tras 30 minutos sin actividad.
 5. La contraseña debe tener al menos 10 caracteres, combinar letras y
    números, no contener el nombre de usuario y no ser una contraseña común.
@@ -21,7 +22,7 @@ aplicación completa con los tres roles sobre una carga de prueba.
 | Rol | Para quién es | Qué agrega sobre el anterior |
 |---|---|---|
 | **Gestor** | Quien llama o escribe a los titulares | Consultar el tablero, la cartera, los resultados del motor, la priorización, la propensión a pago y la base de conocimiento; registrar gestiones |
-| **Supervisor** | Quien coordina el equipo de gestores | Ejecutar el motor de elegibilidad y la priorización, entrenar los modelos de propensión, cargar carteras, registrar obligaciones nuevas y revisar la auditoría |
+| **Supervisor** | Quien coordina el equipo de gestores | Ejecutar el motor de elegibilidad y la priorización, entrenar los modelos de propensión, crear el plan de trabajo del equipo, ver la traza de todos los gestores, cargar carteras, registrar obligaciones nuevas y revisar la auditoría |
 | **Administrador** | Quien administra el sistema | Crear, modificar y bloquear usuarios |
 
 Cada rol ve **todo** lo del rol anterior, más lo propio. El menú de la
@@ -130,6 +131,23 @@ avisa de una vez si esa fecha es hábil según la Ley 2300.
 Aparece el botón **Entrenar y comparar**, que corre los cuatro modelos
 sobre el historial de gestiones de la carga elegida y guarda el ganador.
 
+### Plan de trabajo (crear y ver el del equipo)
+Elige la priorización, la fecha, los gestores y cuántas cuentas le tocan a
+cada uno, y el **método de reparto**:
+
+- **Serpentina:** 1, 2, 3… y en la siguiente vuelta …3, 2, 1, para que cada
+  gestor reciba una mezcla pareja de cuentas de alta y baja prioridad.
+- **Óptimo (recaudo máximo):** programación lineal entera que reparte las
+  cuentas para obtener el mayor recaudo esperado total, respetando el cupo de
+  cada gestor.
+
+Sin importar el método elegido, el plan muestra el valor esperado con los dos
+métodos y la diferencia entre ellos. Debajo aparece el avance de cada gestor.
+
+### Traza de trabajo (la del equipo)
+En la vista "por gestor" ve las gestiones de todo el equipo y puede filtrar
+uno o varios gestores.
+
 ### Cargas
 Genera una cartera sintética nueva (a partir del perfil estadístico de
 referencia, con su directorio de titulares) y consulta el historial de
@@ -169,9 +187,12 @@ rol y qué resultado se espera) están en
 - Todas las pantallas de los tres roles se probaron en vivo contra una
   carga de 1.500 cuentas simuladas, con 6 semanas de historial de
   gestiones, priorización, plan de trabajo y un modelo de propensión ya
-  entrenado: no se encontró ninguna pantalla rota.
-- La pantalla **Usuarios** ya existe y funciona: ahí se crea la cuenta de
-  cada integrante del equipo con su rol real, pendiente del área 1.
+  entrenado: no se encontró ninguna pantalla rota. Además, la prueba
+  automática abre las 15 pantallas con los tres roles en cada *pull request*.
+- Las cuentas de cada integrante se crean desde la pantalla **Usuarios**.
 - "Simular una cartera" y "Completar datos de contacto" (pantalla
-  **Cargas**) ahora muestran en pantalla el error si falta la clave de
-  seudónimos contra una base remota, en vez de fallar en silencio (#37).
+  **Cargas**) muestran en pantalla el error si falta la clave de seudónimos
+  contra una base remota, en vez de fallar en silencio (#37).
+- Para probar la pantalla **Propensión a pago** hace falta historial de
+  gestiones en la carga: en una cartera simulada se genera con
+  `python -m datos.generador --historial --carga N`.

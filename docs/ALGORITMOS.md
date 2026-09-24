@@ -528,6 +528,39 @@ y llevar las reglas del árbol ganador a la base de conocimiento. El resultado
 es un sistema experto híbrido: reglas legales deterministas, reglas aprendidas
 de los datos y un modelo probabilístico para el valor esperado.
 
+### 9.1 Lo que quedó implementado
+
+La recomendación anterior se implementó en `analisis/propension.py` (issues
+#11, #12 y #13), con estas decisiones concretas:
+
+- **Objetivo:** cada gestión es una fila; $y = 1$ si terminó en `ACUERDO` y
+  $y = 0$ en cualquier otro resultado.
+- **Variables:** mora efectiva en la fecha de la gestión (la mora de la carga
+  más los días transcurridos), saldo, número de canales de contacto de la
+  cuenta y el canal usado (codificado en cuatro variables indicadoras).
+- **Datos:** mientras no haya historia real, `datos/generador.py --historial`
+  simula semanas de gestiones con una propensión latente por cuenta, de modo
+  que el resultado tenga una causa que el modelo pueda aprender.
+- **Partición temporal:** el 75 % más antiguo de las gestiones entrena y el
+  25 % más reciente valida.
+- **Modelos:** regresión logística y árbol CART (profundidad 6, mínimo 30
+  casos por hoja), ambos con clases balanceadas; bosque aleatorio de 300
+  árboles y `HistGradientBoostingClassifier`.
+- **Puntaje compuesto** (cada métrica normalizada entre el peor y el mejor
+  modelo; Brier y PSI invertidos porque menor es mejor):
+
+$$
+0{,}35\,\mathit{AUC} + 0{,}30\,\mathit{KS} + 0{,}20\,(1 - \mathit{Brier}) + 0{,}15\,(1 - \mathit{PSI})
+$$
+
+- **Parsimonia:** si la regresión logística o el árbol quedan a menos de 0,02
+  de AUC del ganador, se elige el interpretable.
+- **Uso:** el modelo elegido se guarda serializado en `modelos_propension`, y
+  la priorización lo usa en lugar de la contactabilidad heurística (sección
+  1.3), guardando las métricas con y sin modelo para compararlas.
+- **Pendiente como trabajo futuro:** llevar las reglas del árbol a la base de
+  conocimiento.
+
 ---
 
 ## Referencias

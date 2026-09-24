@@ -65,6 +65,12 @@ ASIGNACIÓN (Excel / base de datos)
 APLICACIÓN WEB CON INGRESO Y ROLES                                ← implementado
 ```
 
+Las piezas sin marca describen el sistema completo al que apunta el diseño y
+quedan fuera del alcance de esta entrega. Aun así, la banda mínimo-máximo de
+negociación ya se valida al registrar un acuerdo (regla G8), y la
+retroalimentación ocurre en parte: cada gestión entra al historial con el que
+se entrena el modelo de propensión.
+
 El núcleo es **determinista y auditable**: toda decisión sobre a quién se
 contacta, cuánto se ofrece y a quién se asigna se puede explicar regla por
 regla.
@@ -95,7 +101,7 @@ automáticos corren en los servidores de GitHub.
 
 | Pieza | Qué hace |
 |---|---|
-| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad, segmenta y prioriza, registra gestiones y abre cada pantalla de la aplicación con cada rol. |
+| **Pruebas** | En cada envío, GitHub levanta un PostgreSQL temporal, simula una cartera, la registra, ejecuta el motor de elegibilidad, segmenta y prioriza, registra gestiones y abre cada pantalla de la aplicación con cada rol. También corre las pruebas de las 21 reglas, del muestreo de Thompson, de las autorizaciones, de las reservas, de las obligaciones y de las protecciones de la base (diez archivos en `pruebas/`). |
 | **Sembrar base en Supabase** | Botón manual en la pestaña Actions: simula una cartera en GitHub y la registra directamente en Supabase. |
 | **Mantener activa la base** | Consulta la base cada tres días para reducir el riesgo de que el plan gratuito de Supabase la pause por inactividad. |
 | **Respaldar la base compartida** | Cada lunes y también a demanda: exporta toda la base de Supabase, la restaura en una base temporal para comprobar que sirve, y la publica como artefacto de la ejecución. |
@@ -217,9 +223,21 @@ la normativa, se modifica la base de conocimiento y el motor no se toca.
 |---|---|---|
 | 1. Bloqueos | L1 día no hábil · N1 gestión cerrada · L3 información incompleta · L2 frecuencia | Si la cuenta **no** se puede contactar. Detiene el razonamiento: la ley está por encima de la estrategia. |
 | 2. Compromisos | N3 recordatorio · N4 compromiso vigente | Si hay un acuerdo de pago que obliga a esperar o a recordar. |
-| 3. Canales | C1 sin celular · C2 sin teléfono · C3 sin correo · C4 número errado | Qué canales no se pueden usar. |
+| 3. Canales | C1 sin celular · C2 sin teléfono · C3 sin correo · C4 número errado · C5 a C8 canal no autorizado por el titular | Qué canales no se pueden usar. |
 | 4. Cierre | N2 sin canal disponible | Si no quedó ningún canal. |
 | 5. Estrategia | E1 promesa incumplida · E2 contacto sin acuerdo · E3 nunca gestionada · E4 no localizado · E5 rechazo · E9 por defecto | Qué canal usar. Si varias aplican, gana la de mayor prioridad (resolución de conflictos). |
+
+Son **21 reglas**. Las C5 a C8 aplican el artículo 2 de la Ley 2300 (el
+titular autoriza por qué canales se le contacta) y solo actúan cuando
+`EXIGIR_AUTORIZACION_CANAL` está activo en `config.py`; en esta entrega está
+apagado para que las carteras simuladas sigan siendo contactables.
+
+**Elección del canal con muestreo de Thompson** (`motor/thompson.py`). Cuando
+ya hay gestiones salientes registradas, el canal final no lo fija la regla E
+sino un bandido multibrazo que aprende qué canal responde más. Solo recibe los
+canales que las reglas L, N y C dejaron permitidos, así que nunca puede
+recuperar un canal que la ley o el negocio eliminaron. Sin historial, se usa la
+recomendación de las reglas E, y el motor guarda las dos para compararlas.
 
 Cada regla declara su **fundamento**: la Ley 2300 de 2023 (días y frecuencia
 del contacto de cobranza), la Ley 1581 de 2012 (protección de datos) o una
@@ -282,6 +300,38 @@ El resultado queda guardado con las métricas de los tres métodos, los
 segmentos y el puntaje de cada cuenta con cada método, de modo que siempre se
 puede revisar por qué se eligió uno y cómo habría quedado la cola con otro.
 
+Si hay un modelo de propensión entrenado para la carga, la **probabilidad de
+pago del modelo reemplaza a la contactabilidad heurística** como criterio, con
+el mismo peso. La priorización guarda las métricas con y sin el modelo, para
+ver cuánto cambia el recaudo esperado al usar la probabilidad aprendida.
+
+---
+
+## Propensión a pago
+
+Estima la probabilidad de que una gestión termine en acuerdo de pago
+(`analisis/propension.py`), a partir del historial de gestiones: mora en la
+fecha de la gestión, saldo, canales de contacto de la cuenta y canal usado.
+Compiten cuatro modelos:
+
+| Modelo | Papel |
+|---|---|
+| **Regresión logística** | Línea base interpretable, el estándar de los puntajes de crédito |
+| **Árbol CART** | Reglas SI-ENTONCES legibles, el puente con la base de conocimiento |
+| **Bosque aleatorio** | Robusto ante muchas variables |
+| **Gradient Boosting** | Suele dar la mayor precisión en datos tabulares |
+
+- **Validación temporal:** se entrena con el 75 % más antiguo de las gestiones
+  y se valida con el 25 % más reciente, como se usará el modelo. Una partición
+  al azar mezclaría fechas y daría una precisión falsa.
+- **Selección:** puntaje compuesto de AUC (0,35), KS (0,30), Brier (0,20) y
+  PSI (0,15). Si un modelo interpretable queda a menos de 0,02 de AUC del
+  ganador, se prefiere el interpretable.
+- El modelo ganador se guarda en la base (tabla `modelos_propension`) y se
+  entrena desde la pantalla **Propensión a pago** con **Entrenar y comparar**.
+  Para tener historial en una cartera simulada:
+  `python -m datos.generador --historial --carga N`.
+
 ---
 
 ## Gestión de cuentas
@@ -308,6 +358,18 @@ Cada gestión pasa por reglas de validación antes de guardarse, en el servidor:
 
 Un contacto **entrante** (el titular se comunica) se puede registrar cualquier
 día: la ley regula el contacto que inicia la casa de cobranza.
+
+**Reloj confiable.** La regla G1 depende de la hora del servidor. Contra una
+base remota, antes de aceptar un horario como válido se compara esa hora con la
+de la base de datos (`datos/base_datos.py → reloj_confiable()`); si difieren
+más de 10 minutos, el contacto saliente se rechaza por precaución.
+
+**Autorización del titular por canal** (Ley 2300, artículo 2). En la misma
+pantalla se ve qué autorizó el titular para llamada, WhatsApp, SMS y correo
+(*Autorizó*, *No autorizó* o *Sin preguntar*), con quién lo registró y cuándo,
+y se registra o revoca lo que diga durante la gestión (`datos/autorizaciones.py`).
+Cada cambio actualiza las columnas de la cartera que lee el motor (reglas C5 a
+C8) y queda en la auditoría.
 
 La gestión y la actualización de la cartera van en **una sola transacción**, y
 con eso se cierra el ciclo del sistema experto:
@@ -359,6 +421,12 @@ cuentas del día entre los gestores activos:
    recibe una mezcla equivalente de cuentas de alta y baja prioridad, y sus
    resultados se pueden comparar con justicia.
 
+Como alternativa, el supervisor puede elegir el reparto **óptimo**: programación
+lineal entera (`scipy.optimize.milp`) que maximiza el recaudo esperado total
+respetando el cupo de cada gestor. Los dos repartos se calculan siempre sobre
+las mismas cuentas, y el plan guarda el valor esperado de ambos para
+compararlos, se use el que se use.
+
 En la pantalla de gestión, *Siguiente cuenta* entrega primero la del plan del
 gestor y, cuando lo completa, la de la cola general. El avance no se guarda:
 se calcula cruzando las asignaciones con las gestiones del día.
@@ -393,8 +461,9 @@ Cada rol ve solo las pantallas que le corresponden:
 | Tablero: cartera frente a la meta | ✅ | ✅ | ✅ |
 | Gestión de cuentas: cola del día, estado legal y registro del contacto | ✅ | ✅ | ✅ |
 | Titular y datos de contacto: agregar, validar, marcar errados | ✅ | ✅ | ✅ |
+| Autorización del titular por canal: consultar, registrar y revocar | ✅ | ✅ | ✅ |
 | Plan de trabajo: ver el propio | ✅ | ✅ | ✅ |
-| Plan de trabajo: crear y ver el del equipo | | ✅ | ✅ |
+| Plan de trabajo: crear (serpentina u óptimo) y ver el del equipo | | ✅ | ✅ |
 | Traza de trabajo: la propia | ✅ | ✅ | ✅ |
 | Traza de trabajo: la del equipo | | ✅ | ✅ |
 | Cartera: consulta con filtros y descarga | ✅ | ✅ | ✅ |
@@ -402,6 +471,8 @@ Cada rol ve solo las pantallas que le corresponden:
 | Motor: ejecutar sobre una carga y una fecha | | ✅ | ✅ |
 | Priorización: comparación de métodos, segmentos, cola del día y explicación por cuenta | ✅ | ✅ | ✅ |
 | Priorización: ejecutar sobre una carga | | ✅ | ✅ |
+| Propensión a pago: modelo elegido y comparación de los cuatro candidatos | ✅ | ✅ | ✅ |
+| Propensión a pago: entrenar y comparar | | ✅ | ✅ |
 | Base de conocimiento, reglas difusas y simulador de consulta | ✅ | ✅ | ✅ |
 | Metodología: los algoritmos del sistema explicados | ✅ | ✅ | ✅ |
 | Cargas: registrar, simular y completar carteras | | ✅ | ✅ |
@@ -493,11 +564,13 @@ Los registros simulados nunca se confunden con los de una asignación:
 | `evaluaciones` | El resultado de cada cuenta en cada ejecución, con sus reglas y su explicación |
 | `priorizaciones` | Una fila por priorización: método elegido, segmentos, silueta y métricas de los tres métodos |
 | `prioridades` | El segmento, los tres puntajes, la posición y si entra en la cola del día, por cuenta |
+| `modelos_propension` | Cada entrenamiento: modelo elegido, sus métricas, las de los cuatro candidatos y el modelo serializado |
 | `gestiones` | Cada contacto registrado por un gestor, con el estado que el motor asignaba a la cuenta en ese momento |
 | `titulares` | Directorio: nombre, documento enmascarado y ciudad de cada titular |
 | `contactos` | Teléfonos y correos de cada titular, con su estado (sin verificar, válido o errado) |
 | `autorizaciones_canal` | Qué canales autorizó el titular para gestión de cobranza, con su origen y quién lo registró |
-| `planes` y `plan_asignaciones` | Plan de trabajo del día y la cuenta asignada a cada gestor |
+| `planes` y `plan_asignaciones` | Plan de trabajo del día, con el método de reparto y el valor esperado de ambos, y la cuenta asignada a cada gestor |
+| `reservas` | La cuenta que *Siguiente cuenta* entregó a cada gestor y hasta cuándo la conserva |
 | `usuarios` | Cuentas de acceso: rol, estado y derivación de la contraseña |
 | `auditoria` | Bitácora de acciones del sistema |
 
@@ -534,34 +607,48 @@ uso, sin tocar los datos existentes.
 │   ├── generador.py            Simulación y enmascarado de carteras
 │   ├── base_datos.py           Esquema, cargas históricas, resultados y auditoría
 │   ├── completar.py            Completado de cargas a las que les faltan datos
+│   ├── autorizaciones.py       Autorización del titular por canal (Ley 2300, art. 2)
 │   └── configurar_conexion.py  Configuración asistida de la conexión a Supabase
 ├── motor/
-│   ├── base_conocimiento.py    Reglas de elegibilidad con su fundamento
-│   └── elegibilidad.py         Motor de inferencia y módulo de explicación
+│   ├── base_conocimiento.py    Las 21 reglas de elegibilidad con su fundamento
+│   ├── elegibilidad.py         Motor de inferencia y módulo de explicación
+│   └── thompson.py             Elección del canal con muestreo de Thompson
 ├── docs/
 │   ├── ALGORITMOS.md           Algoritmos, métodos matemáticos y modelos financieros
 │   ├── TRABAJO_EN_EQUIPO.md    Flujo de trabajo del equipo con ramas y pull requests
 │   ├── ESTADO_POR_AREA.md      Lo completo y lo pendiente de cada área, con su responsable
 │   ├── PLAN_DE_PRUEBAS.md      Casos para las sesiones de pruebas conjuntas
-│   └── MANUAL_USUARIO.md       Cómo usar la aplicación, pantalla por pantalla, según el rol
+│   ├── MANUAL_USUARIO.md       Cómo usar la aplicación, pantalla por pantalla, según el rol
+│   └── ESTIMACION_COSTOS.md    Estimación de esfuerzo y costo con cuatro técnicas
 ├── analisis/
 │   ├── criterios.py            Criterios de decisión comunes a todos los métodos
-│   └── segmentacion.py         K-Means, Ward y mezcla gaussiana con selección del óptimo
+│   ├── segmentacion.py         K-Means, Ward y mezcla gaussiana con selección del óptimo
+│   └── propension.py           Cuatro modelos de propensión a pago y selección del mejor
 ├── decision/
 │   ├── conocimiento_difuso.py  Variables, conjuntos y reglas difusas
 │   └── priorizacion.py         Difuso, TOPSIS, ponderación y selección del óptimo
 ├── gestion/
 │   ├── operacion.py            Registro de gestiones y reglas de validación
 │   ├── titulares.py            Directorio de titulares y datos de contacto
-│   └── plan.py                 Plan de trabajo diario con reparto en serpentina
+│   ├── obligaciones.py         Registro de una obligación suelta, sin carga completa
+│   └── plan.py                 Plan de trabajo diario: serpentina o reparto óptimo
 ├── seguridad/
 │   └── autenticacion.py        Contraseñas, ingreso, bloqueo, usuarios y roles
 ├── app/
 │   ├── principal.py            Punto de entrada: ingreso y menú según el rol
 │   ├── comun.py                Sesión, control de acceso, caché y formatos
-│   └── paginas/                Una pantalla por archivo
+│   └── paginas/                Una pantalla por archivo (15 pantallas)
 ├── pruebas/
-│   └── prueba_aplicacion.py    Prueba automática de pantallas y permisos
+│   ├── prueba_aplicacion.py    Pantallas y permisos por rol, ingreso, plan, gestión y autorización
+│   ├── prueba_reglas_motor.py  Cada una de las 21 reglas, con un caso que dispara y otro que no
+│   ├── prueba_thompson.py      Muestreo de Thompson: reproducible y solo sobre canales permitidos
+│   ├── prueba_autorizaciones.py  Autorización por canal y su efecto en el motor
+│   ├── prueba_generador.py     Historial de gestiones simulado para entrenar la propensión
+│   ├── prueba_reservas.py      Reserva de cuentas con dos gestores a la vez
+│   ├── prueba_obligaciones.py  Registro de obligaciones nuevas
+│   ├── prueba_reloj.py         Verificación del reloj del servidor contra la base
+│   ├── prueba_confirmacion.py  Confirmación antes de escribir en una base remota
+│   └── prueba_seudonimos.py    Rechazo a seudonimizar sin clave contra una base remota
 ├── .env.example                Plantilla de configuración
 ├── requirements.txt            Dependencias con versiones fijadas
 └── README.md
@@ -659,6 +746,13 @@ Segmentar y priorizar las cuentas contactables de una ejecución del motor:
 python -m decision.priorizacion --ejecucion 1
 ```
 
+Simular semanas de historial de gestiones sobre una carga, para poder entrenar
+el modelo de propensión desde la pantalla **Propensión a pago**:
+
+```bash
+python -m datos.generador --historial --carga 1 --semanas 6
+```
+
 ---
 
 ## Trabajo en equipo
@@ -676,6 +770,27 @@ Las observaciones, mejoras, cambios y errores se registran como *issues* de
 GitHub con una plantilla para cada tipo, y se siguen en el tablero del equipo.
 Cada commit que atiende uno lo menciona con su número (`#12`), y el *pull
 request* que lo resuelve lo cierra al fusionarse.
+
+---
+
+## Estimación de costos
+
+[`docs/ESTIMACION_COSTOS.md`](docs/ESTIMACION_COSTOS.md) estima cuánto
+costaría construir el sistema con un equipo profesional de cuatro personas,
+con cuatro técnicas independientes: puntos de historia con *Planning Poker*,
+puntos de función (IFPUG), COCOMO II y Wideband Delphi.
+
+| Técnica | Esfuerzo (persona-mes) |
+|---|---:|
+| Puntos de historia | 12,3 |
+| Puntos de función | 16,7 |
+| COCOMO II | 21,7 |
+| Wideband Delphi | 17,1 |
+| **Consolidado (PERT)** | **16,9 ± 1,6** |
+
+Con un costo cargado de COP 8.360.000 por persona-mes y una contingencia del
+10 %, el presupuesto es de unos **COP 155 millones**, para 4 personas durante 5
+meses.
 
 ---
 
@@ -709,6 +824,7 @@ request* que lo resuelve lo cierra al fusionarse.
 | 3 | Segmentación (K-Means, Ward, mezcla gaussiana) y priorización (difusa, TOPSIS, ponderación) con selección del óptimo | ✅ |
 | 3b | Gestión de cuentas con reglas de validación y actualización de la cartera | ✅ |
 | 3c | Directorio de titulares, plan de trabajo diario y traza de trabajo | ✅ |
+| 3d | Autorización del titular por canal (Ley 2300, art. 2) y elección del canal con muestreo de Thompson | ✅ |
 | 4 | Modelo de propensión a compromiso de pago | ✅ |
 | 5 | Optimización de campañas y asignación | ✅ |
 
