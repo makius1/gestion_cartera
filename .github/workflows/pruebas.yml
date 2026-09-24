@@ -99,6 +99,9 @@ jobs:
       - name: "Probar cada regla del motor (issue #7)"
         run: python -m pruebas.prueba_reglas_motor
 
+      - name: "Probar el muestreo de Thompson del canal (issue #9)"
+        run: python -m pruebas.prueba_thompson
+
       # Se evalúa un martes hábil fijo para que el resultado no dependa del día
       # en que corre la prueba: un domingo o un festivo bloquearían todo.
       - name: Ejecutar el motor de elegibilidad
