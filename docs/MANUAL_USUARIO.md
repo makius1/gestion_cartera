@@ -179,11 +179,22 @@ los tres roles.
 ### Laboratorio de algoritmos
 Una página completa para presentar el sistema: cada motor y algoritmo
 funciona en vivo con las mismas reglas, pesos y fórmulas del código, sobre
-cuentas de ejemplo. Tiene diez pestañas: el mapa de quién llama a quién (de
-la pantalla a la tabla), el motor de elegibilidad regla por regla, Thompson,
-la lógica difusa, TOPSIS y el árbitro, la segmentación, la propensión, el
-reparto del plan, las reglas G1 a G10 y los seudónimos. No lee ni escribe en
-la base de datos: es material de demostración.
+cuentas de ejemplo. Tiene doce pestañas:
+
+- **Mapa del sistema:** quién llama a quién, de la pantalla a la tabla.
+- **Las 21 reglas:** la base de conocimiento por fase, con los bloqueos y el
+  estado al que lleva cada fase, filtros, búsqueda y el botón *Probar en el
+  motor*; además, las 14 reglas difusas y las 10 de validación.
+- **Motor de elegibilidad:** cada premisa evaluada, fase por fase.
+- **Thompson, Lógica difusa, TOPSIS y árbitro, Segmentación, Propensión y
+  Plan de trabajo:** cada algoritmo funcionando con controles.
+- **Gestión G1–G10:** las reglas de validación, la transacción y la reserva
+  de cuentas con dos gestores a la vez.
+- **Seudónimos:** el HMAC calculado en vivo.
+- **Seguridad y roles:** el bloqueo por intentos fallidos y la matriz de
+  permisos de las 16 pantallas.
+
+No lee ni escribe en la base de datos: es material de demostración.
 
 ---
 
