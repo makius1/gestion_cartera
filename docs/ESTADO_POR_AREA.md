@@ -192,6 +192,12 @@ python -m decision.priorizacion --no-guardar
 
 Sin pendientes por ahora.
 
+### Pendiente
+
+| Prioridad | Tarea |
+|---|---|
+| Alta | Registrar y revocar la autorización de canales desde la aplicación (#40) |
+
 ### Comandos de revisión
 
 ```bash
