@@ -327,7 +327,7 @@ LONGITUD_MINIMA_CLAVE = 10
 # sus cuentas, mantiene los datos de contacto y ve su propia traza de trabajo.
 # El supervisor además opera (cargas, motor, priorización y plan de trabajo) y
 # revisa la traza del equipo y la bitácora. El administrador además administra
-# los usuarios.
+# los usuarios y tiene el laboratorio de algoritmos, para presentar el sistema.
 _CONSULTA = {"ver_tablero", "ver_cartera", "ver_motor", "ver_conocimiento", "ver_priorizacion",
              "ver_propension", "registrar_gestion", "gestionar_contactos", "ver_plan", "ver_traza"}
 _OPERACION = {"ejecutar_motor", "ejecutar_priorizacion", "ejecutar_propension", "gestionar_cargas",
@@ -335,7 +335,7 @@ _OPERACION = {"ejecutar_motor", "ejecutar_priorizacion", "ejecutar_propension", 
 PERMISOS = {
     "GESTOR": _CONSULTA,
     "SUPERVISOR": _CONSULTA | _OPERACION,
-    "ADMINISTRADOR": _CONSULTA | _OPERACION | {"gestionar_usuarios"},
+    "ADMINISTRADOR": _CONSULTA | _OPERACION | {"gestionar_usuarios", "ver_laboratorio"},
 }
 
 

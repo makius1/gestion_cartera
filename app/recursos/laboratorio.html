@@ -1,0 +1,920 @@
+<meta charset="utf-8">
+<title>Laboratorio de Cartera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#EDF0EB; --surface:#FAFBF8; --surface2:#E2E7E0; --ink:#14202E; --ink2:#3E4B59; --muted:#65717F; --line:#C9D1C8;
+  --accent:#0E7C6B; --accent-ink:#FFFFFF; --accent-soft:#D2E9E2;
+  --amber:#A8600F; --amber-soft:#F5E3C9;
+  --ok:#1D7443; --ok-soft:#D5EDDC; --bad:#AE372B; --bad-soft:#F4D9D4; --warn:#94600C; --warn-soft:#F6E5C6; --wait:#2C5F9B; --wait-soft:#D9E5F3;
+  --g1:#0E7C6B; --g2:#C2641A; --g3:#4659B0; --g4:#9A3A78; --g5:#6B7A1E; --g6:#7E5140;
+  --shadow:0 1px 0 rgba(20,32,46,.04), 0 6px 18px -10px rgba(20,32,46,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1418; --surface:#161F25; --surface2:#1F2A31; --ink:#E6ECE9; --ink2:#B9C4C6; --muted:#8B979D; --line:#2D3A42;
+    --accent:#3DC2A9; --accent-ink:#04201A; --accent-soft:#143A31;
+    --amber:#E9A24F; --amber-soft:#3A2A14;
+    --ok:#5ECB8C; --ok-soft:#133323; --bad:#F2806F; --bad-soft:#3E1B17; --warn:#E9B65B; --warn-soft:#382A10; --wait:#7FAAE2; --wait-soft:#17273B;
+    --g1:#3DC2A9; --g2:#EC9A4E; --g3:#8E9FF2; --g4:#DB7FBA; --g5:#B5C45A; --g6:#C99A83;
+    --shadow:0 1px 0 rgba(0,0,0,.2), 0 8px 22px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1418; --surface:#161F25; --surface2:#1F2A31; --ink:#E6ECE9; --ink2:#B9C4C6; --muted:#8B979D; --line:#2D3A42;
+  --accent:#3DC2A9; --accent-ink:#04201A; --accent-soft:#143A31;
+  --amber:#E9A24F; --amber-soft:#3A2A14;
+  --ok:#5ECB8C; --ok-soft:#133323; --bad:#F2806F; --bad-soft:#3E1B17; --warn:#E9B65B; --warn-soft:#382A10; --wait:#7FAAE2; --wait-soft:#17273B;
+  --g1:#3DC2A9; --g2:#EC9A4E; --g3:#8E9FF2; --g4:#DB7FBA; --g5:#B5C45A; --g6:#C99A83;
+  --shadow:0 1px 0 rgba(0,0,0,.2), 0 8px 22px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;padding-inline:18px}
+.wrap{max-width:1240px;margin:0 auto;padding-block:28px 72px}
+h1,h2,h3{font-family:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;color:var(--ink);text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.02}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:700;letter-spacing:-.01em;line-height:1.1}
+h3{font-size:17px;font-weight:700;line-height:1.25}
+p{margin:0}
+code,.mono{font-family:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;font-size:.9em}
+.kicker{font:600 12px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lead{color:var(--ink2);max-width:74ch;margin-top:10px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+header.top{display:grid;gap:12px;padding-bottom:18px}
+header.top .sub{color:var(--ink2);max-width:80ch}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);display:flex;flex-wrap:wrap;gap:6px;padding-block:10px;border-bottom:1px solid var(--line)}
+.tab{font:500 14px/1 'IBM Plex Sans',system-ui,sans-serif;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);cursor:pointer}
+.tab:hover{border-color:var(--ink2)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.lab{padding-block:26px 8px;display:grid;gap:18px}
+.where{display:flex;flex-wrap:wrap;gap:10px 22px;padding:12px 14px;border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.where div{display:grid;gap:5px}
+.where .k{font:600 11px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:6px;background:var(--surface2);color:var(--ink);font:500 12.5px/1.5 'IBM Plex Mono',ui-monospace,monospace}
+.chip.t{background:var(--accent-soft)}
+.grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:20px;align-items:start}
+.grid2.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:920px){.grid2,.grid2.even{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;min-width:0}
+.panel > h3 + p{margin-top:-6px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+@media (max-width:520px){.fields{grid-template-columns:1fr}}
+.field{display:grid;gap:4px;min-width:0}
+.field > span{font-size:12.5px;color:var(--muted);font-weight:500}
+.field.full{grid-column:1/-1}
+select,input[type=number],input[type=text]{font:14px/1.2 'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 9px;width:100%;min-width:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:500 13.5px/1 'IBM Plex Sans',system-ui,sans-serif;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--ink2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font:600 12.5px/1.4 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.02em}
+.s-CONTACTABLE{background:var(--ok-soft);color:var(--ok)}
+.s-RECORDATORIO{background:var(--warn-soft);color:var(--warn)}
+.s-EN_ESPERA{background:var(--wait-soft);color:var(--wait)}
+.s-BLOQUEADA{background:var(--bad-soft);color:var(--bad)}
+.result{display:grid;gap:10px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.result .big{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.result .expl{color:var(--ink2);font-size:14px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 11.5px/1.3 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.hl td{background:var(--accent-soft)}
+.bar{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;min-width:60px}
+.bar > i{display:block;height:100%;background:var(--accent)}
+.note{font-size:13px;color:var(--muted)}
+.callout{border-left:3px solid var(--amber);background:var(--amber-soft);padding:10px 12px;border-radius:0 8px 8px 0;color:var(--ink);font-size:14px}
+.formula{font:500 14px/1.6 'IBM Plex Mono',ui-monospace,monospace;background:var(--surface2);padding:10px 12px;border-radius:8px;overflow-x:auto;white-space:nowrap}
+svg text{font-family:'IBM Plex Mono',ui-monospace,monospace}
+/* mapa */
+.map-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.map{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:34px;padding:16px 18px;min-width:980px}
+.map svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.map-col{display:flex;flex-direction:column;gap:7px;position:relative;z-index:1}
+.map-col h4{margin:0 0 4px;font:600 11px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.node{font:500 13px/1.25 'IBM Plex Sans',system-ui,sans-serif;text-align:left;padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;transition:opacity .15s}
+.node small{display:block;font:400 11px/1.3 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);margin-top:2px}
+.node.k-p{border-left:3px solid var(--g3)} .node.k-f{border-left:3px solid var(--g2)} .node.k-a{border-left:3px solid var(--g1)} .node.k-t{border-left:3px solid var(--g4)}
+.map.focus .node{opacity:.28}
+.map.focus .node.on{opacity:1}
+.node.sel{outline:2px solid var(--accent);outline-offset:1px}
+.edges path{fill:none;stroke:var(--line);stroke-width:1.2}
+.edges path.read{stroke-dasharray:4 4}
+.map.focus .edges path{opacity:.15}
+.map.focus .edges path.on{opacity:1;stroke:var(--ink2);stroke-width:1.6}
+.map.focus .edges path.on.write{stroke:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid var(--ink2)}
+.legend i.w{border-color:var(--accent)} .legend i.r{border-top-style:dashed}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px}
+/* motor */
+.phases{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:10px;min-width:900px}
+.phase{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:10px;display:flex;flex-direction:column;gap:8px}
+.phase header{display:grid;gap:2px}
+.phase header b{font:700 14px/1.2 'Bricolage Grotesque','IBM Plex Sans',sans-serif}
+.phase header span{font-size:11.5px;color:var(--muted)}
+.phase.skip{opacity:.45;background:repeating-linear-gradient(135deg,transparent 0 8px,var(--surface2) 8px 9px)}
+.phase.stop{border-color:var(--bad)}
+.rule{border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:var(--bg);font-size:12.5px;display:grid;gap:4px}
+.rule .id{font:600 12px/1 'IBM Plex Mono',ui-monospace,monospace}
+.rule.fired{border-color:var(--accent);background:var(--accent-soft)}
+.rule.fired.blk{border-color:var(--bad);background:var(--bad-soft)}
+.rule.ne{opacity:.5}
+.rule .pr{font:400 11.5px/1.35 'IBM Plex Mono',ui-monospace,monospace;color:var(--ink2);word-break:break-word}
+.rule .pr .y{color:var(--ok);font-weight:600} .rule .pr .n{color:var(--bad);font-weight:600}
+.chans{display:flex;flex-wrap:wrap;gap:6px}
+.chan{font:600 12px/1 'IBM Plex Mono',ui-monospace,monospace;padding:6px 8px;border-radius:6px;background:var(--ok-soft);color:var(--ok)}
+.chan.off{background:var(--surface2);color:var(--muted);text-decoration:line-through}
+.chan.win{background:var(--accent);color:var(--accent-ink)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets .btn{padding:7px 10px;font-size:12.5px}
+.reveal{animation:rv .35s ease both}
+@keyframes rv{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.reveal{animation:none}.node{transition:none}}
+/* charts */
+.chart{width:100%;height:auto;display:block}
+canvas.cv{width:100%;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.kpi b{display:block;font:700 22px/1.1 'Bricolage Grotesque','IBM Plex Sans',sans-serif;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.fz-vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.fz-var{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);display:grid;gap:6px}
+.fz-var header{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.fz-var header b{font-size:13.5px}
+.fz-var header output{font:600 13px 'IBM Plex Mono',ui-monospace,monospace;color:var(--accent)}
+.degs{display:flex;flex-wrap:wrap;gap:6px;font:500 11.5px 'IBM Plex Mono',ui-monospace,monospace;color:var(--ink2)}
+.win-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:600 13px 'IBM Plex Sans',sans-serif}
+.gl{display:grid;gap:8px}
+.grow{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;align-items:center}
+.grow > b{font:600 12.5px 'IBM Plex Mono',monospace}
+.slots{display:flex;flex-wrap:wrap;gap:6px}
+.slot{font:500 12px/1.2 'IBM Plex Mono',ui-monospace,monospace;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg)}
+.slot.only{border-color:var(--amber);background:var(--amber-soft)}
+.rules-g{display:grid;gap:6px}
+.gr{display:grid;grid-template-columns:44px 64px minmax(0,1fr);gap:10px;align-items:start;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-size:13.5px}
+.gr b{font:600 13px 'IBM Plex Mono',monospace}
+.gr.err{border-color:var(--bad);background:var(--bad-soft)}
+.gr.warn{border-color:var(--warn);background:var(--warn-soft)}
+.gr .st{font:600 11.5px 'IBM Plex Mono',monospace}
+.gr.ok .st{color:var(--ok)} .gr.err .st{color:var(--bad)} .gr.warn .st{color:var(--warn)}
+.seq{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px;font-size:13px}
+.seq .h{font:600 11.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:1px solid var(--line)}
+.seq .c{padding:7px 9px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.seq .c.bad{border-color:var(--bad);background:var(--bad-soft)}
+.seq .c.good{border-color:var(--ok);background:var(--ok-soft)}
+.seq .e{min-height:1px}
+.tx{display:grid;gap:6px}
+.tx div{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font:500 12.5px/1.4 'IBM Plex Mono',monospace}
+.tx div.undone{text-decoration:line-through;color:var(--muted)}
+.tx div.fail{border-color:var(--bad);background:var(--bad-soft)}
+.tx div.commit{border-color:var(--ok);background:var(--ok-soft)}
+.tx div.rollback{border-color:var(--bad);background:var(--bad-soft)}
+.hash{font:500 13px/1.5 'IBM Plex Mono',monospace;word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.pseudo{font:700 28px/1.1 'IBM Plex Mono',monospace;color:var(--accent);letter-spacing:.04em}
+footer.end{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="kicker">Sistema Inteligente de Gestión de Cartera · Sistemas Expertos</p>
+    <h1>Laboratorio de Cartera</h1>
+    <p class="sub">Cada motor y algoritmo del sistema, funcionando en vivo con las mismas reglas, pesos y fórmulas del código. Cambie los datos y mire qué decide, por qué y qué función lo hace. Las cuentas son ejemplos ficticios.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Laboratorios">
+    <button class="tab" role="tab" data-tab="mapa">Mapa del sistema</button>
+    <button class="tab" role="tab" data-tab="motor">Motor de elegibilidad</button>
+    <button class="tab" role="tab" data-tab="thompson">Thompson</button>
+    <button class="tab" role="tab" data-tab="difuso">Lógica difusa</button>
+    <button class="tab" role="tab" data-tab="topsis">TOPSIS y árbitro</button>
+    <button class="tab" role="tab" data-tab="segmentacion">Segmentación</button>
+    <button class="tab" role="tab" data-tab="propension">Propensión</button>
+    <button class="tab" role="tab" data-tab="plan">Plan de trabajo</button>
+    <button class="tab" role="tab" data-tab="gestion">Gestión G1–G10</button>
+    <button class="tab" role="tab" data-tab="datos">Seudónimos</button>
+  </nav>
+
+  <!-- ============================== MAPA ============================== -->
+  <section class="lab" id="mapa" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">De la pantalla a la base de datos</p>
+      <h2>Quién llama a quién</h2>
+      <p class="lead">Cuatro columnas: la pantalla donde se pulsa el botón, la función de entrada que se ejecuta, los algoritmos que usa y las tablas que lee o escribe. Pulse cualquier caja para ver su cadena completa.</p>
+    </div>
+    <div class="legend">
+      <span><b style="background:var(--g3)"></b>Pantalla</span>
+      <span><b style="background:var(--g2)"></b>Función de entrada</span>
+      <span><b style="background:var(--g1)"></b>Algoritmo</span>
+      <span><b style="background:var(--g4)"></b>Tabla</span>
+      <span><i></i>llama</span>
+      <span><i class="r"></i>lee</span>
+      <span><i class="w"></i>escribe</span>
+    </div>
+    <div class="map-wrap"><div class="map" id="map"></div></div>
+    <div class="panel" id="map-detail" aria-live="polite"></div>
+  </section>
+
+  <!-- ============================== MOTOR ============================== -->
+  <section class="lab" id="motor" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Sistema experto · encadenamiento hacia adelante</p>
+      <h2>Motor de elegibilidad, regla por regla</h2>
+      <p class="lead">Estos son los <b>hechos</b> de una cuenta. El motor recorre las cinco fases en orden; cada premisa se evalúa como verdadera o falsa, y una regla se dispara solo si todas sus premisas son verdaderas. Un dato desconocido nunca cumple una premisa.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Motor de elegibilidad → Ejecutar</span><span class="chip">¿Por qué?</span><span class="chip">Base de conocimiento → Simulador</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">motor/elegibilidad.py:184 evaluar_cuenta()</span><span class="chip">:95 construir_hechos()</span><span class="chip">:175 se_cumple()</span><span class="chip">motor/base_conocimiento.py REGLAS</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">lee cartera</span><span class="chip t">escribe evaluaciones</span></div></div>
+    </div>
+    <div class="presets" id="m-presets"></div>
+    <div class="grid2">
+      <form class="panel" id="m-form" onsubmit="return false">
+        <h3>Hechos de la cuenta</h3>
+        <div class="fields">
+          <label class="field"><span>Día evaluado</span><select id="m_dia"><option value="habil">Martes hábil</option><option value="domingo">Domingo</option><option value="festivo">Festivo (Ley Emiliani)</option></select></label>
+          <label class="field"><span>Código de la última gestión</span><select id="m_codigo"><option value="">(sin código)</option><option>CONTACTO SIN ACUERDO</option><option>POSIBLE LOCALIZACION</option><option>RENUENTE</option><option>DIFERIDO</option><option>CANCELACION</option><option>FALLECIDO</option><option>RECLAMACION</option></select></label>
+          <label class="field"><span>Resultado de la última gestión</span><select id="m_resultado"><option>SIN_GESTION_REAL</option><option>NO_CONTESTA</option><option>BUZON</option><option>APAGADO</option><option>MENSAJE_DEJADO</option><option>CUELGA</option><option>REINTENTAR</option><option>CONTACTO_TITULAR</option><option>NUMERO_ERRADO</option><option>ACUERDO</option></select></label>
+          <label class="field"><span>Días desde el último contacto real</span><input type="number" id="m_dias" value="12" step="1"></label>
+          <label class="check field full"><input type="checkbox" id="m_gestionada" checked> La cuenta ya tuvo gestión real (si no, el hecho queda desconocido)</label>
+          <label class="check"><input type="checkbox" id="m_tiene_comp"> Tiene compromiso de pago</label>
+          <label class="field"><span>Días para el compromiso (negativo = vencido)</span><input type="number" id="m_comp" value="1" step="1"></label>
+          <label class="check"><input type="checkbox" id="m_cel" checked> Tiene celular</label>
+          <label class="check"><input type="checkbox" id="m_fijo" checked> Tiene fijo</label>
+          <label class="check"><input type="checkbox" id="m_email" checked> Tiene correo</label>
+          <label class="check"><input type="checkbox" id="m_incompleta"> Faltan datos de canales</label>
+          <label class="check field full"><input type="checkbox" id="m_exigir"> Exigir autorización por canal (EXIGIR_AUTORIZACION_CANAL)</label>
+          <label class="field"><span>Autoriza llamada</span><select id="m_a_llamada"><option value="1">Autorizó</option><option value="0">No autorizó</option><option value="">Sin preguntar</option></select></label>
+          <label class="field"><span>Autoriza WhatsApp</span><select id="m_a_whatsapp"><option value="1">Autorizó</option><option value="0">No autorizó</option><option value="">Sin preguntar</option></select></label>
+          <label class="field"><span>Autoriza SMS</span><select id="m_a_sms"><option value="1">Autorizó</option><option value="0">No autorizó</option><option value="">Sin preguntar</option></select></label>
+          <label class="field"><span>Autoriza correo</span><select id="m_a_email"><option value="1">Autorizó</option><option value="0">No autorizó</option><option value="">Sin preguntar</option></select></label>
+          <label class="check field full"><input type="checkbox" id="m_th" checked> Hay historial de gestiones salientes (Thompson elige el canal)</label>
+        </div>
+        <p class="note">"Sin preguntar" deja el hecho desconocido: con la exigencia encendida, la cuenta queda con datos incompletos y L3 la bloquea.</p>
+      </form>
+      <div class="gl">
+        <div class="result" id="m-result"></div>
+        <div class="btns"><button class="btn primary" type="button" id="m-play">Reproducir fase por fase</button><button class="btn" type="button" id="m-reseed">Otra muestra de Thompson</button></div>
+      </div>
+    </div>
+    <div class="scroll"><div class="phases" id="m-phases"></div></div>
+  </section>
+
+  <!-- ============================== THOMPSON ============================== -->
+  <section class="lab" id="thompson" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Bandido multibrazo</p>
+      <h2>Muestreo de Thompson para el canal</h2>
+      <p class="lead">Cada canal es una distribución Beta(1 + respuestas, 1 + sin respuesta) construida con las gestiones salientes. En cada decisión se saca una muestra de cada canal permitido y gana la mayor: explota el canal que mejor responde y sigue explorando los demás mientras haya incertidumbre.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Dentro del motor (sin botón propio)</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">motor/thompson.py:29 estadisticas()</span><span class="chip">:96 elegir()</span><span class="chip">:85 hay_historia()</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">lee gestiones (solo SALIENTES)</span></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Historial por canal</h3>
+        <div class="scroll"><table id="t-table"></table></div>
+        <div class="btns"><button class="btn primary" type="button" id="t-sample">Tomar una muestra</button><button class="btn" type="button" id="t-sim">Simular 1.000 decisiones</button></div>
+        <p class="note">Desmarcar un canal es lo que hacen las reglas L, N y C: Thompson nunca lo recupera.</p>
+      </div>
+      <div class="panel">
+        <h3>Distribución de la tasa de respuesta de cada canal</h3>
+        <svg class="chart" id="t-chart" viewBox="0 0 640 260" role="img" aria-label="Curvas Beta de cada canal"></svg>
+        <div id="t-out"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== DIFUSO ============================== -->
+  <section class="lab" id="difuso" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Priorización · Mamdani</p>
+      <h2>Lógica difusa: 14 reglas del experto</h2>
+      <p class="lead">Cada dato pertenece a varios conjuntos a la vez. La fuerza de una regla es el MÍNIMO de sus premisas; cada regla recorta su conjunto de salida y los recortes se unen con MÁXIMO. La prioridad es el centro de gravedad del área resultante, sobre 201 puntos entre 0 y 100.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Priorización → Ejecutar</span><span class="chip">¿Por qué esta prioridad?</span><span class="chip">Base de conocimiento → Reglas difusas</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">decision/priorizacion.py:74 inferir_difuso()</span><span class="chip">:59 entradas_difusas()</span><span class="chip">decision/conocimiento_difuso.py VARIABLES · REGLAS_DIFUSAS</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">escribe prioridades.puntaje_difuso</span></div></div>
+    </div>
+    <div class="presets" id="f-presets"></div>
+    <div class="fz-vars" id="f-vars"></div>
+    <div class="grid2">
+      <div class="panel"><h3>Reglas y su fuerza (MIN de las premisas)</h3><div class="scroll"><table id="f-rules"></table></div></div>
+      <div class="panel"><h3>Salida agregada (MAX) y centro de gravedad</h3><svg class="chart" id="f-out" viewBox="0 0 640 240" role="img" aria-label="Conjunto de salida agregado y centroide"></svg><div id="f-score"></div></div>
+    </div>
+  </section>
+
+  <!-- ============================== TOPSIS ============================== -->
+  <section class="lab" id="topsis" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Priorización · tres métodos y un árbitro</p>
+      <h2>TOPSIS, ponderación y difuso compiten</h2>
+      <p class="lead">Ocho cuentas de ejemplo con sus cinco criterios. Los tres métodos las ordenan; el árbitro mide el recaudo de la cola del día, la robustez ante ±10 % de ruido (índice de Jaccard en 5 réplicas) y la discriminación, y elige el ganador.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Priorización → Ejecutar · Comparación de métodos</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">decision/priorizacion.py:122 topsis()</span><span class="chip">:146 ponderado()</span><span class="chip">:178 evaluar()</span><span class="chip">:213 _valor_esperado()</span><span class="chip">analisis/criterios.py:59 perturbar()</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">lee cartera · evaluaciones</span><span class="chip t">escribe priorizaciones · prioridades</span></div></div>
+    </div>
+    <div class="panel">
+      <h3>Cuentas de ejemplo y criterios</h3>
+      <div class="scroll"><table id="p-data"></table></div>
+      <p class="note">Pesos: saldo 0,35 · contactabilidad 0,25 · mora 0,20 (costo) · margen 0,10 · meses 0,10 (costo). Tasa por canal: correo 1 %, SMS 2,5 %, WhatsApp 6 %, llamada 15 %.</p>
+    </div>
+    <div class="grid2 even">
+      <div class="panel">
+        <h3>Puntaje y orden con cada método</h3>
+        <label class="field"><span>Capacidad del día (K cuentas)</span><input type="range" id="p-k" min="1" max="7" value="3"></label>
+        <div class="scroll"><table id="p-rank"></table></div>
+      </div>
+      <div class="panel">
+        <h3>El árbitro</h3>
+        <div class="formula">Puntaje = 0,60·Recaudo relativo + 0,25·Robustez + 0,15·Discriminación</div>
+        <div class="scroll"><table id="p-arb"></table></div>
+        <div id="p-win"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>TOPSIS por dentro: distancia a la cuenta ideal (d⁺) y a la peor (d⁻)</h3>
+      <svg class="chart" id="p-topsis" viewBox="0 0 900 300" role="img" aria-label="Distancias de TOPSIS por cuenta"></svg>
+      <div class="formula">Cercanía C = d⁻ / (d⁺ + d⁻)  ·  1 = es la ideal, 0 = es la peor</div>
+    </div>
+  </section>
+
+  <!-- ============================== SEGMENTACIÓN ============================== -->
+  <section class="lab" id="segmentacion" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Aprendizaje no supervisado</p>
+      <h2>Segmentación: K-Means paso a paso</h2>
+      <p class="lead">Demostración en dos dimensiones (logaritmo del saldo y de la mora, estandarizados). El sistema real usa los cinco criterios y hace competir K-Means, Ward y mezcla gaussiana; aquí se ve el mecanismo de K-Means y cómo se elige k.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Priorización → pestaña Segmentación</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">analisis/segmentacion.py:198 segmentar()</span><span class="chip">:124 comparar()</span><span class="chip">:67 _kmeans() · :93 _jerarquico() · :71 _gmm()</span><span class="chip">:118 _elegir_k()</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">escribe prioridades.segmento</span></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Controles</h3>
+        <label class="field"><span>Número de segmentos k: <b id="s-kv">4</b></span><input type="range" id="s-k" min="2" max="6" value="4"></label>
+        <div class="btns"><button class="btn" type="button" id="s-assign">1 · Asignar al centro más cercano</button><button class="btn" type="button" id="s-update">2 · Mover centros al promedio</button></div>
+        <div class="btns"><button class="btn primary" type="button" id="s-run">Correr hasta converger</button><button class="btn ghost" type="button" id="s-reset">Reiniciar (k-means++)</button></div>
+        <div class="kpis" id="s-kpis"></div>
+        <h3>Silueta por k y parsimonia</h3>
+        <svg class="chart" id="s-sil" viewBox="0 0 420 190" role="img" aria-label="Silueta para k de 2 a 6"></svg>
+        <p class="note" id="s-silnote"></p>
+      </div>
+      <div class="panel">
+        <canvas class="cv" id="s-cv" aria-label="Diagrama de dispersión de cuentas y centros"></canvas>
+        <p class="note">Cada punto es una cuenta. Las cruces son los centros. J (inercia) = suma de distancias al cuadrado de cada cuenta a su centro: K-Means la minimiza.</p>
+      </div>
+    </div>
+    <div class="grid2 even">
+      <div class="panel"><h3>Los tres algoritmos que compiten</h3>
+        <table><tr><th>Algoritmo</th><th>Qué supone</th></tr>
+        <tr><td>K-Means</td><td>Grupos compactos alrededor de un centro; 10 inicios, se queda el de menor J.</td></tr>
+        <tr><td>Jerárquico de Ward</td><td>Une los grupos que menos aumentan la varianza; un árbol sirve para todos los k (muestra de 3.000).</td></tr>
+        <tr><td>Mezcla gaussiana</td><td>Algoritmo EM: cada grupo es una campana con su propia covarianza.</td></tr></table>
+      </div>
+      <div class="panel"><h3>Cómo gana uno</h3>
+        <div class="formula">Puntaje = 0,50·s/s_max + 0,25·CH/CH_max + 0,25·DB_min/DB</div>
+        <p class="small muted">Silueta s (separación), Calinski-Harabasz CH (entre grupos / dentro), Davies-Bouldin DB (parecido entre vecinos, menor es mejor). Se descarta el que deja un segmento con menos del 2 % de la cartera.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== PROPENSIÓN ============================== -->
+  <section class="lab" id="propension" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Aprendizaje supervisado · fase 4</p>
+      <h2>Propensión a pago y validación en el tiempo</h2>
+      <p class="lead">720 gestiones simuladas en 12 semanas. Una regresión logística se entrena aquí mismo, en el navegador, y se valida de dos formas. La partición por fecha es la del sistema: entrena con el pasado y evalúa con el futuro. La partición al azar mezcla semanas y muestra un modelo más optimista de lo que será en producción.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Propensión a pago → Entrenar y comparar</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">analisis/propension.py:144 entrenar_y_comparar()</span><span class="chip">:93 _particion_temporal()</span><span class="chip">:109 _ks() · :122 _psi() · :135 _captura_20pct()</span><span class="chip">:223 predecir()</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">lee gestiones · cartera</span><span class="chip t">escribe modelos_propension</span></div></div>
+    </div>
+    <div class="btns" role="group" aria-label="Partición"><button class="btn primary" type="button" id="r-temporal">Partición por fecha (la del sistema)</button><button class="btn" type="button" id="r-azar">Partición al azar</button></div>
+    <div class="panel">
+      <h3>Línea de tiempo de gestiones</h3>
+      <svg class="chart" id="r-time" viewBox="0 0 900 120" role="img" aria-label="Gestiones por día, entrenamiento y validación"></svg>
+      <div class="legend"><span><b style="background:var(--accent)"></b>entrena</span><span><b style="background:var(--amber)"></b>valida</span><span>arriba: terminó en acuerdo · abajo: sin acuerdo</span></div>
+    </div>
+    <div class="kpis" id="r-kpis"></div>
+    <div class="grid2 even">
+      <div class="panel"><h3>Curva ROC (AUC)</h3><svg class="chart" id="r-roc" viewBox="0 0 360 300" role="img" aria-label="Curva ROC"></svg></div>
+      <div class="panel"><h3>KS: separación entre pagadores y no pagadores</h3><svg class="chart" id="r-ks" viewBox="0 0 360 300" role="img" aria-label="Curvas acumuladas KS"></svg></div>
+    </div>
+    <div class="grid2 even">
+      <div class="panel"><h3>Por fecha frente a al azar</h3><div class="scroll"><table id="r-cmp"></table></div><p class="note" id="r-cmpnote"></p></div>
+      <div class="panel"><h3>Cómo elige el sistema entre los cuatro modelos</h3>
+        <table><tr><th>Modelo</th><th>Papel</th></tr><tr><td>Regresión logística</td><td>Línea base interpretable (la de esta página)</td></tr><tr><td>Árbol CART</td><td>Reglas SI-ENTONCES legibles</td></tr><tr><td>Bosque aleatorio</td><td>Robusto con muchas variables</td></tr><tr><td>Gradient Boosting</td><td>Mayor precisión en datos tabulares</td></tr></table>
+        <div class="formula">0,35·AUC + 0,30·KS + 0,20·(Brier invertido) + 0,15·(PSI invertido)</div>
+        <p class="small muted">Si la logística o el árbol quedan a menos de 0,02 de AUC del ganador, se elige el interpretable (MARGEN_PARSIMONIA).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== PLAN ============================== -->
+  <section class="lab" id="plan" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Optimización · fase 5</p>
+      <h2>Reparto del plan: serpentina u óptimo</h2>
+      <p class="lead">Doce cuentas en el orden de la priorización, cada una con su valor esperado. La serpentina toma las primeras por posición y las reparte 1, 2, 3 · 3, 2, 1. El óptimo resuelve un problema de programación lineal entera: elegir qué cuenta va a qué gestor para maximizar el valor total, sin pasar el cupo de nadie.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Plan de trabajo → Crear plan · Método de reparto</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">gestion/plan.py:105 crear_plan()</span><span class="chip">:45 repartir_en_serpentina()</span><span class="chip">:59 asignar_optimo() · scipy.optimize.milp</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">lee prioridades · cartera</span><span class="chip t">escribe planes · plan_asignaciones</span></div></div>
+    </div>
+    <div class="panel">
+      <label class="field"><span>Cupo por gestor (3 gestores): <b id="pl-cv">3</b></span><input type="range" id="pl-cupo" min="1" max="4" value="3"></label>
+      <div class="formula">max Σ E(i)·x(i,g)   sujeto a   Σg x(i,g) ≤ 1   y   Σi x(i,g) ≤ cupo   con x(i,g) ∈ {0, 1}</div>
+    </div>
+    <div class="grid2 even">
+      <div class="panel" id="pl-serp"></div>
+      <div class="panel" id="pl-opt"></div>
+    </div>
+    <div class="panel" id="pl-cmp"></div>
+  </section>
+
+  <!-- ============================== GESTIÓN ============================== -->
+  <section class="lab" id="gestion" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Registro de la gestión</p>
+      <h2>Diez reglas antes de guardar</h2>
+      <p class="lead">Lo que el gestor escribe pasa por G1 a G10 en el servidor. Las de nivel error impiden guardar; las de aviso se registran. G1 depende del reloj: si el del servidor difiere más de 10 minutos del de la base, el contacto saliente se rechaza por precaución.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Gestión de cuentas → Grabar gestión</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">gestion/operacion.py:209 registrar()</span><span class="chip">:166 validar() · :66 _g1 … :136 _g10</span><span class="chip">:37 en_horario()</span><span class="chip">datos/base_datos.py:478 reloj_confiable()</span><span class="chip">:934 registrar_gestion()</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">escribe gestiones + cartera (una transacción)</span><span class="chip t">auditoria</span></div></div>
+    </div>
+    <div class="grid2">
+      <form class="panel" id="g-form" onsubmit="return false">
+        <h3>La gestión que se quiere grabar</h3>
+        <div class="fields">
+          <label class="field"><span>Sentido</span><select id="g_sentido"><option>SALIENTE</option><option>ENTRANTE</option></select></label>
+          <label class="field"><span>Canal</span><select id="g_canal"><option>LLAMADA</option><option>WHATSAPP</option><option>SMS</option><option>EMAIL</option></select></label>
+          <label class="field"><span>Resultado del contacto</span><select id="g_resultado"><option>ACUERDO</option><option>CONTACTO_TITULAR</option><option>REINTENTAR</option><option>CUELGA</option><option>NO_CONTESTA</option><option>BUZON</option><option>APAGADO</option><option>MENSAJE_DEJADO</option><option>NUMERO_ERRADO</option><option>FALLECIDO</option></select></label>
+          <label class="field"><span>Código de gestión</span><select id="g_codigo"><option>POSIBLE LOCALIZACION</option><option>CONTACTO SIN ACUERDO</option><option>POSIBLE NEGOCIACION</option><option selected>DIFERIDO</option><option>PAGO TOTAL</option><option>DEBITO</option><option>RENUENTE</option><option>DESEMPLEO</option><option>RECLAMACION</option><option>CANCELACION</option><option>FALLECIDO</option></select></label>
+          <label class="field"><span>Valor acordado (COP)</span><input type="number" id="g_valor" value="2600000" step="50000"></label>
+          <label class="field"><span>Compromiso en (días)</span><input type="number" id="g_comp" value="10" step="1"></label>
+          <label class="field"><span>Próxima gestión en (días)</span><input type="number" id="g_prox" value="8" step="1"></label>
+          <label class="field full"><span>Observación</span><input type="text" id="g_obs" value="Titular acepta pagar en dos cuotas."></label>
+        </div>
+        <h3>Contexto que el servidor revisa</h3>
+        <div class="fields">
+          <label class="field"><span>Día</span><select id="g_dia"><option value="habil">Lunes a viernes</option><option value="sabado">Sábado</option><option value="domingo">Domingo</option><option value="festivo">Festivo</option></select></label>
+          <label class="field"><span>Hora: <b id="g_horav">10:00</b></span><input type="range" id="g_hora" min="0" max="23" value="10"></label>
+          <label class="field"><span>Diferencia del reloj del servidor (min)</span><input type="number" id="g_reloj" value="0" step="5"></label>
+          <label class="field"><span>Estado que da el motor hoy</span><select id="g_estado"><option>CONTACTABLE</option><option>RECORDATORIO</option><option>EN_ESPERA</option><option>BLOQUEADA</option></select></label>
+          <label class="field"><span>Mínimo autorizado (COP)</span><input type="number" id="g_min" value="2500000" step="50000"></label>
+          <label class="field"><span>Máximo cobrable (COP)</span><input type="number" id="g_max" value="4300000" step="50000"></label>
+          <div class="field full"><span>Canales que el motor permite</span><div class="btns"><label class="check"><input type="checkbox" id="g_p_LLAMADA" checked> Llamada</label><label class="check"><input type="checkbox" id="g_p_WHATSAPP" checked> WhatsApp</label><label class="check"><input type="checkbox" id="g_p_SMS" checked> SMS</label><label class="check"><input type="checkbox" id="g_p_EMAIL"> Correo</label></div></div>
+        </div>
+      </form>
+      <div class="gl">
+        <div class="result" id="g-verdict"></div>
+        <div class="rules-g" id="g-rules"></div>
+      </div>
+    </div>
+    <div class="grid2 even">
+      <div class="panel">
+        <h3>Al guardar: una sola transacción</h3>
+        <label class="check"><input type="checkbox" id="g_fail"> Simular que la cuenta no existe al actualizar la cartera</label>
+        <div class="tx" id="g-tx"></div>
+        <p class="note">La gestión nunca queda sin que la cartera lo refleje, ni al revés: o se guardan todas o ninguna. Por eso mañana el motor ya lee el nuevo contacto.</p>
+      </div>
+      <div class="panel">
+        <h3>Siguiente cuenta: dos gestores a la vez</h3>
+        <div class="btns" role="group" aria-label="Estrategia de reserva"><button class="btn" type="button" id="q-bad">Leer y luego escribir</button><button class="btn primary" type="button" id="q-good">Una sola sentencia INSERT … ON CONFLICT</button></div>
+        <div class="seq" id="q-seq"></div>
+        <p class="note">datos/base_datos.py:959 reservar_cuenta(): la base resuelve el conflicto; la reserva dura 20 minutos y la hora la pone el servidor.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== DATOS ============================== -->
+  <section class="lab" id="datos" role="tabpanel" hidden>
+    <div>
+      <p class="kicker">Protección de la identidad</p>
+      <h2>Seudónimos con HMAC-SHA256</h2>
+      <p class="lead">El cálculo es real: se hace en su navegador con la criptografía del propio navegador. Cambie la cédula o la clave y mire cómo cambia el seudónimo. Luego intente revertir un hash sin clave.</p>
+    </div>
+    <div class="where">
+      <div><span class="k">Pantalla</span><div class="chips"><span class="chip">Cargas → Simular una cartera</span><span class="chip">Obligación nueva</span></div></div>
+      <div><span class="k">Código</span><div class="chips"><span class="chip">datos/cargador.py:95 _seudonimo()</span><span class="chip">:201 cargar()</span></div></div>
+      <div><span class="k">Tablas</span><div class="chips"><span class="chip t">escribe cartera · titulares (solo seudónimos)</span></div></div>
+    </div>
+    <div class="grid2 even">
+      <div class="panel">
+        <label class="field"><span>Cédula (ficticia: los documentos simulados empiezan por 99)</span><input type="text" id="h_ced" value="9912345678" inputmode="numeric"></label>
+        <label class="field"><span>Clave secreta (SEUDONIMO_CLAVE)</span><input type="text" id="h_key" value="clave-de-ejemplo-del-equipo"></label>
+        <div><span class="note">Seudónimo que guarda la cartera</span><div class="pseudo" id="h_pseudo">…</div></div>
+        <div class="field"><span>HMAC-SHA256 completo</span><div class="hash" id="h_hmac">…</div></div>
+        <div class="field"><span>SHA-256 simple, sin clave (lo que NO se usa)</span><div class="hash" id="h_sha">…</div></div>
+      </div>
+      <div class="panel">
+        <h3>¿Por qué no basta un hash simple?</h3>
+        <p class="small">Una cédula tiene como mucho diez dígitos. Quien conozca los primeros seis puede probar los 10.000 finales que faltan y comparar hashes. Pruébelo:</p>
+        <div class="btns"><button class="btn primary" type="button" id="h_attack">Intentar revertir el SHA-256 simple</button></div>
+        <div id="h_out" class="result"></div>
+        <p class="note">Con HMAC el mismo ataque no sirve: sin la clave no se puede reproducir ningún cálculo. Se guardan 12 caracteres (48 bits): con un millón de titulares, la probabilidad de que dos compartan código es menor al 0,2 %.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="end">Cuentas y cifras de ejemplo, ficticias. Las reglas, pesos, umbrales y fórmulas son los del código del repositorio makius1/gestion_cartera.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>Array.from(el.querySelectorAll(s));
+const tok=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt=(n,d=2)=>Number(n).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pesos=n=>'$ '+Math.round(n).toLocaleString('es-CO');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rng(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hashStr(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+function normal(r){let u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function gamma(r,k){const d=k-1/3,c=1/Math.sqrt(9*d);for(;;){let x,v;do{x=normal(r);v=1+c*x;}while(v<=0);v=v*v*v;const u=r();if(u<1-0.0331*x*x*x*x)return d*v;if(Math.log(u)<0.5*x*x+d*(1-v+Math.log(v)))return d*v;}}
+function betaSample(r,a,b){const x=gamma(r,a),y=gamma(r,b);return x/(x+y);}
+function lgamma(z){const g=7,c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];if(z<0.5)return Math.log(Math.PI/Math.sin(Math.PI*z))-lgamma(1-z);z-=1;let x=c[0];for(let i=1;i<g+2;i++)x+=c[i]/(z+i);const t=z+g+0.5;return 0.5*Math.log(2*Math.PI)+(z+0.5)*Math.log(t)-t+Math.log(x);}
+function betaPdf(x,a,b){if(x<=0||x>=1)return 0;return Math.exp((a-1)*Math.log(x)+(b-1)*Math.log(1-x)-(lgamma(a)+lgamma(b)-lgamma(a+b)));}
+const redraws=[];
+function onTheme(){redraws.forEach(f=>{try{f();}catch(e){console.error(e);}});}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',onTheme);
+new MutationObserver(onTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------------------------------------------------------------- tabs */
+const TABS=['mapa','motor','thompson','difuso','topsis','segmentacion','propension','plan','gestion','datos'];
+const onShow={};
+function show(id){if(!TABS.includes(id))id='mapa';TABS.forEach(t=>{const s=document.getElementById(t);s.hidden=t!==id;});$$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===id)));try{history.replaceState(null,'','#'+id);}catch(e){}if(onShow[id])setTimeout(()=>onShow[id](),0);}
+$$('.tab').forEach(b=>b.addEventListener('click',()=>show(b.dataset.tab)));
+
+/* ================================================================ MAPA */
+const NODES=[
+ ['p_motor',0,'Motor de elegibilidad','app/paginas/motor.py','Ejecuta el motor para una carga y una fecha, y muestra el ¿Por qué? de cada cuenta.'],
+ ['p_conoc',0,'Base de conocimiento','app/paginas/conocimiento.py','Lista las 21 reglas por fase y tiene el simulador de hechos.'],
+ ['p_prio',0,'Priorización','app/paginas/priorizacion.py','Ejecuta la segmentación y los tres métodos; muestra la comparación, la cola del día y el ¿Por qué esta prioridad?'],
+ ['p_prop',0,'Propensión a pago','app/paginas/propension.py','Entrena y compara los cuatro modelos; el gestor solo consulta.'],
+ ['p_plan',0,'Plan de trabajo','app/paginas/plan.py','Crea el plan del día (serpentina u óptimo) y muestra el avance.'],
+ ['p_gest',0,'Gestión de cuentas','app/paginas/gestion.py','Siguiente cuenta, panel del motor, contactos, autorización por canal y registro de la gestión.'],
+ ['p_cargas',0,'Cargas','app/paginas/cargas.py','Simula una cartera y la registra; completa cargas antiguas.'],
+ ['p_ing',0,'Ingreso','app/principal.py:88','Pantalla de usuario y contraseña.'],
+ ['f_elig',1,'elegibilidad.ejecutar()','motor/elegibilidad.py:402','Lee la cartera y el historial, evalúa cada cuenta y guarda la ejecución.'],
+ ['f_eval',1,'evaluar_cuenta()','motor/elegibilidad.py:184','Aplica las 5 fases a los hechos de UNA cuenta. La usan el motor, el ¿Por qué?, el simulador y la gestión.'],
+ ['f_prio',1,'priorizacion.ejecutar()','decision/priorizacion.py:317','Lee cartera y evaluaciones, prioriza y guarda.'],
+ ['f_expl',1,'explicar_cuenta()','decision/priorizacion.py:346','Recalcula grados, reglas difusas y distancias TOPSIS de una cuenta.'],
+ ['f_prop',1,'propension.ejecutar()','analisis/propension.py:215','Entrena, compara y guarda el modelo ganador.'],
+ ['f_plan',1,'crear_plan()','gestion/plan.py:105','Reevalúa con el motor, calcula los dos repartos y guarda el plan.'],
+ ['f_sig',1,'siguiente_de_la_cola()','gestion/operacion.py:245','Busca la siguiente cuenta de la cola y la reserva.'],
+ ['f_reg',1,'operacion.registrar()','gestion/operacion.py:209','Valida con G1–G10 y guarda gestión y cartera en una transacción.'],
+ ['f_aut',1,'autorizaciones.registrar()','datos/autorizaciones.py:77','Guarda lo que autorizó el titular y refresca la cartera.'],
+ ['f_carg',1,'cargar()','datos/cargador.py:201','Limpia la asignación, deriva variables y seudonimiza.'],
+ ['f_auth',1,'autenticar()','seguridad/autenticacion.py:130','Verifica el ingreso, cuenta intentos y bloquea.'],
+ ['a_fc',2,'Encadenamiento hacia adelante','motor/base_conocimiento.py','21 reglas en 5 fases con Modus Ponens y resolución de conflictos.'],
+ ['a_th',2,'Muestreo de Thompson','motor/thompson.py:96','Beta(1+r, 1+n) por canal; solo entre canales permitidos.'],
+ ['a_cr',2,'Criterios y contactabilidad','analisis/criterios.py:31','Cinco criterios comunes; la contactabilidad sale del modelo si existe.'],
+ ['a_seg',2,'K-Means · Ward · GMM','analisis/segmentacion.py:198','Tres algoritmos de segmentación; gana el de mejor puntaje compuesto.'],
+ ['a_fz',2,'Lógica difusa Mamdani','decision/priorizacion.py:74','14 reglas: MIN, MAX y centroide.'],
+ ['a_tp',2,'TOPSIS','decision/priorizacion.py:122','Cercanía a la cuenta ideal.'],
+ ['a_saw',2,'Ponderación simple','decision/priorizacion.py:146','Suma ponderada normalizada: la línea base.'],
+ ['a_arb',2,'Árbitro de métodos','decision/priorizacion.py:178','Recaudo, robustez (Jaccard) y discriminación.'],
+ ['a_ml',2,'Propensión: 4 modelos','analisis/propension.py:144','Logística, CART, bosque y boosting con validación temporal.'],
+ ['a_ser',2,'Serpentina','gestion/plan.py:45','Reparto 1,2,3 · 3,2,1: la misma suma de posiciones para todos.'],
+ ['a_milp',2,'Programación lineal entera','gestion/plan.py:59','scipy.optimize.milp: máximo valor esperado con cupo.'],
+ ['a_g',2,'Reglas G1–G10','gestion/operacion.py:166','Restricciones legales y de calidad del dato.'],
+ ['a_clk',2,'Reloj confiable','datos/base_datos.py:478','Compara la hora del servidor con SELECT NOW() de la base.'],
+ ['a_res',2,'Reserva ON CONFLICT','datos/base_datos.py:959','Una sola sentencia: dos gestores nunca reciben la misma cuenta.'],
+ ['a_hmac',2,'HMAC-SHA256','datos/cargador.py:95','Seudónimo estable e irreversible sin la clave.'],
+ ['a_scr',2,'scrypt y bloqueo','seguridad/autenticacion.py:62','Derivación con sal; 5 fallos bloquean 15 minutos.'],
+ ['t_cart',3,'cartera','datos/base_datos.py:63','Una fila por crédito y carga: la materia prima de todo.'],
+ ['t_gest',3,'gestiones','datos/base_datos.py:264','Cada contacto registrado.'],
+ ['t_eval',3,'ejecuciones_motor · evaluaciones','datos/base_datos.py:155','Cada ejecución y el resultado de cada cuenta.'],
+ ['t_prio',3,'priorizaciones · prioridades','datos/base_datos.py:189','Método elegido, métricas y posición de cada cuenta.'],
+ ['t_mod',3,'modelos_propension','datos/base_datos.py:231','Modelo ganador serializado y sus métricas.'],
+ ['t_plan',3,'planes · plan_asignaciones','datos/base_datos.py:329','Plan del día con ambos valores esperados.'],
+ ['t_res',3,'reservas','datos/base_datos.py:370','Qué cuenta tiene cada gestor y hasta cuándo.'],
+ ['t_aut',3,'autorizaciones_canal','datos/base_datos.py:397','Qué canales autorizó cada titular.'],
+ ['t_tit',3,'titulares · contactos','datos/base_datos.py:294','Directorio con datos enmascarados.'],
+ ['t_usr',3,'usuarios','datos/base_datos.py:122','Rol, estado y derivación de la contraseña.'],
+ ['t_aud',3,'auditoria','datos/base_datos.py:139','Bitácora de acciones, sin edición.']
+];
+const EDGES=[
+ ['p_motor','f_elig','c'],['p_motor','f_eval','c'],['p_conoc','f_eval','c'],['p_prio','f_prio','c'],['p_prio','f_expl','c'],['p_prop','f_prop','c'],['p_plan','f_plan','c'],['p_gest','f_sig','c'],['p_gest','f_reg','c'],['p_gest','f_aut','c'],['p_gest','f_eval','c'],['p_cargas','f_carg','c'],['p_ing','f_auth','c'],
+ ['f_elig','a_fc','c'],['f_elig','a_th','c'],['f_eval','a_fc','c'],['f_eval','a_th','c'],
+ ['f_prio','a_cr','c'],['f_prio','a_seg','c'],['f_prio','a_fz','c'],['f_prio','a_tp','c'],['f_prio','a_saw','c'],['f_prio','a_arb','c'],
+ ['f_expl','a_cr','c'],['f_expl','a_fz','c'],['f_expl','a_tp','c'],
+ ['f_prop','a_ml','c'],['f_plan','a_fc','c'],['f_plan','a_cr','c'],['f_plan','a_ser','c'],['f_plan','a_milp','c'],
+ ['f_sig','a_res','c'],['f_reg','a_fc','c'],['f_reg','a_g','c'],['f_reg','a_clk','c'],['f_carg','a_hmac','c'],['f_auth','a_scr','c'],
+ ['a_fc','t_cart','r'],['a_th','t_gest','r'],['a_cr','t_cart','r'],['a_cr','t_mod','r'],['a_ml','t_gest','r'],['a_ml','t_cart','r'],['a_g','t_cart','r'],['a_scr','t_usr','r'],['f_sig','t_prio','r'],['f_plan','t_prio','r'],
+ ['f_elig','t_eval','w'],['f_elig','t_aud','w'],['f_prio','t_prio','w'],['f_prio','t_aud','w'],['f_prop','t_mod','w'],['f_plan','t_plan','w'],['f_plan','t_aud','w'],['a_res','t_res','w'],['f_reg','t_gest','w'],['f_reg','t_cart','w'],['f_reg','t_aud','w'],['f_aut','t_aut','w'],['f_aut','t_cart','w'],['f_aut','t_aud','w'],['f_carg','t_cart','w'],['f_carg','t_tit','w'],['f_auth','t_usr','w'],['f_auth','t_aud','w']
+];
+const NODE=Object.fromEntries(NODES.map(n=>[n[0],{id:n[0],col:n[1],label:n[2],file:n[3],desc:n[4]}]));
+const KIND=['p','f','a','t'],KIND_N=['Pantalla','Función de entrada','Algoritmo','Tabla'];
+let mapSel='p_gest';
+function buildMap(){const m=$('#map');let html='<svg class="edges" id="map-svg"></svg>';['Pantalla','Función de entrada','Algoritmo','Tabla'].forEach((t,c)=>{html+='<div class="map-col"><h4>'+t+'</h4>';NODES.filter(n=>n[1]===c).forEach(n=>{html+='<button type="button" class="node k-'+KIND[c]+'" data-id="'+n[0]+'">'+esc(n[2])+'<small>'+esc(n[3])+'</small></button>';});html+='</div>';});m.innerHTML=html;$$('.node',m).forEach(b=>b.addEventListener('click',()=>{mapSel=b.dataset.id;renderMap();}));}
+function reach(id,dir){const out=new Set([id]);const st=[id];while(st.length){const x=st.pop();EDGES.forEach(e=>{const a=dir>0?e[0]:e[1],b=dir>0?e[1]:e[0];if(a===x&&!out.has(b)){out.add(b);st.push(b);}});}return out;}
+function renderMap(){const m=$('#map');const svg=$('#map-svg');const box=m.getBoundingClientRect();if(!box.width)return;const set=new Set([...reach(mapSel,1),...reach(mapSel,-1)]);m.classList.add('focus');$$('.node',m).forEach(b=>{b.classList.toggle('on',set.has(b.dataset.id));b.classList.toggle('sel',b.dataset.id===mapSel);});let p='';EDGES.forEach(e=>{const A=$('[data-id="'+e[0]+'"]',m).getBoundingClientRect(),B=$('[data-id="'+e[1]+'"]',m).getBoundingClientRect();const x1=A.right-box.left,y1=A.top+A.height/2-box.top,x2=B.left-box.left,y2=B.top+B.height/2-box.top;const dx=Math.max(30,(x2-x1)*0.45);const on=set.has(e[0])&&set.has(e[1]);p+='<path class="'+(e[2]==='r'?'read':e[2]==='w'?'write':'call')+(on?' on':'')+'" d="M'+x1+' '+y1+' C'+(x1+dx)+' '+y1+','+(x2-dx)+' '+y2+','+x2+' '+y2+'"/>';});svg.setAttribute('viewBox','0 0 '+box.width+' '+box.height);svg.innerHTML=p;
+ const n=NODE[mapSel];const ins=EDGES.filter(e=>e[1]===mapSel),outs=EDGES.filter(e=>e[0]===mapSel);const verb={c:'llama a',r:'lee',w:'escribe'};
+ const li=(arr,which)=>arr.length?'<ul>'+arr.map(e=>'<li><b>'+esc(NODE[e[which]].label)+'</b> <span class="muted small">('+(which===1?verb[e[2]]:(e[2]==='c'?'la llama':e[2]==='r'?'la lee':'la escribe'))+')</span></li>').join('')+'</ul>':'<p class="muted small">—</p>';
+ $('#map-detail').innerHTML='<div><p class="kicker">'+KIND_N[n.col]+'</p><h3 style="font-size:22px;margin-top:6px">'+esc(n.label)+'</h3><p class="mono small muted" style="margin-top:4px">'+esc(n.file)+'</p></div><p>'+esc(n.desc)+'</p><div class="grid2 even"><div><span class="k kicker" style="color:var(--muted)">Viene de</span>'+li(ins,0)+'</div><div><span class="k kicker" style="color:var(--muted)">Hace / usa</span>'+li(outs,1)+'</div></div>';}
+buildMap();onShow.mapa=renderMap;redraws.push(()=>{if(!$('#mapa').hidden)renderMap();});
+if(window.ResizeObserver)new ResizeObserver(()=>{if(!$('#mapa').hidden)renderMap();}).observe($('#map'));
+
+/* ================================================================ MOTOR */
+const EXCL=['CANCELACION','FALLECIDO','RECLAMACION'];
+const RULES=[
+ {id:'L1',n:'Día no hábil',f:'bloqueos',c:[['dia_habil',false]],e:{estado:'BLOQUEADA'},fu:'Ley 2300 de 2023: el contacto de cobranza está prohibido los domingos y festivos.'},
+ {id:'N1',n:'Gestión cerrada o en disputa',f:'bloqueos',c:[['codigo',['en',EXCL]]],e:{estado:'BLOQUEADA'},fu:'Política del negocio: cancelada, fallecido o en reclamación no se cobra.'},
+ {id:'L3',n:'Información incompleta',f:'bloqueos',c:[['datos_completos',false]],e:{estado:'BLOQUEADA'},fu:'Precaución: sin los datos no se puede demostrar que el contacto cumple la Ley 2300.'},
+ {id:'L2',n:'Frecuencia de contacto',f:'bloqueos',c:[['dias_desde_contacto',['<',7]]],e:{estado:'BLOQUEADA'},fu:'Ley 2300, art. 3; política interna de 7 días entre contactos reales.'},
+ {id:'N3',n:'Recordatorio de compromiso',f:'compromisos',c:[['dias_para_compromiso',['entre',[0,2]]]],e:{estado:'RECORDATORIO',pref:['WHATSAPP','SMS']},fu:'Estrategia: recordar antes de la fecha pactada.'},
+ {id:'N4',n:'Compromiso vigente',f:'compromisos',c:[['dias_para_compromiso',['>',2]]],e:{estado:'EN_ESPERA'},fu:'Política: no se presiona mientras el acuerdo está vigente.'},
+ {id:'C1',n:'Sin celular',f:'canales',c:[['tiene_celular',false]],e:{quitar:['SMS','WHATSAPP']},fu:'SMS y WhatsApp requieren celular.'},
+ {id:'C2',n:'Sin teléfono',f:'canales',c:[['tiene_celular',false],['tiene_fijo',false]],e:{quitar:['LLAMADA']},fu:'La llamada requiere algún teléfono.'},
+ {id:'C3',n:'Sin correo',f:'canales',c:[['tiene_email',false]],e:{quitar:['EMAIL']},fu:'El correo requiere una dirección.'},
+ {id:'C4',n:'Número errado',f:'canales',c:[['resultado_gestion','NUMERO_ERRADO']],e:{quitar:['SMS','WHATSAPP','LLAMADA']},fu:'Ley 1581: no exponer la deuda a un tercero.'},
+ {id:'C5',n:'Llamada no autorizada',f:'canales',c:[['exigir_autorizacion_canal',true],['autoriza_llamada',false]],e:{quitar:['LLAMADA']},fu:'Ley 2300, art. 2: solo canales autorizados.'},
+ {id:'C6',n:'WhatsApp no autorizado',f:'canales',c:[['exigir_autorizacion_canal',true],['autoriza_whatsapp',false]],e:{quitar:['WHATSAPP']},fu:'Ley 2300, art. 2.'},
+ {id:'C7',n:'SMS no autorizado',f:'canales',c:[['exigir_autorizacion_canal',true],['autoriza_sms',false]],e:{quitar:['SMS']},fu:'Ley 2300, art. 2.'},
+ {id:'C8',n:'Correo no autorizado',f:'canales',c:[['exigir_autorizacion_canal',true],['autoriza_email',false]],e:{quitar:['EMAIL']},fu:'Ley 2300, art. 2.'},
+ {id:'N2',n:'Sin canal disponible',f:'cierre',c:[['canales_permitidos',0]],e:{estado:'BLOQUEADA'},fu:'No queda ningún medio para contactar.'},
+ {id:'E1',n:'Promesa incumplida',f:'estrategia',p:100,c:[['dias_para_compromiso',['<',0]]],e:{canal:'LLAMADA'},fu:'La fecha pactada pasó sin pago: llamar.'},
+ {id:'E2',n:'Contacto sin acuerdo',f:'estrategia',p:90,c:[['codigo','CONTACTO SIN ACUERDO']],e:{canal:'LLAMADA'},fu:'Ya localizado y no cerró: llamar con oferta.'},
+ {id:'E3',n:'Nunca gestionada',f:'estrategia',p:80,c:[['resultado_gestion','SIN_GESTION_REAL']],e:{canal:'EMAIL'},fu:'Despertar con el canal más barato.'},
+ {id:'E4',n:'No localizado',f:'estrategia',p:70,c:[['resultado_gestion',['en',['BUZON','NO_CONTESTA','APAGADO','MENSAJE_DEJADO']]]],e:{canal:'WHATSAPP'},fu:'Canal asíncrono si no contesta.'},
+ {id:'E5',n:'Rechazo del contacto',f:'estrategia',p:60,c:[['resultado_gestion',['en',['CUELGA','REINTENTAR']]]],e:{canal:'SMS'},fu:'Mensaje corto, menos invasivo.'},
+ {id:'E9',n:'Por defecto',f:'estrategia',p:0,c:[],e:{canal:'SMS'},fu:'Si nada más aplica: SMS.'}
+];
+const FASES=[['bloqueos','Bloqueos','si una dispara, se detiene'],['compromisos','Compromisos','a lo sumo una'],['canales','Canales','cada una quita canales'],['cierre','Cierre','razona sobre la fase 3'],['estrategia','Estrategia','gana la de mayor prioridad']];
+const CANALES=['EMAIL','SMS','WHATSAPP','LLAMADA'];
+const TH_EJEMPLO={EMAIL:{e:4,f:46},SMS:{e:7,f:38},WHATSAPP:{e:15,f:30},LLAMADA:{e:22,f:36}};
+function cumple(v,esp){if(v===null||v===undefined)return false;if(Array.isArray(esp)){const[o,r]=esp;if(o==='<')return v<r;if(o==='<=')return v<=r;if(o==='>')return v>r;if(o==='>=')return v>=r;if(o==='en')return r.includes(v);if(o==='entre')return r[0]<=v&&v<=r[1];}return v===esp;}
+function espTxt(esp){if(Array.isArray(esp)){const[o,r]=esp;if(o==='en')return'∈ {'+r.join(', ')+'}';if(o==='entre')return'entre '+r[0]+' y '+r[1];return o+' '+r;}if(typeof esp==='string')return'= "'+esp+'"';return'= '+esp;}
+function valTxt(v){if(v===null||v===undefined)return'desconocido';if(typeof v==='string')return'"'+v+'"';return String(v);}
+let mSeed=1;
+function evaluar(h,conTh){h=Object.assign({},h);const ev={};const reached={};let estado='CONTACTABLE',canales=CANALES.slice(),traza=[],det=null,pref=null,quitados={};
+ const test=r=>{const prem=r.c.map(([k,e])=>({k,e,v:h[k],ok:cumple(h[k],e)}));const fired=prem.every(x=>x.ok);ev[r.id]={prem,fired,evaluada:true};return fired;};
+ const fin=(est,can,canal,d,extra)=>Object.assign({estado:est,canales:can,canal,det:d,traza,ev,reached,quitados,hechos:h},extra||{});
+ reached.bloqueos=true;const blo=RULES.filter(r=>r.f==='bloqueos').filter(test);blo.forEach(r=>traza.push(r));if(blo.length)return fin('BLOQUEADA',[],null,blo[0],{stop:'bloqueos'});
+ reached.compromisos=true;for(const r of RULES.filter(r=>r.f==='compromisos')){if(test(r)){traza.push(r);estado=r.e.estado;pref=r.e.pref||null;det=r;break;}}
+ if(estado==='EN_ESPERA')return fin(estado,[],null,det,{stop:'compromisos'});
+ reached.canales=true;for(const r of RULES.filter(r=>r.f==='canales')){if(test(r)){traza.push(r);r.e.quitar.forEach(c=>{if(canales.includes(c))quitados[c]=r.id;});canales=canales.filter(c=>!r.e.quitar.includes(c));}}
+ h.canales_permitidos=canales.length;reached.cierre=true;const n2=RULES.find(r=>r.id==='N2');if(test(n2)){traza.push(n2);return fin('BLOQUEADA',[],null,n2,{stop:'cierre'});}
+ if(estado==='RECORDATORIO'){const canal=pref.find(c=>canales.includes(c))||canales[0];return fin(estado,canales,canal,det,{stop:'estrategia-omitida'});}
+ reached.estrategia=true;const apl=RULES.filter(r=>r.f==='estrategia').filter(test).sort((a,b)=>b.p-a.p);const gan=apl[0];traza.push(gan);let canalRegla=gan.e.canal;if(!canales.includes(canalRegla))canalRegla=canales[0];let canal=canalRegla,muestras=null;
+ if(conTh){const r=rng(hashStr('K3F9A2C1|2026-09-15|'+mSeed));muestras={};canales.forEach(c=>{muestras[c]=betaSample(r,1+TH_EJEMPLO[c].e,1+TH_EJEMPLO[c].f);});canal=canales.reduce((a,b)=>muestras[b]>muestras[a]?b:a);}
+ return fin('CONTACTABLE',canales,canal,gan,{canalRegla,muestras,descartadas:apl.slice(1)});}
+function explicar(R){const d=R.det;if(R.estado==='BLOQUEADA'){let s='No se contacta. Determina '+d.id+' ('+d.n+'): '+d.fu;const otras=R.traza.filter(r=>r!==d);if(otras.length)s+=' También aplican: '+otras.map(r=>r.id+' ('+r.n+')').join(', ')+'.';return s;}
+ if(R.estado==='EN_ESPERA')return'En espera. Determina '+d.id+' ('+d.n+'): '+d.fu;const q=R.traza.filter(r=>r.f==='canales');let s=(q.length?'Restricciones: '+q.map(r=>r.id+' ('+r.n+')').join(', ')+'. ':'')+'Canales permitidos: '+R.canales.join(', ')+'. ';
+ if(R.estado==='RECORDATORIO')return s+'Recordatorio por '+R.canal+'. Determina '+d.id+' ('+d.n+'): '+d.fu;const ideal=d.e.canal;s+=ideal===R.canalRegla?'Canal recomendado por la regla: '+R.canalRegla+' por '+d.id+' ('+d.n+').':d.id+' ('+d.n+') recomienda '+ideal+', que no está permitido; se usa '+R.canalRegla+', el más económico disponible.';if(R.descartadas&&R.descartadas.length)s+=' Otras estrategias aplicables, de menor prioridad: '+R.descartadas.map(r=>r.id).join(', ')+'.';if(R.muestras)s+=' Thompson seleccionó '+R.canal+' entre los canales permitidos; la regla experta habría recomendado '+R.canalRegla+'.';return s;}
+function leerHechos(){const g=$('#m_gestionada').checked;const comp=$('#m_tiene_comp').checked;const ex=$('#m_exigir').checked;const a=id=>{const v=$(id).value;return v===''?null:v==='1';};const aut={autoriza_llamada:a('#m_a_llamada'),autoriza_whatsapp:a('#m_a_whatsapp'),autoriza_sms:a('#m_a_sms'),autoriza_email:a('#m_a_email')};
+ const canalesOk=!$('#m_incompleta').checked;const completos=canalesOk&&(!ex||Object.values(aut).every(v=>v!==null));
+ return Object.assign({dia_habil:$('#m_dia').value==='habil',datos_completos:completos,dias_desde_contacto:g?Math.max(0,parseInt($('#m_dias').value||'0',10)):null,dias_para_compromiso:comp?parseInt($('#m_comp').value||'0',10):null,codigo:$('#m_codigo').value||null,resultado_gestion:$('#m_resultado').value,exigir_autorizacion_canal:ex,tiene_celular:canalesOk?$('#m_cel').checked:null,tiene_fijo:canalesOk?$('#m_fijo').checked:null,tiene_email:canalesOk?$('#m_email').checked:null},aut);}
+let playing=false;
+function renderMotor(step){const h=leerHechos();const R=evaluar(h,$('#m_th').checked);const nombres={CONTACTABLE:'CONTACTABLE',RECORDATORIO:'RECORDATORIO',EN_ESPERA:'EN ESPERA',BLOQUEADA:'BLOQUEADA'};
+ const upto=step===undefined?99:step;let html='';FASES.forEach(([k,t,s],i)=>{const vis=i<=upto;const reached=R.reached[k]&&vis;const stop=R.stop===k&&vis;html+='<div class="phase'+(reached?'':' skip')+(stop?' stop':'')+(vis&&step!==undefined?' reveal':'')+'"><header><b>'+(i+1)+'. '+t+'</b><span>'+s+'</span></header>';
+  RULES.filter(r=>r.f===k).forEach(r=>{const e=R.ev[r.id];const fired=reached&&e&&e.fired;const cls=!reached||!e?'rule ne':'rule'+(fired?' fired'+(r.e.estado==='BLOQUEADA'?' blk':''):'');
+   let pr='';if(reached&&e){pr=e.prem.length?e.prem.map(x=>esc(x.k)+' '+esc(espTxt(x.e))+' · es '+esc(valTxt(x.v))+' <span class="'+(x.ok?'y':'n')+'">'+(x.ok?'sí':'no')+'</span>').join('<br>'):'sin premisas: siempre se cumple';}else pr='no se evalúa';
+   html+='<div class="'+cls+'"><span class="id">'+r.id+(r.p!==undefined?' · prioridad '+r.p:'')+'</span><span>'+esc(r.n)+'</span><span class="pr">'+pr+'</span></div>';});
+  if(k==='canales'&&reached){html+='<div class="chans">'+CANALES.map(c=>'<span class="chan'+(R.quitados[c]?' off':'')+'" title="'+(R.quitados[c]?'quitado por '+R.quitados[c]:'permitido')+'">'+c+(R.quitados[c]?' · '+R.quitados[c]:'')+'</span>').join('')+'</div>';}
+  if(stop)html+='<p class="small" style="color:var(--bad);font-weight:600">Aquí se detiene el razonamiento.</p>';html+='</div>';});
+ $('#m-phases').innerHTML=html;if(step!==undefined&&step<4)return;
+ let res='<div class="big"><span class="pill s-'+R.estado+'">'+nombres[R.estado]+'</span>';if(R.canal)res+='<span>Canal: <b>'+R.canal+'</b></span>';if(R.det)res+='<span class="muted small">Regla determinante: <b class="mono">'+R.det.id+'</b></span>';res+='</div>';
+ if(R.estado==='CONTACTABLE'||R.estado==='RECORDATORIO')res+='<div class="chans">'+CANALES.map(c=>'<span class="chan'+(!R.canales.includes(c)?' off':'')+(c===R.canal?' win':'')+'">'+c+(R.muestras&&R.muestras[c]!==undefined?' · '+fmt(R.muestras[c],3):'')+'</span>').join('')+'</div>';
+ if(R.muestras)res+='<p class="small muted">Regla experta: <b>'+R.canalRegla+'</b> · Thompson: <b>'+R.canal+'</b> (muestras Beta de cada canal permitido).</p>';
+ res+='<p class="expl">'+esc(explicar(R))+'</p>';$('#m-result').innerHTML=res;}
+const PRESETS_M=[
+ ['Cuenta normal',{}],
+ ['Domingo',{m_dia:'domingo'}],
+ ['Contactada hace 3 días',{m_dias:3,m_resultado:'CONTACTO_TITULAR',m_codigo:'CONTACTO SIN ACUERDO'}],
+ ['Compromiso en 1 día',{m_tiene_comp:true,m_comp:1,m_resultado:'ACUERDO',m_codigo:'DIFERIDO'}],
+ ['Compromiso en 10 días',{m_tiene_comp:true,m_comp:10,m_resultado:'ACUERDO',m_codigo:'DIFERIDO'}],
+ ['Promesa incumplida',{m_tiene_comp:true,m_comp:-3,m_resultado:'ACUERDO',m_codigo:'DIFERIDO'}],
+ ['Sin celular',{m_cel:false}],
+ ['Número errado',{m_resultado:'NUMERO_ERRADO',m_email:false}],
+ ['Datos incompletos (L3)',{m_incompleta:true}],
+ ['Fallecido (N1)',{m_codigo:'FALLECIDO'}],
+ ['Exigir autorización',{m_exigir:true,m_a_llamada:'0',m_a_whatsapp:'1',m_a_sms:'0',m_a_email:'1'}]
+];
+const BASE_M={m_dia:'habil',m_codigo:'',m_resultado:'NO_CONTESTA',m_dias:12,m_gestionada:true,m_tiene_comp:false,m_comp:1,m_cel:true,m_fijo:true,m_email:true,m_incompleta:false,m_exigir:false,m_a_llamada:'1',m_a_whatsapp:'1',m_a_sms:'1',m_a_email:'1'};
+function aplicar(obj){Object.entries(Object.assign({},BASE_M,obj)).forEach(([k,v])=>{const el=document.getElementById(k);if(!el)return;if(el.type==='checkbox')el.checked=!!v;else el.value=v;});}
+$('#m-presets').innerHTML=PRESETS_M.map((p,i)=>'<button type="button" class="btn" data-i="'+i+'">'+esc(p[0])+'</button>').join('');
+$$('#m-presets .btn').forEach(b=>b.addEventListener('click',()=>{aplicar(PRESETS_M[+b.dataset.i][1]);renderMotor();}));
+$('#m-form').addEventListener('input',()=>renderMotor());$('#m-form').addEventListener('change',()=>renderMotor());
+$('#m-reseed').addEventListener('click',()=>{mSeed++;renderMotor();});
+$('#m-play').addEventListener('click',()=>{if(playing)return;if(reduceMotion){renderMotor();return;}playing=true;let s=0;$('#m-result').innerHTML='<p class="muted">Razonando…</p>';const tick=()=>{renderMotor(s);s++;if(s<=4)setTimeout(tick,650);else playing=false;};tick();});
+aplicar({});renderMotor();
+
+/* ================================================================ THOMPSON */
+const T_COL={EMAIL:'--g3',SMS:'--g4',WHATSAPP:'--g1',LLAMADA:'--g2'};
+const tState={EMAIL:{e:4,f:46,on:true},SMS:{e:7,f:38,on:true},WHATSAPP:{e:15,f:30,on:true},LLAMADA:{e:22,f:36,on:true}};
+let tSample=null,tSim=null,tSeed=11;
+function buildT(){let h='<tr><th>Canal</th><th class="num">Respuestas r</th><th class="num">Sin respuesta n</th><th class="num">Media</th><th>Permitido</th></tr>';CANALES.forEach(c=>{const s=tState[c];h+='<tr><td><span class="pill" style="background:transparent;border:2px solid var('+T_COL[c]+');color:var(--ink)">'+c+'</span></td><td class="num"><input type="number" min="0" max="500" value="'+s.e+'" data-c="'+c+'" data-k="e" aria-label="Respuestas '+c+'" style="width:78px"></td><td class="num"><input type="number" min="0" max="500" value="'+s.f+'" data-c="'+c+'" data-k="f" aria-label="Sin respuesta '+c+'" style="width:78px"></td><td class="num mono" id="tm-'+c+'"></td><td><label class="check"><input type="checkbox" data-c="'+c+'" data-k="on" '+(s.on?'checked':'')+'> sí</label></td></tr>';});$('#t-table').innerHTML=h;
+ $$('#t-table input').forEach(i=>i.addEventListener('input',()=>{const s=tState[i.dataset.c];if(i.dataset.k==='on')s.on=i.checked;else s[i.dataset.k]=Math.max(0,Math.min(500,parseInt(i.value||'0',10)));tSample=null;tSim=null;renderT();}));}
+function renderT(){const W=640,H=260,L=40,R=12,T=14,B=34;const on=CANALES.filter(c=>tState[c].on);let ymax=0;const curves={};CANALES.forEach(c=>{const a=1+tState[c].e,b=1+tState[c].f;const pts=[];for(let i=1;i<200;i++){const x=i/200;const y=betaPdf(x,a,b);pts.push([x,y]);if(tState[c].on)ymax=Math.max(ymax,y);}curves[c]=pts;$('#tm-'+c).textContent=fmt(a/(a+b),3);});ymax=ymax||1;
+ const X=x=>L+x*(W-L-R),Y=y=>H-B-(y/ymax)*(H-B-T);let s='';for(let i=0;i<=10;i+=2){const x=X(i/10);s+='<line x1="'+x+'" x2="'+x+'" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--line)" stroke-width="1"/><text x="'+x+'" y="'+(H-B+18)+'" font-size="11" text-anchor="middle" fill="var(--muted)">'+(i*10)+' %</text>';}
+ s+='<text x="'+(W-R)+'" y="'+(H-4)+'" font-size="11" text-anchor="end" fill="var(--muted)">tasa de respuesta</text><line x1="'+L+'" x2="'+(W-R)+'" y1="'+(H-B)+'" y2="'+(H-B)+'" stroke="var(--ink2)"/>';
+ CANALES.forEach(c=>{const d=curves[c].map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(Math.min(p[1],ymax*1.05)).toFixed(1)).join(' ');s+='<path d="'+d+'" fill="none" stroke="var('+T_COL[c]+')" stroke-width="'+(tState[c].on?2.4:1.2)+'" '+(tState[c].on?'':'stroke-dasharray="4 4" opacity=".5"')+'/>';});
+ if(tSample){on.forEach(c=>{const x=X(tSample[c]);s+='<line x1="'+x+'" x2="'+x+'" y1="'+T+'" y2="'+(H-B)+'" stroke="var('+T_COL[c]+')" stroke-width="1.5" stroke-dasharray="2 3"/><circle cx="'+x+'" cy="'+(T+6)+'" r="5" fill="var('+T_COL[c]+')"/>';});}
+ $('#t-chart').innerHTML=s;let out='';
+ if(!on.length)out='<p class="callout">Ningún canal permitido: en el motor, la regla N2 bloquearía la cuenta antes de llegar a Thompson.</p>';
+ else if(tSample){const w=on.reduce((a,b)=>tSample[b]>tSample[a]?b:a);out+='<p><span class="win-badge">Gana '+w+'</span> <span class="small muted">'+on.map(c=>c+' '+fmt(tSample[c],3)).join(' · ')+'</span></p>';}
+ if(tSim){out+='<table><tr><th>Canal</th><th>Veces elegido en 1.000 decisiones</th><th class="num">%</th></tr>'+on.map(c=>'<tr><td>'+c+'</td><td><div class="bar"><i style="width:'+(tSim[c]/10)+'%;background:var('+T_COL[c]+')"></i></div></td><td class="num">'+fmt(tSim[c]/10,1)+'</td></tr>').join('')+'</table><p class="note">El mejor canal gana casi siempre, pero los demás siguen recibiendo intentos: así se corrige si la estimación estaba equivocada.</p>';}
+ if(!out)out='<p class="note">Cada curva dice qué tan probable es cada tasa de respuesta. Más gestiones hacen la curva más estrecha: menos incertidumbre.</p>';$('#t-out').innerHTML=out;}
+$('#t-sample').addEventListener('click',()=>{const r=rng(tSeed++*7919);tSample={};CANALES.forEach(c=>{tSample[c]=betaSample(r,1+tState[c].e,1+tState[c].f);});renderT();});
+$('#t-sim').addEventListener('click',()=>{const on=CANALES.filter(c=>tState[c].on);if(!on.length)return renderT();const r=rng(424242+tSeed++);tSim={};on.forEach(c=>tSim[c]=0);for(let i=0;i<1000;i++){let best=null,bv=-1;on.forEach(c=>{const v=betaSample(r,1+tState[c].e,1+tState[c].f);if(v>bv){bv=v;best=c;}});tSim[best]++;}renderT();});
+buildT();renderT();redraws.push(renderT);
+
+/* ================================================================ DIFUSO */
+const FV={saldo:{t:'Saldo (percentil en la cartera)',u:[0,1],st:0.01,s:{bajo:['trap',[0,0,0.2,0.45]],medio:['tri',[0.25,0.5,0.75]],alto:['trap',[0.55,0.8,1,1]]}},
+ dias_mora:{t:'Días de mora',u:[0,3000],st:10,s:{temprana:['trap',[0,0,300,420]],media:['tri',[300,540,900]],antigua:['trap',[720,1200,3000,3000]]}},
+ contactabilidad:{t:'Contactabilidad',u:[0,1],st:0.01,s:{baja:['trap',[0,0,0.45,0.6]],media:['tri',[0.45,0.62,0.8]],alta:['trap',[0.7,0.9,1,1]]}},
+ margen_pct:{t:'Margen negociable',u:[0,0.3],st:0.005,s:{bajo:['trap',[0,0,0.02,0.06]],alto:['trap',[0.04,0.09,0.3,0.3]]}},
+ meses_en_gestion:{t:'Meses en gestión',u:[0,12],st:0.5,s:{pocos:['trap',[0,0,1,2.5]],muchos:['trap',[2,4,12,12]]}}};
+const FO={baja:['trap',[0,0,15,35]],media:['tri',[20,45,70]],alta:['tri',[55,75,90]],urgente:['trap',[80,95,100,100]]};
+const FR=[['D1',{saldo:'alto',dias_mora:'temprana',contactabilidad:'alta'},'urgente'],['D2',{saldo:'alto',dias_mora:'temprana'},'alta'],['D3',{saldo:'alto',dias_mora:'media'},'alta'],['D4',{saldo:'alto',dias_mora:'antigua',margen_pct:'alto'},'media'],['D5',{saldo:'alto',dias_mora:'antigua',margen_pct:'bajo'},'baja'],['D6',{saldo:'medio',dias_mora:'temprana'},'alta'],['D7',{saldo:'medio',dias_mora:'media'},'media'],['D8',{saldo:'medio',dias_mora:'antigua'},'baja'],['D9',{saldo:'bajo',dias_mora:'temprana'},'media'],['D10',{saldo:'bajo',dias_mora:'media'},'baja'],['D11',{saldo:'bajo',dias_mora:'antigua'},'baja'],['D12',{contactabilidad:'baja'},'baja'],['D13',{contactabilidad:'alta',margen_pct:'alto'},'alta'],['D14',{meses_en_gestion:'muchos',contactabilidad:'baja'},'baja']];
+const FNAME={saldo:'saldo',dias_mora:'mora',contactabilidad:'contact.',margen_pct:'margen',meses_en_gestion:'meses'};
+function mf(x,def){const[f,p]=def;if(f==='tri'){const[a,b,c]=p;if(x<a||x>c)return 0;if(x===b)return 1;if(x<b)return b===a?1:(x-a)/(b-a);return c===b?1:(c-x)/(c-b);}const[a,b,c,d]=p;if(x<a||x>d)return 0;if(x>=b&&x<=c)return 1;if(x<b)return(x-a)/(b-a);return(d-x)/(d-c);}
+function difuso(inp){const g={};Object.entries(FV).forEach(([v,d])=>{Object.entries(d.s).forEach(([c,df])=>{g[v+'|'+c]=mf(inp[v],df);});});const fz=FR.map(([id,si,out])=>({id,si,out,f:Math.min(...Object.entries(si).map(([v,c])=>g[v+'|'+c]))}));const ys=[],agg=[];for(let i=0;i<201;i++){const y=i*0.5;ys.push(y);let m=0;fz.forEach(r=>{m=Math.max(m,Math.min(r.f,mf(y,FO[r.out])));});agg.push(m);}const area=agg.reduce((a,b)=>a+b,0);const cen=area>0?agg.reduce((a,m,i)=>a+m*ys[i],0)/area:0;return{g,fz,ys,agg,cen};}
+const fIn={saldo:0.82,dias_mora:260,contactabilidad:0.78,margen_pct:0.1,meses_en_gestion:1};
+const SET_COL=['--g1','--g2','--g3','--g4'];
+function buildF(){$('#f-vars').innerHTML=Object.entries(FV).map(([v,d])=>'<div class="fz-var"><header><b>'+d.t+'</b><output id="fo-'+v+'"></output></header><svg class="chart" id="fs-'+v+'" viewBox="0 0 320 100" role="img" aria-label="Conjuntos de '+d.t+'"></svg><input type="range" id="fi-'+v+'" min="'+d.u[0]+'" max="'+d.u[1]+'" step="'+d.st+'" value="'+fIn[v]+'" aria-label="'+d.t+'"><div class="degs" id="fd-'+v+'"></div></div>').join('');
+ Object.keys(FV).forEach(v=>$('#fi-'+v).addEventListener('input',e=>{fIn[v]=parseFloat(e.target.value);renderF();}));}
+function renderF(){const R=difuso(fIn);Object.entries(FV).forEach(([v,d])=>{const X=x=>8+(x-d.u[0])/(d.u[1]-d.u[0])*304,Y=y=>88-y*76;let s='<line x1="8" x2="312" y1="88" y2="88" stroke="var(--line)"/>';Object.entries(d.s).forEach(([c,df],i)=>{let p='';for(let k=0;k<=160;k++){const x=d.u[0]+(d.u[1]-d.u[0])*k/160;p+=(k?'L':'M')+X(x).toFixed(1)+' '+Y(mf(x,df)).toFixed(1);}s+='<path d="'+p+'" fill="none" stroke="var('+SET_COL[i]+')" stroke-width="2"/>';});const xv=X(fIn[v]);s+='<line x1="'+xv+'" x2="'+xv+'" y1="6" y2="88" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3"/>';$('#fs-'+v).innerHTML=s;
+  const val=v==='saldo'||v==='contactabilidad'?fmt(fIn[v],2):v==='margen_pct'?fmt(fIn[v]*100,1)+' %':fmt(fIn[v],v==='meses_en_gestion'?1:0);$('#fo-'+v).textContent=val;
+  $('#fd-'+v).innerHTML=Object.keys(d.s).map((c,i)=>'<span style="color:var('+SET_COL[i]+')">'+c+' '+fmt(R.g[v+'|'+c],2)+'</span>').join('');});
+ $('#f-rules').innerHTML='<tr><th>Regla</th><th>SI</th><th>ENTONCES</th><th>Fuerza</th></tr>'+R.fz.map(r=>'<tr'+(r.f>0?' class="hl"':'')+'><td class="mono">'+r.id+'</td><td class="small">'+Object.entries(r.si).map(([v,c])=>FNAME[v]+' '+c+' <span class="muted">('+fmt(R.g[v+'|'+c],2)+')</span>').join(' Y ')+'</td><td>'+r.out+'</td><td><div class="bar" title="'+fmt(r.f,2)+'"><i style="width:'+(r.f*100)+'%"></i></div><span class="mono small">'+fmt(r.f,2)+'</span></td></tr>').join('');
+ const W=640,H=240,L=30,Rr=14,T=16,B=34;const X=y=>L+y/100*(W-L-Rr),Y=m=>H-B-m*(H-B-T);let s='';[0,20,40,60,80,100].forEach(t=>{s+='<text x="'+X(t)+'" y="'+(H-B+18)+'" font-size="11" text-anchor="middle" fill="var(--muted)">'+t+'</text>';});
+ Object.entries(FO).forEach(([c,df],i)=>{let p='';for(let k=0;k<=200;k++){const y=k*0.5;p+=(k?'L':'M')+X(y).toFixed(1)+' '+Y(mf(y,df)).toFixed(1);}s+='<path d="'+p+'" fill="none" stroke="var('+SET_COL[i]+')" stroke-width="1.4" opacity=".75"/><text x="'+X(df[1][1]+(df[0]==='trap'?(df[1][2]-df[1][1])/2:0))+'" y="'+(T+2)+'" font-size="11" text-anchor="middle" fill="var('+SET_COL[i]+')">'+c+'</text>';});
+ let poly='M'+X(0)+' '+Y(0);R.agg.forEach((m,i)=>{poly+=' L'+X(R.ys[i]).toFixed(1)+' '+Y(m).toFixed(1);});poly+=' L'+X(100)+' '+Y(0)+' Z';s+='<path d="'+poly+'" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>';
+ s+='<line x1="'+L+'" x2="'+(W-Rr)+'" y1="'+(H-B)+'" y2="'+(H-B)+'" stroke="var(--ink2)"/>';const cx=X(R.cen);s+='<line x1="'+cx+'" x2="'+cx+'" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--ink)" stroke-width="2"/><text x="'+(cx+6)+'" y="'+(T+30)+'" font-size="12" fill="var(--ink)" font-weight="600">centroide '+fmt(R.cen,1)+'</text>';$('#f-out').innerHTML=s;
+ const act=R.fz.filter(r=>r.f>0).map(r=>r.id);$('#f-score').innerHTML='<div class="kpis"><div class="kpi"><b>'+fmt(R.cen,1)+'</b><span>prioridad difusa (0 a 100)</span></div><div class="kpi"><b>'+act.length+' de 14</b><span>reglas activas: '+(act.join(', ')||'ninguna')+'</span></div></div>';}
+const PRESETS_F=[['Mejor caso (D1)',{saldo:0.92,dias_mora:120,contactabilidad:0.95,margen_pct:0.12,meses_en_gestion:0.5}],['Deuda antigua sin margen',{saldo:0.85,dias_mora:1800,contactabilidad:0.62,margen_pct:0.01,meses_en_gestion:6}],['Inubicable varios meses',{saldo:0.5,dias_mora:500,contactabilidad:0.3,margen_pct:0.05,meses_en_gestion:8}],['Caso típico',{saldo:0.5,dias_mora:600,contactabilidad:0.62,margen_pct:0.05,meses_en_gestion:3}]];
+$('#f-presets').innerHTML=PRESETS_F.map((p,i)=>'<button type="button" class="btn" data-i="'+i+'">'+esc(p[0])+'</button>').join('');
+$$('#f-presets .btn').forEach(b=>b.addEventListener('click',()=>{Object.assign(fIn,PRESETS_F[+b.dataset.i][1]);Object.keys(FV).forEach(v=>{$('#fi-'+v).value=fIn[v];});renderF();}));
+buildF();renderF();redraws.push(renderF);
+
+/* ================================================================ TOPSIS */
+const CUENTAS=[
+ {id:'K1A7',saldo:8500000,contactabilidad:0.85,dias_mora:210,margen_pct:0.12,meses_en_gestion:1,piso:5100000,canal:'LLAMADA'},
+ {id:'K2B3',saldo:1200000,contactabilidad:0.50,dias_mora:1500,margen_pct:0.02,meses_en_gestion:6,piso:700000,canal:'EMAIL'},
+ {id:'K3C9',saldo:4300000,contactabilidad:0.75,dias_mora:480,margen_pct:0.08,meses_en_gestion:2,piso:2600000,canal:'WHATSAPP'},
+ {id:'K4D1',saldo:15800000,contactabilidad:0.40,dias_mora:2100,margen_pct:0.15,meses_en_gestion:9,piso:7900000,canal:'SMS'},
+ {id:'K5E6',saldo:2900000,contactabilidad:0.95,dias_mora:120,margen_pct:0.05,meses_en_gestion:1,piso:1900000,canal:'LLAMADA'},
+ {id:'K6F2',saldo:6100000,contactabilidad:0.60,dias_mora:800,margen_pct:0.10,meses_en_gestion:3,piso:3700000,canal:'WHATSAPP'},
+ {id:'K7G8',saldo:950000,contactabilidad:0.70,dias_mora:330,margen_pct:0.01,meses_en_gestion:1,piso:600000,canal:'SMS'},
+ {id:'K8H4',saldo:11200000,contactabilidad:0.55,dias_mora:1100,margen_pct:0.20,meses_en_gestion:5,piso:6200000,canal:'LLAMADA'}];
+const COLS=['saldo','contactabilidad','dias_mora','margen_pct','meses_en_gestion'],PESOS=[0.35,0.25,0.20,0.10,0.10],BEN=[true,true,false,true,false];
+const TASA={EMAIL:0.01,SMS:0.025,WHATSAPP:0.06,LLAMADA:0.15};
+function pctRank(vals){const n=vals.length;return vals.map(v=>{let less=0,eq=0;vals.forEach(w=>{if(w<v)less++;else if(w===v)eq++;});return(less+(eq+1)/2)/n;});}
+function sTopsis(rows){const x=rows.map(r=>COLS.map(c=>r[c]));const norma=COLS.map((_,j)=>Math.sqrt(x.reduce((a,r)=>a+r[j]*r[j],0)));const v=x.map(r=>r.map((val,j)=>(norma[j]>0?val/norma[j]:0)*PESOS[j]));const ideal=COLS.map((_,j)=>BEN[j]?Math.max(...v.map(r=>r[j])):Math.min(...v.map(r=>r[j])));const anti=COLS.map((_,j)=>BEN[j]?Math.min(...v.map(r=>r[j])):Math.max(...v.map(r=>r[j])));return v.map(r=>{const dp=Math.sqrt(r.reduce((a,val,j)=>a+(val-ideal[j])**2,0)),dm=Math.sqrt(r.reduce((a,val,j)=>a+(val-anti[j])**2,0));return{s:dp+dm>0?100*dm/(dp+dm):0,dp,dm};});}
+function sSaw(rows){const x=rows.map(r=>COLS.map(c=>r[c]));const mn=COLS.map((_,j)=>Math.min(...x.map(r=>r[j]))),mx=COLS.map((_,j)=>Math.max(...x.map(r=>r[j])));return x.map(r=>100*r.reduce((a,val,j)=>{const rg=mx[j]>mn[j]?mx[j]-mn[j]:1;let nv=(val-mn[j])/rg;if(!BEN[j])nv=1-nv;return a+nv*PESOS[j];},0));}
+function sFuzzy(rows){const pr=pctRank(rows.map(r=>r.saldo));return rows.map((r,i)=>{const inp={saldo:pr[i]};['dias_mora','contactabilidad','margen_pct','meses_en_gestion'].forEach(v=>{inp[v]=Math.min(FV[v].u[1],Math.max(FV[v].u[0],r[v]));});return difuso(inp).cen;});}
+function calcular3(rows){const t=sTopsis(rows);return{difuso:sFuzzy(rows),topsis:t.map(o=>o.s),ponderado:sSaw(rows),det:t};}
+function ordenar(sc,rows){return rows.map((r,i)=>i).sort((a,b)=>{const d=Math.round(sc[b]*1e6)-Math.round(sc[a]*1e6);if(d)return d;if(rows[b].saldo!==rows[a].saldo)return rows[b].saldo-rows[a].saldo;return rows[a].id<rows[b].id?-1:1;});}
+function perturbar(rows,seed){const r=rng(seed);return rows.map(o=>{const c=Object.assign({},o);COLS.forEach(k=>{c[k]=o[k]*(0.9+0.2*r());});c.contactabilidad=Math.min(1,Math.max(0,c.contactabilidad));return c;});}
+const MET={difuso:'Lógica difusa',topsis:'TOPSIS',ponderado:'Ponderación simple'};
+function renderP(){const K=+$('#p-k').value;const rows=CUENTAS;const sc=calcular3(rows);const valor=rows.map(r=>r.piso*r.contactabilidad*TASA[r.canal]);
+ $('#p-data').innerHTML='<tr><th>Cuenta</th><th class="num">Saldo</th><th class="num">Contact.</th><th class="num">Mora</th><th class="num">Margen</th><th class="num">Meses</th><th>Canal del motor</th><th class="num">Valor esperado</th></tr>'+rows.map((r,i)=>'<tr><td class="mono">'+r.id+'</td><td class="num">'+pesos(r.saldo)+'</td><td class="num">'+fmt(r.contactabilidad,2)+'</td><td class="num">'+r.dias_mora+'</td><td class="num">'+fmt(r.margen_pct*100,0)+' %</td><td class="num">'+r.meses_en_gestion+'</td><td>'+r.canal+'</td><td class="num">'+pesos(valor[i])+'</td></tr>').join('');
+ const ord={},cola={};Object.keys(MET).forEach(m=>{ord[m]=ordenar(sc[m],rows);cola[m]=new Set(ord[m].slice(0,K));});const pos={};Object.keys(MET).forEach(m=>{pos[m]={};ord[m].forEach((i,p)=>pos[m][i]=p+1);});
+ $('#p-rank').innerHTML='<tr><th>Cuenta</th>'+Object.values(MET).map(n=>'<th class="num">'+n+'</th>').join('')+'</tr>'+ord.topsis.map(i=>'<tr><td class="mono">'+rows[i].id+'</td>'+Object.keys(MET).map(m=>'<td class="num"'+(cola[m].has(i)?' style="background:var(--accent-soft);font-weight:600"':'')+'>'+fmt(sc[m][i],1)+' <span class="muted">#'+pos[m][i]+'</span></td>').join('')+'</tr>').join('')+'<tr><td colspan="4" class="note">Sombreado: entra en la cola del día (las K primeras de cada método).</td></tr>';
+ const reps=[0,1,2,3,4].map(r=>calcular3(perturbar(rows,7+r)));const met={};Object.keys(MET).forEach(m=>{const jac=reps.map(rp=>{const otra=new Set(ordenar(rp[m],rows).slice(0,K));let inter=0;cola[m].forEach(i=>{if(otra.has(i))inter++;});const uni=new Set([...cola[m],...otra]).size;return inter/uni;});const cl=[...cola[m]];met[m]={recaudo:cl.reduce((a,i)=>a+valor[i],0),robustez:jac.reduce((a,b)=>a+b,0)/jac.length,disc:new Set(cl.map(i=>Math.round(sc[m][i]*100)/100)).size/cl.length};});
+ const mejor=Math.max(...Object.values(met).map(v=>v.recaudo))||1;Object.values(met).forEach(v=>{v.rel=v.recaudo/mejor;v.p=0.6*v.rel+0.25*v.robustez+0.15*v.disc;});const win=Object.keys(met).reduce((a,b)=>met[b].p>met[a].p?b:a);
+ $('#p-arb').innerHTML='<tr><th>Método</th><th class="num">Recaudo@'+K+'</th><th class="num">Relativo</th><th class="num">Robustez</th><th class="num">Discrim.</th><th class="num">Puntaje</th></tr>'+Object.keys(MET).map(m=>'<tr'+(m===win?' class="hl"':'')+'><td>'+MET[m]+'</td><td class="num">'+pesos(met[m].recaudo)+'</td><td class="num">'+fmt(met[m].rel,2)+'</td><td class="num">'+fmt(met[m].robustez,2)+'</td><td class="num">'+fmt(met[m].disc,2)+'</td><td class="num"><b>'+fmt(met[m].p,3)+'</b></td></tr>').join('');
+ $('#p-win').innerHTML='<p><span class="win-badge">Método elegido: '+MET[win]+'</span></p><p class="note">Robustez: se perturban los datos ±10 % cinco veces y se compara la cola con Jaccard (intersección / unión). Cambie K para ver cómo cambia el ganador.</p>';
+ const W=900,H=300,L=70,Rr=20,T=14,B=30;const n=rows.length;const bh=(H-T-B)/n;const mx=Math.max(...sc.det.map(d=>Math.max(d.dp,d.dm)));const X=v=>L+v/mx*((W-L-Rr)/2-30);let s='';const mid=L+(W-L-Rr)/2;
+ s+='<text x="'+(L)+'" y="'+(T-2)+'" font-size="11" fill="var(--muted)">d⁺ distancia a la ideal (menor es mejor)</text><text x="'+(mid+10)+'" y="'+(T-2)+'" font-size="11" fill="var(--muted)">d⁻ distancia a la peor (mayor es mejor)</text>';
+ ord.topsis.forEach((i,k)=>{const y=T+k*bh+4;const d=sc.det[i];s+='<text x="'+(L-8)+'" y="'+(y+bh/2+1)+'" font-size="12" text-anchor="end" fill="var(--ink)" dominant-baseline="middle">'+rows[i].id+'</text>';s+='<rect x="'+L+'" y="'+y+'" width="'+(X(d.dp)-L)+'" height="'+(bh-10)+'" rx="3" fill="var(--g2)"/><rect x="'+(mid+10)+'" y="'+y+'" width="'+(X(d.dm)-L)+'" height="'+(bh-10)+'" rx="3" fill="var(--g1)"/><text x="'+(W-Rr)+'" y="'+(y+bh/2-3)+'" font-size="12" text-anchor="end" fill="var(--ink)" dominant-baseline="middle" font-weight="600">C = '+fmt(d.s/100,3)+'</text>';});
+ $('#p-topsis').innerHTML=s;}
+$('#p-k').addEventListener('input',renderP);renderP();redraws.push(renderP);
+
+/* ================================================================ SEGMENTACIÓN */
+const SEG_COL=['--g1','--g2','--g3','--g4','--g5','--g6'];
+const pts=(function(){const r=rng(2026);const centers=[[-1.5,1.1],[1.3,1.2],[0.1,-1.3],[1.7,-0.5]];const out=[];centers.forEach((c,ci)=>{const n=[52,40,48,36][ci];for(let i=0;i<n;i++)out.push([c[0]+normal(r)*0.42,c[1]+normal(r)*0.38]);});const mx=[0,1].map(j=>out.reduce((a,p)=>a+p[j],0)/out.length),sd=[0,1].map(j=>Math.sqrt(out.reduce((a,p)=>a+(p[j]-mx[j])**2,0)/out.length));return out.map(p=>[(p[0]-mx[0])/sd[0],(p[1]-mx[1])/sd[1]]);})();
+const d2=(a,b)=>(a[0]-b[0])**2+(a[1]-b[1])**2;
+function kpp(k,r){const c=[pts[Math.floor(r()*pts.length)].slice()];while(c.length<k){const ds=pts.map(p=>Math.min(...c.map(q=>d2(p,q))));const tot=ds.reduce((a,b)=>a+b,0);let t=r()*tot,i=0;while(t>ds[i]){t-=ds[i];i++;}c.push(pts[Math.min(i,pts.length-1)].slice());}return c;}
+function asignar(c){return pts.map(p=>{let b=0,bd=Infinity;c.forEach((q,i)=>{const d=d2(p,q);if(d<bd){bd=d;b=i;}});return b;});}
+function mover(lab,k,prev){return Array.from({length:k},(_,i)=>{const m=pts.filter((_,j)=>lab[j]===i);return m.length?[m.reduce((a,p)=>a+p[0],0)/m.length,m.reduce((a,p)=>a+p[1],0)/m.length]:prev[i];});}
+function inercia(lab,c){return pts.reduce((a,p,i)=>a+d2(p,c[lab[i]]),0);}
+function kmeansFull(k,seed){let best=null;for(let s=0;s<10;s++){const r=rng(seed*100+s);let c=kpp(k,r),lab=asignar(c);for(let it=0;it<100;it++){c=mover(lab,k,c);const nl=asignar(c);if(nl.every((v,i)=>v===lab[i])){lab=nl;break;}lab=nl;}const J=inercia(lab,c);if(!best||J<best.J)best={lab,c,J};}return best;}
+function silueta(lab,k){const n=pts.length;let tot=0;for(let i=0;i<n;i++){const sums=new Array(k).fill(0),cnt=new Array(k).fill(0);for(let j=0;j<n;j++){if(i===j)continue;const d=Math.sqrt(d2(pts[i],pts[j]));sums[lab[j]]+=d;cnt[lab[j]]++;}const own=lab[i];if(cnt[own]===0)continue;const a=sums[own]/cnt[own];let b=Infinity;for(let c=0;c<k;c++)if(c!==own&&cnt[c])b=Math.min(b,sums[c]/cnt[c]);tot+=(b-a)/Math.max(a,b);}return tot/n;}
+function chdb(lab,c,k){const n=pts.length;const mu=[pts.reduce((a,p)=>a+p[0],0)/n,pts.reduce((a,p)=>a+p[1],0)/n];let B=0,Wt=0;const sI=new Array(k).fill(0),cnt=new Array(k).fill(0);pts.forEach((p,i)=>{Wt+=d2(p,c[lab[i]]);sI[lab[i]]+=Math.sqrt(d2(p,c[lab[i]]));cnt[lab[i]]++;});for(let i=0;i<k;i++){B+=cnt[i]*d2(c[i],mu);sI[i]=cnt[i]?sI[i]/cnt[i]:0;}const CH=(B/(k-1))/(Wt/(n-k));let DB=0;for(let i=0;i<k;i++){let m=0;for(let j=0;j<k;j++)if(i!==j){const dij=Math.sqrt(d2(c[i],c[j]));if(dij>0)m=Math.max(m,(sI[i]+sI[j])/dij);}DB+=m;}return{CH,DB:DB/k};}
+const SIL={};for(let k=2;k<=6;k++){const b=kmeansFull(k,k);SIL[k]=silueta(b.lab,k);}
+const silBest=Math.max(...Object.values(SIL));const kElegido=Math.min(...Object.keys(SIL).map(Number).filter(k=>SIL[k]>=silBest-0.01));
+let sk=4,sC=null,sLab=null,sIter=0,sPhase='assign',sConv=false,sSeed=1;
+function sReset(){const r=rng(9000+sSeed++);sC=kpp(sk,r);sLab=null;sIter=0;sPhase='assign';sConv=false;drawS();}
+function sAssign(){const nl=asignar(sC);sConv=sLab&&nl.every((v,i)=>v===sLab[i]);sLab=nl;sPhase='update';drawS();}
+function sUpdate(){if(!sLab)sLab=asignar(sC);sC=mover(sLab,sk,sC);sIter++;sPhase='assign';drawS();}
+let sTimer=null;function sRun(){if(sTimer)return;const step=()=>{if(sPhase==='assign')sAssign();else sUpdate();if(sConv||sIter>60){sTimer=null;drawS();return;}sTimer=setTimeout(step,reduceMotion?0:260);};step();}
+function drawS(){const cv=$('#s-cv');if(!cv||$('#segmentacion').hidden)return;const w=cv.clientWidth||600;const h=Math.round(Math.min(460,Math.max(300,w*0.72)));const dpr=window.devicePixelRatio||1;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+'px';const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+ const pad=34,X=v=>pad+(v+2.6)/5.2*(w-pad*1.4),Y=v=>h-pad-(v+2.6)/5.2*(h-pad*1.6);x.strokeStyle=tok('--line');x.lineWidth=1;for(let g=-2;g<=2;g++){x.beginPath();x.moveTo(X(g),Y(-2.6));x.lineTo(X(g),Y(2.6));x.stroke();x.beginPath();x.moveTo(X(-2.6),Y(g));x.lineTo(X(2.6),Y(g));x.stroke();}
+ x.fillStyle=tok('--muted');x.font='11px "IBM Plex Mono", monospace';x.fillText('log(saldo) estandarizado →',pad,h-10);x.save();x.translate(12,h-pad);x.rotate(-Math.PI/2);x.fillText('log(mora) estandarizado →',0,0);x.restore();
+ pts.forEach((p,i)=>{x.beginPath();x.arc(X(p[0]),Y(p[1]),4,0,Math.PI*2);x.fillStyle=sLab?tok(SEG_COL[sLab[i]]):tok('--muted');x.globalAlpha=sLab?0.85:0.5;x.fill();x.globalAlpha=1;});
+ sC.forEach((c,i)=>{const cx=X(c[0]),cy=Y(c[1]);x.lineWidth=4;x.strokeStyle=tok('--bg');x.beginPath();x.moveTo(cx-9,cy-9);x.lineTo(cx+9,cy+9);x.moveTo(cx+9,cy-9);x.lineTo(cx-9,cy+9);x.stroke();x.lineWidth=2.5;x.strokeStyle=tok(SEG_COL[i]);x.stroke();});
+ const J=sLab?inercia(sLab,sC):null;let extra='';if(sLab&&sk>1){const s=silueta(sLab,sk);const m=chdb(sLab,sC,sk);extra='<div class="kpi"><b>'+fmt(s,3)+'</b><span>silueta</span></div><div class="kpi"><b>'+fmt(m.CH,0)+'</b><span>Calinski-Harabasz</span></div><div class="kpi"><b>'+fmt(m.DB,3)+'</b><span>Davies-Bouldin</span></div>';}
+ $('#s-kpis').innerHTML='<div class="kpi"><b>'+sIter+'</b><span>iteraciones'+(sConv?' · convergió':'')+'</span></div><div class="kpi"><b>'+(J===null?'—':fmt(J,1))+'</b><span>inercia J</span></div>'+extra;
+ $('#s-assign').classList.toggle('primary',sPhase==='assign'&&!sTimer);$('#s-update').classList.toggle('primary',sPhase==='update'&&!sTimer);$('#s-run').classList.toggle('primary',!!0);drawSil();}
+function drawSil(){const W=420,H=190,L=34,T=18,B=28;const bw=(W-L-10)/5;const mx=Math.max(...Object.values(SIL))*1.15;let s='';Object.keys(SIL).forEach((k,i)=>{const v=SIL[k];const bh=v/mx*(H-T-B);const x=L+i*bw+8,y=H-B-bh;const on=+k===kElegido;s+='<rect x="'+x+'" y="'+y+'" width="'+(bw-16)+'" height="'+bh+'" rx="3" fill="var('+(on?'--accent':'--surface2')+')" stroke="var('+(+k===sk?'--ink':'--line')+')"/><text x="'+(x+(bw-16)/2)+'" y="'+(y-5)+'" font-size="11" text-anchor="middle" fill="var(--ink)">'+fmt(v,3)+'</text><text x="'+(x+(bw-16)/2)+'" y="'+(H-B+16)+'" font-size="11" text-anchor="middle" fill="var(--muted)">k='+k+'</text>';});const yb=H-B-(silBest-0.01)/mx*(H-T-B);s+='<line x1="'+L+'" x2="'+(W-6)+'" y1="'+yb+'" y2="'+yb+'" stroke="var(--amber)" stroke-dasharray="4 3"/><text x="'+(W-6)+'" y="'+(yb-4)+'" font-size="10" text-anchor="end" fill="var(--amber)">mejor − 0,01</text><line x1="'+L+'" x2="'+(W-6)+'" y1="'+(H-B)+'" y2="'+(H-B)+'" stroke="var(--ink2)"/>';$('#s-sil').innerHTML=s;$('#s-silnote').textContent='Con estos datos el sistema elegiría k = '+kElegido+': el menor k cuya silueta queda a menos de 0,01 de la mejor (parsimonia).';}
+$('#s-k').addEventListener('input',e=>{sk=+e.target.value;$('#s-kv').textContent=sk;sReset();});
+$('#s-assign').addEventListener('click',sAssign);$('#s-update').addEventListener('click',sUpdate);$('#s-run').addEventListener('click',sRun);$('#s-reset').addEventListener('click',sReset);
+{const r=rng(9000);sC=kpp(sk,r);}
+onShow.segmentacion=drawS;redraws.push(drawS);if(window.ResizeObserver)new ResizeObserver(()=>drawS()).observe($('#s-cv'));
+
+/* ================================================================ PROPENSIÓN */
+const DATA=(function(){const r=rng(777);const out=[];const CH=['LLAMADA','WHATSAPP','SMS','EMAIL'],CP=[0.35,0.3,0.2,0.15],EF={LLAMADA:0.6,WHATSAPP:0.3,SMS:-0.2,EMAIL:-0.8};for(let i=0;i<720;i++){const day=Math.floor(r()*84);const mora0=30+r()*2300;const mora=mora0+day;const saldo=13.2+normal(r)*0.8;const canales=1+Math.floor(r()*3);let u=r(),ci=0;while(u>CP[ci]){u-=CP[ci];ci++;}const canal=CH[Math.min(ci,3)];const logit=-0.55-0.0011*mora+0.25*(canales-2)+EF[canal]-0.35*(saldo-13.2)-1.1*(day/84);const p=1/(1+Math.exp(-logit));out.push({day,mora,saldo,canales,canal,y:r()<p?1:0});}return out;})();
+function feats(d){return[d.mora,d.saldo,d.canales,d.canal==='LLAMADA'?1:0,d.canal==='WHATSAPP'?1:0,d.canal==='SMS'?1:0,d.canal==='EMAIL'?1:0];}
+function entrenar(tr){const X=tr.map(feats);const m=X[0].map((_,j)=>X.reduce((a,r)=>a+r[j],0)/X.length);const s=X[0].map((_,j)=>Math.sqrt(X.reduce((a,r)=>a+(r[j]-m[j])**2,0)/X.length)||1);const Z=X.map(r=>r.map((v,j)=>(v-m[j])/s[j]));let w=new Array(Z[0].length).fill(0),b=0;const pos=tr.reduce((a,d)=>a+d.y,0),neg=tr.length-pos;const cw1=tr.length/(2*pos),cw0=tr.length/(2*neg);for(let it=0;it<500;it++){const gw=new Array(w.length).fill(0);let gb=0;Z.forEach((z,i)=>{const p=1/(1+Math.exp(-(b+z.reduce((a,v,j)=>a+v*w[j],0))));const cw=tr[i].y?cw1:cw0;const e=(p-tr[i].y)*cw;gb+=e;z.forEach((v,j)=>gw[j]+=e*v);});w=w.map((v,j)=>v-0.3*(gw[j]/Z.length+0.001*v));b-=0.3*gb/Z.length;}return d=>{const z=feats(d).map((v,j)=>(v-m[j])/s[j]);return 1/(1+Math.exp(-(b+z.reduce((a,v,j)=>a+v*w[j],0))));};}
+function auc(y,p){const idx=p.map((v,i)=>i).sort((a,b)=>p[a]-p[b]);const rk=new Array(p.length);let i=0;while(i<idx.length){let j=i;while(j+1<idx.length&&p[idx[j+1]]===p[idx[i]])j++;const r=(i+j)/2+1;for(let k=i;k<=j;k++)rk[idx[k]]=r;i=j+1;}const n1=y.reduce((a,b)=>a+b,0),n0=y.length-n1;if(!n1||!n0)return 0.5;const s=y.reduce((a,v,i)=>a+(v?rk[i]:0),0);return(s-n1*(n1+1)/2)/(n1*n0);}
+function ksCurves(y,p){const idx=p.map((v,i)=>i).sort((a,b)=>p[a]-p[b]);const n1=y.reduce((a,b)=>a+b,0),n0=y.length-n1;let c1=0,c0=0,ks=0,at=0;const pts1=[],pts0=[];idx.forEach((i,k)=>{if(y[i])c1++;else c0++;const f1=c1/n1,f0=c0/n0;pts1.push([(k+1)/idx.length,f1]);pts0.push([(k+1)/idx.length,f0]);if(Math.abs(f1-f0)>ks){ks=Math.abs(f1-f0);at=k;}});return{ks,at,pts1,pts0};}
+function psi(e,o){const s=e.slice().sort((a,b)=>a-b);const q=t=>s[Math.min(s.length-1,Math.floor(t*(s.length-1)))];const edges=[-Infinity];for(let i=1;i<10;i++)edges.push(q(i/10));edges.push(Infinity);const hist=a=>{const h=new Array(10).fill(0);a.forEach(v=>{for(let i=0;i<10;i++)if(v>=edges[i]&&v<edges[i+1]){h[i]++;break;}});return h.map(c=>Math.max(1e-6,c/a.length));};const pe=hist(e),po=hist(o);return pe.reduce((a,v,i)=>a+(po[i]-v)*Math.log(po[i]/v),0);}
+function captura(y,p){const n=Math.max(1,Math.floor(y.length*0.2));const idx=p.map((v,i)=>i).sort((a,b)=>p[b]-p[a]).slice(0,n);const tot=y.reduce((a,b)=>a+b,0);return tot?idx.reduce((a,i)=>a+y[i],0)/tot:0;}
+function evaluarSplit(modo){let tr,va;if(modo==='temporal'){const days=DATA.map(d=>d.day).sort((a,b)=>a-b);const corte=days[Math.round(0.75*(days.length-1))];tr=DATA.filter(d=>d.day<corte);va=DATA.filter(d=>d.day>=corte);}else{const r=rng(31);const sh=DATA.map(d=>[r(),d]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);const c=Math.floor(sh.length*0.75);tr=sh.slice(0,c);va=sh.slice(c);}
+ const f=entrenar(tr);const pv=va.map(f),pt=tr.map(f),yv=va.map(d=>d.y);const k=ksCurves(yv,pv);return{tr,va,pv,yv,auc:auc(yv,pv),ks:k.ks,kc:k,brier:pv.reduce((a,p,i)=>a+(p-yv[i])**2,0)/pv.length,psi:psi(pt,pv),cap:captura(yv,pv),rate:yv.reduce((a,b)=>a+b,0)/yv.length,mean:pv.reduce((a,b)=>a+b,0)/pv.length};}
+const RES={temporal:evaluarSplit('temporal'),azar:evaluarSplit('azar')};let rModo='temporal';
+function rocPts(y,p){const idx=p.map((v,i)=>i).sort((a,b)=>p[b]-p[a]);const n1=y.reduce((a,b)=>a+b,0),n0=y.length-n1;let tp=0,fp=0;const out=[[0,0]];idx.forEach(i=>{if(y[i])tp++;else fp++;out.push([fp/n0,tp/n1]);});return out;}
+function renderR(){const R=RES[rModo];$('#r-temporal').classList.toggle('primary',rModo==='temporal');$('#r-azar').classList.toggle('primary',rModo==='azar');
+ const trS=new Set(R.tr);const W=900,H=120,L=10,Rr=10;const X=d=>L+d/84*(W-L-Rr);let s='';for(let w=0;w<=12;w++){const x=X(w*7);s+='<line x1="'+x+'" x2="'+x+'" y1="8" y2="96" stroke="var(--line)"/><text x="'+x+'" y="112" font-size="10" text-anchor="middle" fill="var(--muted)">sem '+w+'</text>';}
+ const jr=rng(5);DATA.forEach(d=>{const x=X(d.day+jr()*0.9);const y=d.y?14+jr()*28:56+jr()*36;s+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="2" height="6" fill="var('+(trS.has(d)?'--accent':'--amber')+')" opacity=".8"/>';});$('#r-time').innerHTML=s;
+ $('#r-kpis').innerHTML=[['AUC',fmt(R.auc,3),'capacidad de ordenar'],['KS',fmt(R.ks,3),'separación máxima'],['Brier',fmt(R.brier,3),'calibración (menor es mejor)'],['PSI',fmt(R.psi,3),'estabilidad (menor es mejor)'],['Captura 20 %',fmt(R.cap*100,1)+' %','de los acuerdos en el 20 % superior'],['Tasa real vs predicha',fmt(R.rate*100,1)+' % / '+fmt(R.mean*100,1)+' %','en validación']].map(k=>'<div class="kpi"><b>'+k[1]+'</b><span>'+k[0]+' · '+k[2]+'</span></div>').join('');
+ const S=300,P=34;const XX=v=>P+v*(360-P-12),YY=v=>S-P-v*(S-P-12);let roc='<line x1="'+XX(0)+'" y1="'+YY(0)+'" x2="'+XX(1)+'" y2="'+YY(1)+'" stroke="var(--line)" stroke-dasharray="4 4"/>';const rp=rocPts(R.yv,R.pv);roc+='<path d="'+rp.map((p,i)=>(i?'L':'M')+XX(p[0]).toFixed(1)+' '+YY(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2.4"/><line x1="'+XX(0)+'" x2="'+XX(1)+'" y1="'+YY(0)+'" y2="'+YY(0)+'" stroke="var(--ink2)"/><line x1="'+XX(0)+'" x2="'+XX(0)+'" y1="'+YY(0)+'" y2="'+YY(1)+'" stroke="var(--ink2)"/><text x="'+XX(1)+'" y="'+(S-8)+'" font-size="11" text-anchor="end" fill="var(--muted)">falsos positivos</text><text x="'+(XX(0)+6)+'" y="'+(YY(1)+10)+'" font-size="11" fill="var(--muted)">verdaderos positivos</text><text x="'+XX(0.62)+'" y="'+YY(0.3)+'" font-size="13" fill="var(--ink)" font-weight="600">AUC '+fmt(R.auc,3)+'</text>';$('#r-roc').innerHTML=roc;
+ const k=R.kc;let ks='<path d="M'+XX(0)+' '+YY(0)+' '+k.pts1.map(p=>'L'+XX(p[0]).toFixed(1)+' '+YY(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="var(--g1)" stroke-width="2.2"/><path d="M'+XX(0)+' '+YY(0)+' '+k.pts0.map(p=>'L'+XX(p[0]).toFixed(1)+' '+YY(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="var(--g2)" stroke-width="2.2"/>';const a=k.pts1[k.at],b=k.pts0[k.at];ks+='<line x1="'+XX(a[0])+'" x2="'+XX(b[0])+'" y1="'+YY(a[1])+'" y2="'+YY(b[1])+'" stroke="var(--ink)" stroke-width="2"/><text x="'+(XX(a[0])+6)+'" y="'+((YY(a[1])+YY(b[1]))/2)+'" font-size="12" fill="var(--ink)" font-weight="600">KS '+fmt(k.ks,3)+'</text><line x1="'+XX(0)+'" x2="'+XX(1)+'" y1="'+YY(0)+'" y2="'+YY(0)+'" stroke="var(--ink2)"/><text x="'+XX(1)+'" y="'+(S-8)+'" font-size="11" text-anchor="end" fill="var(--muted)">cuentas ordenadas por probabilidad →</text><text x="'+(XX(0)+6)+'" y="'+(YY(1)+10)+'" font-size="11" fill="var(--g1)">acumulado de quienes pagaron</text><text x="'+(XX(0)+6)+'" y="'+(YY(1)+26)+'" font-size="11" fill="var(--g2)">acumulado de quienes no pagaron</text>';
+ $('#r-ks').innerHTML=ks;
+ const T=RES.temporal,A=RES.azar;$('#r-cmp').innerHTML='<tr><th>Métrica</th><th class="num">Por fecha</th><th class="num">Al azar</th></tr>'+[['AUC','auc',3],['KS','ks',3],['Brier','brier',3],['PSI','psi',3]].map(m=>'<tr><td>'+m[0]+'</td><td class="num">'+fmt(T[m[1]],m[2])+'</td><td class="num">'+fmt(A[m[1]],m[2])+'</td></tr>').join('')+'<tr><td>Tasa real / predicha en validación</td><td class="num">'+fmt(T.rate*100,1)+' % / '+fmt(T.mean*100,1)+' %</td><td class="num">'+fmt(A.rate*100,1)+' % / '+fmt(A.mean*100,1)+' %</td></tr>';
+ $('#r-cmpnote').textContent='En estos datos la tasa de acuerdo baja con las semanas y la mora crece con el tiempo. Validar por fecha revela que el modelo sobrestima el futuro (predice más acuerdos de los que hay) y que la población cambió (PSI mayor). Al azar, esas diferencias se esconden.';}
+$('#r-temporal').addEventListener('click',()=>{rModo='temporal';renderR();});$('#r-azar').addEventListener('click',()=>{rModo='azar';renderR();});renderR();redraws.push(renderR);
+
+/* ================================================================ PLAN */
+const PL=[[1,420],[2,380],[3,510],[4,150],[5,300],[6,460],[7,90],[8,350],[9,280],[10,60],[11,240],[12,330]].map(([p,v])=>({pos:p,id:'K'+String(p).padStart(2,'0'),valor:v*1000}));
+const GES=['G1','G2','G3'],GCOL=['--g1','--g2','--g3'];
+function serp(cupo){const sel=PL.slice(0,3*cupo);const as={G1:[],G2:[],G3:[]};sel.forEach((c,i)=>{const v=Math.floor(i/3),l=i%3;const g=GES[v%2===0?l:2-l];as[g].push(c);});return as;}
+function opt(cupo){const sel=PL.slice().sort((a,b)=>b.valor-a.valor||a.pos-b.pos).slice(0,3*cupo);const as={G1:[],G2:[],G3:[]};sel.forEach((c,i)=>{as[GES[i%3]].push(c);});return as;}
+function panelPlan(t,as,other,note){const all=Object.values(as).flat();const tot=all.reduce((a,c)=>a+c.valor,0);const inOther=new Set(Object.values(other).flat().map(c=>c.id));let h='<h3>'+t+'</h3><div class="gl">';GES.forEach((g,i)=>{const cs=as[g];h+='<div class="grow"><b style="color:var('+GCOL[i]+')">'+g+'</b><div class="slots">'+cs.map(c=>'<span class="slot'+(inOther.has(c.id)?'':' only')+'">#'+c.pos+' · '+pesos(c.valor)+'</span>').join('')+'<span class="small muted" style="align-self:center">Σ posiciones '+cs.reduce((a,c)=>a+c.pos,0)+' · '+pesos(cs.reduce((a,c)=>a+c.valor,0))+'</span></div></div>';});h+='</div><p><b>Valor esperado total: '+pesos(tot)+'</b></p><p class="note">'+note+'</p>';return{h,tot};}
+function renderPl(){const cupo=+$('#pl-cupo').value;$('#pl-cv').textContent=cupo;const s=serp(cupo),o=opt(cupo);const A=panelPlan('Serpentina: justa',s,o,'Toma las primeras '+(3*cupo)+' por posición. En cada par de vueltas todos suman lo mismo: los resultados de los gestores se comparan con justicia.');const B=panelPlan('Óptimo: máximo recaudo',o,s,'Elige las '+(3*cupo)+' de mayor valor esperado. Como el valor no depende del gestor, cualquier reparto de esas cuentas da el mismo total; el solver devuelve uno de ellos.');$('#pl-serp').innerHTML=A.h;$('#pl-opt').innerHTML=B.h;const mx=Math.max(A.tot,B.tot);$('#pl-cmp').innerHTML='<h3>Lo que guarda el plan: los dos valores, se use el que se use</h3><table><tr><th>Método</th><th>Valor esperado</th><th class="num">Total</th></tr><tr><td>Serpentina</td><td><div class="bar"><i style="width:'+(A.tot/mx*100)+'%;background:var(--g3)"></i></div></td><td class="num">'+pesos(A.tot)+'</td></tr><tr><td>Óptimo</td><td><div class="bar"><i style="width:'+(B.tot/mx*100)+'%"></i></div></td><td class="num">'+pesos(B.tot)+'</td></tr></table><p class="callout">Diferencia: <b>'+pesos(B.tot-A.tot)+'</b>. El óptimo nunca es menor. Recuadro ámbar: cuenta que solo entra con ese método. La serpentina es justa, el óptimo maximiza: el sistema muestra cuánto cuesta la justicia.</p>';}
+$('#pl-cupo').addEventListener('input',renderPl);renderPl();
+
+/* ================================================================ GESTIÓN */
+const CON_CONTACTO=['ACUERDO','CONTACTO_TITULAR','REINTENTAR','CUELGA'],COMPROMISO=['DIFERIDO','PAGO TOTAL','POSIBLE NEGOCIACION','DEBITO'];
+function renderG(){const v=id=>$(id).value;const g={sentido:v('#g_sentido'),canal:v('#g_canal'),resultado:v('#g_resultado'),codigo:v('#g_codigo'),valor:parseFloat(v('#g_valor')||'0'),comp:parseInt(v('#g_comp')||'0',10),prox:parseInt(v('#g_prox')||'0',10),obs:v('#g_obs')};const hora=+v('#g_hora');$('#g_horav').textContent=String(hora).padStart(2,'0')+':00';const dia=v('#g_dia');const franja={habil:[7,19],sabado:[8,15],domingo:null,festivo:null}[dia];const reloj=Math.abs(parseFloat(v('#g_reloj')||'0'));const enFranja=!!franja&&hora>=franja[0]&&hora<franja[1];const enHorario=enFranja&&reloj<=10;const estado=v('#g_estado');const perm=CANALES.filter(c=>$('#g_p_'+c).checked);const piso=parseFloat(v('#g_min')||'0'),techo=Math.max(parseFloat(v('#g_max')||'0'),0);const sal=g.sentido==='SALIENTE';
+ const R=[
+ ['G1','error','Día y horario (Ley 2300)',sal&&!enHorario?(enFranja?'El reloj del servidor difiere '+reloj+' min de la base (más de 10): no se puede confiar en la hora, se rechaza por precaución.':'Un contacto saliente solo puede hacerse en día hábil y dentro del horario permitido. Si el titular se comunicó, regístrela como entrante.'):null],
+ ['G2','error','Bloqueo del motor',sal&&estado==='BLOQUEADA'?'El motor bloquea hoy el contacto con esta cuenta.':null],
+ ['G3','error','Canal permitido',sal&&(estado==='CONTACTABLE'||estado==='RECORDATORIO')&&!perm.includes(g.canal)?'El canal '+g.canal+' no está permitido. Permitidos: '+(perm.join(', ')||'ninguno')+'.':null],
+ ['G4','aviso','Compromiso vigente',sal&&estado==='EN_ESPERA'?'La cuenta tiene un compromiso vigente: se guardará, pero conviene justificarlo.':null],
+ ['G5','error','Sin contacto, solo localización',!CON_CONTACTO.includes(g.resultado)&&g.resultado!=='FALLECIDO'&&g.codigo!=='POSIBLE LOCALIZACION'?'Sin contacto con el titular el código solo puede ser POSIBLE LOCALIZACION.':null],
+ ['G6','error','Acuerdo y código van juntos',COMPROMISO.includes(g.codigo)!==(g.resultado==='ACUERDO')?'El resultado "acuerdo" y un código de compromiso van juntos.':null],
+ ['G7','error','Fallecimiento coherente',(g.resultado==='FALLECIDO')!==(g.codigo==='FALLECIDO')?'El resultado y el código de fallecimiento van juntos.':null],
+ ['G8','error','Banda de negociación y plazo',COMPROMISO.includes(g.codigo)?(!g.valor?'Un acuerdo requiere valor y fecha.':g.valor<piso?'El valor acordado ('+pesos(g.valor)+') está por debajo del mínimo autorizado ('+pesos(piso)+').':g.valor>techo?'El valor supera el máximo cobrable ('+pesos(techo)+').':(g.comp<0||g.comp>30)?'La fecha del compromiso debe estar entre hoy y los próximos 30 días.':null):null],
+ ['G9','aviso','Frecuencia de la próxima gestión',g.prox<7&&!COMPROMISO.includes(g.codigo)?'La próxima gestión queda antes de 7 días: la regla de frecuencia la bloqueará.':null],
+ ['G10','error','Observación obligatoria',g.obs.trim().length<10?'La observación es obligatoria (al menos 10 caracteres).':null]];
+ const errs=R.filter(r=>r[3]&&r[1]==='error'),avs=R.filter(r=>r[3]&&r[1]==='aviso');
+ $('#g-rules').innerHTML=R.map(r=>{const st=!r[3]?'ok':r[1]==='error'?'err':'warn';return'<div class="gr '+st+'"><b>'+r[0]+'</b><span class="st">'+(st==='ok'?'cumple':st==='err'?'ERROR':'AVISO')+'</span><div><div>'+esc(r[2])+'</div>'+(r[3]?'<div class="small">'+esc(r[3])+'</div>':'')+'</div></div>';}).join('');
+ $('#g-verdict').innerHTML=errs.length?'<div class="big"><span class="pill s-BLOQUEADA">NO SE GUARDA</span><span>'+errs.length+' error'+(errs.length>1?'es':'')+': '+errs.map(r=>r[0]).join(', ')+'</span></div><p class="expl">validar() devuelve los errores y registrar() lanza la excepción antes de escribir nada.</p>':'<div class="big"><span class="pill s-CONTACTABLE">SE GUARDA</span>'+(avs.length?'<span>con aviso'+(avs.length>1?'s':'')+': '+avs.map(r=>r[0]).join(', ')+'</span>':'<span>sin avisos</span>')+'</div><p class="expl">'+(g.sentido==='ENTRANTE'?'Es entrante: el titular se comunicó, así que G1 a G4 no aplican. ':'')+'Pasa a la transacción de abajo.</p>';
+ renderTx(!errs.length);}
+function renderTx(ok){const fail=$('#g_fail').checked;const steps=['BEGIN','INSERT INTO gestiones (…)','UPDATE cartera SET fecha_ultima_gestion, codigo, compromiso… WHERE carga y crédito','DELETE FROM reservas WHERE la cuenta','COMMIT'];let h='';if(!ok){h='<div class="rollback">Las reglas rechazaron la gestión: no se abre la transacción.</div>';}else if(fail){h='<div>BEGIN</div><div class="undone">INSERT INTO gestiones (…)</div><div class="fail">UPDATE cartera … → 0 filas: la cuenta no existe (LookupError)</div><div class="rollback">ROLLBACK: la gestión insertada se deshace; nada queda a medias.</div>';}else{h=steps.map((s,i)=>'<div class="'+(i===steps.length-1?'commit':'')+'">'+s+'</div>').join('');}$('#g-tx').innerHTML=h;}
+$('#g-form').addEventListener('input',renderG);$('#g-form').addEventListener('change',renderG);$('#g_fail').addEventListener('change',renderG);renderG();
+const SEQ={bad:[['SELECT: ¿K5E6 está libre?','','Sí, libre'],['','SELECT: ¿K5E6 está libre?','Sí, libre (A todavía no escribe)'],['UPDATE reserva K5E6 = A','','OK'],['','UPDATE reserva K5E6 = B','OK: pisa la de A'],['Trabaja K5E6','Trabaja K5E6','Dos gestores con la misma cuenta','bad']],
+ good:[['INSERT K5E6 = A ON CONFLICT DO UPDATE WHERE vence &lt; NOW()','','Fila creada: K5E6 es de A por 20 min'],['','INSERT K5E6 = B ON CONFLICT …','Conflicto: la reserva de A sigue vigente → 0 filas'],['','Prueba la siguiente: K3C9','Fila creada: K3C9 es de B'],['Trabaja K5E6','Trabaja K3C9','Cada gestor con una cuenta distinta','good']]};
+let qMode='good',qTimer=null;
+function renderQ(n){const rows=SEQ[qMode];const k=n===undefined?rows.length:n;let h='<div class="h">Gestor A</div><div class="h">Gestor B</div><div class="h">Base de datos</div>';rows.slice(0,k).forEach(r=>{const cls=r[3]?' '+r[3]:'';h+=(r[0]?'<div class="c reveal'+cls+'">'+r[0]+'</div>':'<div class="e"></div>')+(r[1]?'<div class="c reveal'+cls+'">'+r[1]+'</div>':'<div class="e"></div>')+'<div class="c reveal'+cls+'">'+r[2]+'</div>';});$('#q-seq').innerHTML=h;$('#q-bad').classList.toggle('primary',qMode==='bad');$('#q-good').classList.toggle('primary',qMode==='good');}
+function playQ(m){qMode=m;clearTimeout(qTimer);if(reduceMotion){renderQ();return;}let i=0;const t=()=>{renderQ(++i);if(i<SEQ[m].length)qTimer=setTimeout(t,700);};renderQ(0);qTimer=setTimeout(t,200);}
+$('#q-bad').addEventListener('click',()=>playQ('bad'));$('#q-good').addEventListener('click',()=>playQ('good'));renderQ();
+
+/* ================================================================ DATOS */
+const hex=b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+const cs=(window.crypto&&window.crypto.subtle)||null;
+async function sha(t){return hex(await cs.digest('SHA-256',new TextEncoder().encode(t)));}
+async function hmac(k,t){const key=await cs.importKey('raw',new TextEncoder().encode(k),{name:'HMAC',hash:'SHA-256'},false,['sign']);return hex(await cs.sign('HMAC',key,new TextEncoder().encode(t)));}
+async function renderH(){if(!cs){$('#h_pseudo').textContent='(no disponible)';$('#h_hmac').textContent='Este navegador no expone la criptografía nativa en esta vista.';$('#h_sha').textContent='—';return;}const ced=$('#h_ced').value.trim(),key=$('#h_key').value;const hm=await hmac(key,ced);$('#h_hmac').textContent=hm;$('#h_pseudo').textContent='C'+hm.slice(0,12).toUpperCase();$('#h_sha').textContent=await sha(ced);}
+$('#h_ced').addEventListener('input',renderH);$('#h_key').addEventListener('input',renderH);renderH();
+$('#h_out').innerHTML='<p class="muted small">El atacante solo tiene el SHA-256 simple de arriba.</p>';
+$('#h_attack').addEventListener('click',async()=>{if(!cs)return;const ced=$('#h_ced').value.trim();if(!/^\d{7,10}$/.test(ced)){$('#h_out').innerHTML='<p class="callout">Use una cédula de 7 a 10 dígitos.</p>';return;}const objetivo=await sha(ced);const pref=ced.slice(0,ced.length-4);const t0=performance.now();$('#h_out').innerHTML='<p>Probando '+pref+'0000 a '+pref+'9999…</p>';let found=null,n=0;for(let i=0;i<10000;i++){const c=pref+String(i).padStart(4,'0');n++;if(await sha(c)===objetivo){found=c;break;}if(i%1000===999)$('#h_out').innerHTML='<p>Probadas '+(i+1).toLocaleString('es-CO')+'…</p>';}const ms=Math.round(performance.now()-t0);$('#h_out').innerHTML=found?'<div class="big"><span class="pill s-BLOQUEADA">REVERTIDO</span><span>Cédula encontrada: <b class="mono">'+found+'</b></span></div><p class="expl">'+n.toLocaleString('es-CO')+' intentos en '+ms.toLocaleString('es-CO')+' ms, en su navegador. Con los diez mil millones de cédulas posibles, un equipo dedicado lo logra en minutos.</p>':'<p>No se encontró en el rango probado.</p>';});
+
+/* ---------------------------------------------------------------- inicio */
+let inicial='mapa';try{const h=(location.hash||'').replace('#','');if(TABS.includes(h))inicial=h;}catch(e){}
+show(inicial);
+})();
+</script>

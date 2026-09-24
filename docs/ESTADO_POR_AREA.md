@@ -182,9 +182,11 @@ python -m decision.priorizacion --no-guardar
 - Plan de trabajo diario repartido en serpentina o con el reparto óptimo, y
   avance por gestor.
 - Traza de trabajo por gestor y por cuenta.
-- Aplicación web con 15 pantallas y menú por rol.
-- Prueba automática de las 15 pantallas con los tres roles, y plan de pruebas
+- Aplicación web con 16 pantallas y menú por rol.
+- Prueba automática de las 16 pantallas con los tres roles, y plan de pruebas
   conjuntas.
+- Laboratorio de algoritmos para el administrador: los motores funcionando en
+  vivo en una página completa, para presentar el sistema.
 - Reserva de la cuenta entregada por *Siguiente cuenta*, para que dos gestores
   sin plan no reciban la misma, con prueba de concurrencia real.
 - Registrar obligaciones nuevas desde la aplicación, sin una carga completa.

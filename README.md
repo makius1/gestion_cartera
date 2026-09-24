@@ -479,6 +479,7 @@ Cada rol ve solo las pantallas que le corresponden:
 | Obligaciones: registrar un crédito puntual sin una carga completa | | ✅ | ✅ |
 | Auditoría: bitácora de acciones | | ✅ | ✅ |
 | Usuarios: crear, cambiar rol, desactivar, restablecer | | | ✅ |
+| Laboratorio de algoritmos: los motores funcionando en vivo, para presentar el sistema | | | ✅ |
 | Mi cuenta: cambio de contraseña | ✅ | ✅ | ✅ |
 
 ### Seguridad de acceso
@@ -637,7 +638,8 @@ uso, sin tocar los datos existentes.
 ├── app/
 │   ├── principal.py            Punto de entrada: ingreso y menú según el rol
 │   ├── comun.py                Sesión, control de acceso, caché y formatos
-│   └── paginas/                Una pantalla por archivo (15 pantallas)
+│   ├── paginas/                Una pantalla por archivo (16 pantallas)
+│   └── recursos/laboratorio.html  Laboratorio interactivo de algoritmos (lo muestra la pantalla Laboratorio)
 ├── pruebas/
 │   ├── prueba_aplicacion.py    Pantallas y permisos por rol, ingreso, plan, gestión y autorización
 │   ├── prueba_reglas_motor.py  Cada una de las 21 reglas, con un caso que dispara y otro que no
