@@ -112,12 +112,6 @@ DATABASE_URL="sqlite:///salidas/personal.db" python -m datos.base_datos sintetic
 - Fundamento legal de cada regla revisado contra la Ley 2300 y la Ley 1581.
 - Canal de contacto elegido con muestreo de Thompson sobre la respuesta
   observada, con reglas E1 a E5 y E9 como referencia cuando no hay historial.
-- Simulación de historial de gestiones con causa conocida para entrenar el
-  modelo (issue #11).
-- Uso de la probabilidad de pago del modelo en la priorización, con
-  comparación de recaudo esperado con y sin modelo (issue #13).
-- Asignación óptima de cuentas a gestores con programación lineal entera,
-  comparada contra la serpentina (issue #14).
 
 ### Pendiente
 
@@ -150,14 +144,16 @@ python -m motor.elegibilidad --fecha 2026-09-15 --no-guardar
 - Fase 4: modelos de propensión a pagar (regresión logística, CART, bosque
   aleatorio y Gradient Boosting), validados por fecha y elegidos por AUC, KS,
   Brier y PSI.
+- Simulación de historial de gestiones con causa conocida para entrenar el
+  modelo (issue #11).
+- Uso de la probabilidad de pago del modelo en la priorización, con
+  comparación de recaudo esperado con y sin modelo (issue #13).
+- Asignación óptima de cuentas a gestores con programación lineal entera,
+  comparada contra la serpentina (issue #14).
 
 ### Pendiente
 
-| Prioridad | Tarea |
-|---|---|
-| Alta | Fase 4: simular un historial de pagos con causas conocidas para entrenar (en revisión, PR #42) |
-| Media | Usar la probabilidad de pago como criterio de la priorización |
-| Media | Fase 5: asignar cuentas a gestores con programación lineal entera (con Sean) |
+Sin pendientes por ahora.
 
 ### Comandos de revisión
 
@@ -188,6 +184,12 @@ python -m decision.priorizacion --no-guardar
   sin plan no reciban la misma, con prueba de concurrencia real.
 - Registrar obligaciones nuevas desde la aplicación, sin una carga completa.
 - Cambiar el texto de la pantalla de ingreso por uno sobre la administración de la información.
+
+### Pendiente
+
+| Prioridad | Tarea |
+|---|---|
+| Alta | Registrar y revocar la autorización de canales desde la aplicación (#40) |
 
 ### Comandos de revisión
 
